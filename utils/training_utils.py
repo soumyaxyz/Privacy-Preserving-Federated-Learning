@@ -6,17 +6,19 @@ import torch
 from tqdm import tqdm
 import wandb
 
-def wandb_init(comment= '', model_name="CNN_1", dataset_name="CIFAR_10", lr ='', optimizer = ''):
+def wandb_init(
+    project="Ferderated-CIFAR_10", 
+    entity="soumyabanerjee", 
+    model_name="CNN_1", 
+    dataset_name="CIFAR_10",
+    comment= '',  
+    lr ='', 
+    optimizer = ''
+    ):    
     wandb.login()
     wandb.init(
-      project="Ferderated-CIFAR_10", entity="soumyabanerjee",
-      config={
-        "learning_rate": lr,
-        "optimiser": optimizer,
-        "comment" : comment,
-        "model": model_name,
-        "dataset": dataset_name,
-      }
+      project=project, entity=entity,
+      config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}
     )
 
 
@@ -25,6 +27,9 @@ def get_device():
       return torch.device("cuda")
     else:
       return torch.device("cpu")
+
+def print_info(device):
+    print(f"Training on {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def save_model(net, optim, path ='./cifar_net.pth'):
     torch.save({'model_state_dict': net.state_dict(),
@@ -39,12 +44,10 @@ def load_model(net, optim, path ='./cifar_net.pth'):
 def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
-
 def set_parameters(net, parameters: List[np.ndarray]):
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
-
 
 def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEVICE = get_device()):
     """Train the network on the training set."""
@@ -70,7 +73,6 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEV
     # print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return epoch_loss, epoch_acc
 
-
 def test(net, testloader, DEVICE = get_device() ):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -88,8 +90,7 @@ def test(net, testloader, DEVICE = get_device() ):
     accuracy = correct / total
     return loss, accuracy
 
-
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False):
+def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=True, wandb_logging=True):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
@@ -110,11 +111,11 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
                 break
         else:
             train_loss, train_acc = train_single_epoch(net, trainloader, optimizer, criterion) 
-            wandb.log({"train_acc": train_acc, "train_loss": train_loss})       
             loss, accuracy = test(net, valloader)
 
-        
-        wandb.log({"acc": accuracy,"loss": loss})
+        if wandb_logging:
+            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss})
+            
         if verbose:
             print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
     return net, optimizer

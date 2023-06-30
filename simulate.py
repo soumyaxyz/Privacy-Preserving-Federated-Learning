@@ -11,8 +11,7 @@ import pdb
 
 
 # The `evaluate` function will be by Flower called after every round
-def evaluate(
-    server_round: int,
+def evaluate( server_round: int,
     parameters: fl.common.NDArrays,
     config: Dict[str, fl.common.Scalar],
 ) -> Optional[Tuple[float, Dict[str, fl.common.Scalar]]]:
@@ -61,7 +60,10 @@ def run_for_n_rounds(num_rounds, num_clients, net, trainloaders, valloaders):
     wandb.finish()
 
 
-if __name__ == "__main__":       
+if __name__ == "__main__":
+    from inspect import currentframe, getframeinfo
+    frameinfo = getframeinfo(currentframe())
+    print(frameinfo.filename, frameinfo.lineno)       
 
     DEVICE = get_device()
     print(
@@ -70,7 +72,7 @@ if __name__ == "__main__":
 
 
 
-    num_clientss = 5
+    num_clients = 5
     trainloaders, valloaders, testloader , valloader_all = load_datasets(num_clients)
     net = Net().to(DEVICE)
     for i in range(1):
