@@ -2,7 +2,6 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import CIFAR10
 from utils.training_utils import *
-from utils.models import basicCNN as Net
 
 import pdb,traceback
 
@@ -90,17 +89,7 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
 
 
-
-
-class Client_function_wrapper_class():
-    """docstring for ClassName"""
-    def __init__(self, trainloaders, valloaders):
-        # super(ClassName, self).__init__()
-        self.trainloaders = trainloaders
-        self.valloaders = valloaders
-
-    def client_fn(self, cid) -> FlowerClient:
-        net = Net().to(DEVICE)
-        trainloader = self.trainloaders[int(cid)]
-        valloader = self.valloaders[int(cid)]
-        return FlowerClient(cid, net, trainloader, valloader)
+def client_fn(cid, net, trainloaders, valloaders) -> FlowerClient:    
+    trainloader = trainloaders[int(cid)]
+    valloader = valloaders[int(cid)]
+    return FlowerClient(cid, net, trainloader, valloader)

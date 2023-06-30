@@ -3,31 +3,10 @@ from typing import Dict, List, Optional, Tuple
 import flwr as fl
 import wandb
 import torch
-from utils.client_utils import load_datasets#, Client_function_wrapper_class
-from utils.training_utils import get_parameters
+from utils.client_utils import load_datasets, client_fn
+from utils.training_utils import wandb_init, get_device, get_parameters, set_parameters, test
 from utils.models import basicCNN as Net
-import utils.client_utils as client_utils
-
-
-DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
-print(
-    f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
-)
-
-
-def wandb_init(comment= '', lr ='', optimizer = '', model_name="CNN_1", dataset_name="CIFAR_10"):
-    wandb.login()
-    wandb.init(
-      project="Ferderated-CIFAR_10", entity="soumyabanerjee",
-      config={
-        "learning_rate": lr,
-        "optimiser": optimizer,
-        "comment" : comment,
-        "model": model_name,
-        "dataset": dataset_name,
-      }
-    )
-
+import pdb
 
 
 
@@ -42,39 +21,57 @@ def evaluate(
     set_parameters(net, parameters)  # Update model with the latest parameters
     loss, accuracy = test(net, valloader)
     print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
-    # wandb.log({"acc": accuracy, "loss": loss})
+    wandb.log({"acc": accuracy, "loss": loss})
     return loss, {"accuracy": accuracy}
 
+def get_info(num_clients, device, net):
+    client_resources = None
+    if device.type == "cuda":
+        client_resources = {"num_gpus": 1}
+    model_name = net.__class__.__name__
+    comment = 'Ferderated_'+str(num_clients)+'_'+model_name
 
-client_resources = None
-if DEVICE.type == "cuda":
-    client_resources = {"num_gpus": 1}
+    return client_resources, model_name, comment
 
 
-def run_for_epoch(num_rounds = 50, num_client=10):
-    # wandb_init(comment= 'Ferderated_'+str(num_client))
+def run_for_n_rounds(num_rounds, num_clients, net, trainloaders, valloaders):
+
+    client_resources, model_name, comment =  get_info(num_clients,DEVICE, net)
+    wandb_init(comment, model_name)
+
     strategy = fl.server.strategy.FedAvg(
         fraction_fit=0.3,
         fraction_evaluate=0.3,
-        min_fit_clients= min(3,num_client),
-        min_evaluate_clients=min(3,num_client),
-        min_available_clients=num_client,
+        min_fit_clients= min(3,num_clients),
+        min_evaluate_clients=min(3,num_clients),
+        min_available_clients=num_clients,
         initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(Net())),
         evaluate_fn=evaluate,  # Pass the evaluation function
     )
-    c = client_utils.Client_function_wrapper_class(trainloaders, valloaders)
+    
 
     fl.simulation.start_simulation(
-        client_fn=c.client_fn(),
-        num_clients=num_client,
+        client_fn= lambda cid: client_fn(cid, net, trainloaders, valloaders),
+        num_clients=num_clients,
         config=fl.server.ServerConfig(num_rounds=num_rounds),  # Just three rounds
         strategy=strategy,
         client_resources=client_resources,
     )
 
-    # wandb.finish()
+    wandb.finish()
 
-NUM_CLIENTS = 5
-trainloaders, valloaders, testloader , valloader_all = load_datasets(NUM_CLIENTS)
-for i in range(3):
-    run_for_epoch(5,NUM_CLIENTS)
+
+if __name__ == "__main__":       
+
+    DEVICE = get_device()
+    print(
+        f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
+    )
+
+
+
+    num_clientss = 5
+    trainloaders, valloaders, testloader , valloader_all = load_datasets(num_clients)
+    net = Net().to(DEVICE)
+    for i in range(1):
+        run_for_n_rounds(5, num_clients, net, trainloaders, valloaders)

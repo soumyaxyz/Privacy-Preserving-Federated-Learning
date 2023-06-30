@@ -6,6 +6,26 @@ import torch
 from tqdm import tqdm
 import wandb
 
+def wandb_init(comment= '', model_name="CNN_1", dataset_name="CIFAR_10", lr ='', optimizer = ''):
+    wandb.login()
+    wandb.init(
+      project="Ferderated-CIFAR_10", entity="soumyabanerjee",
+      config={
+        "learning_rate": lr,
+        "optimiser": optimizer,
+        "comment" : comment,
+        "model": model_name,
+        "dataset": dataset_name,
+      }
+    )
+
+
+def get_device():
+    if torch.cuda.is_available():
+      return torch.device("cuda")
+    else:
+      return torch.device("cpu")
+
 def save_model(net, optim, path ='./cifar_net.pth'):
     torch.save({'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optim.state_dict()
@@ -26,7 +46,7 @@ def set_parameters(net, parameters: List[np.ndarray]):
     net.load_state_dict(state_dict, strict=True)
 
 
-def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEVICE = "cpu"):
+def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEVICE = get_device()):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
@@ -51,7 +71,7 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEV
     return epoch_loss, epoch_acc
 
 
-def test(net, testloader, DEVICE = "cpu"):
+def test(net, testloader, DEVICE = get_device() ):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
