@@ -218,4 +218,5 @@ def test_shadow_model(target_model, shadow_model, testloader, criterion = None, 
             achieved_outputs = shadow_model(images)
             loss += criterion(achieved_outputs, expected_outputs).item()            
     loss /= len(testloader.dataset)
-    return loss, 
+    return loss
+

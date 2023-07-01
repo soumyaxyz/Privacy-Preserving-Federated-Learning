@@ -21,8 +21,8 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
     for ds in datasets:
         len_val = len(ds) // val_percent  # 10 % validation set
         len_train = len(ds) - len_val
-        sun_lengths = [len_train, len_val]
-        ds_train, ds_val = random_split(ds, sun_lengths, torch.Generator().manual_seed(42))
+        lengths = [len_train, len_val]
+        ds_train, ds_val = random_split(ds, lengths, torch.Generator().manual_seed(42))
         try:            
             trainloaders.append(DataLoader(ds_train, batch_size, shuffle=True))
             valloaders.append(DataLoader(ds_val, batch_size))

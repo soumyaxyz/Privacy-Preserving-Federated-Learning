@@ -16,3 +16,4 @@ def load_datasets(dataset_name = 'CIFAR10'):
         return trainset, testset = load_CIFAR10()
     else:
         raise NotImplementedError
+    
