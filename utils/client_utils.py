@@ -1,23 +1,8 @@
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import CIFAR10
+from utils.datasets import *
 from utils.training_utils import *
 
 import pdb,traceback
-
-
-    
-
-def load_CIFAR10():
-    # Download and transform CIFAR-10 (train and test)
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
-    trainset = CIFAR10("./dataset", train=True, download=True, transform=transform)
-    testset = CIFAR10("./dataset", train=False, download=True, transform=transform)
-
-    return trainset, testset
-
 
 def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32): 
 
@@ -32,7 +17,7 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
     # Split each partition into train/val and create DataLoader
     trainloaders = []
     valloaders = []
-    val_dataset = []
+    val_datasets = []
     for ds in datasets:
         len_val = len(ds) // val_percent  # 10 % validation set
         len_train = len(ds) - len_val
@@ -46,18 +31,14 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
             pdb.set_trace()
 
         
-        val_dataset.append(ds_val)
+        val_datasets.append(ds_val)
     testloader = DataLoader(testset, batch_size)
-    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_dataset), batch_size)
+    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size)
     return trainloaders, valloaders, testloader, unsplit_valloader
 
 def load_datasets(num_clients: int, val_percent = 10, batch_size=32, dataset_name = 'CIFAR10'):
-    if dataset_name == 'CIFAR10':
-        trainset, testset = load_CIFAR10()
-        # pdb.set_trace()
-        return split_dataset(trainset, testset, num_clients, val_percent, batch_size)
-    else:
-        raise NotImplementedError
+    trainset, testset = load_datasets()
+    return split_dataset(trainset, testset, num_clients, val_percent, batch_size)
 
 
         

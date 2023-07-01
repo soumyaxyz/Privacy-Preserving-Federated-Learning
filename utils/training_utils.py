@@ -110,6 +110,11 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
         else:
             train_loss, train_acc = train_single_epoch(net, trainloader, optimizer, criterion) 
             loss, accuracy = test(net, valloader)
+            if loss_min > loss:
+                patience = 0
+                loss_min = loss
+            else:
+                patience -= 1
 
         if wandb_logging:
             wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
@@ -118,5 +123,99 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
         else:
             pbar.update(1)  
-            pbar.set_description(f"t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+            pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+    if not verbose:
+        pbar.close()
     return net, optimizer
+
+def train_shadow_model(target_model, shadow_model, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):
+     
+    #  Train a shadow model using a target model and a given dataset.
+     
+    #  Args:
+    #      target_model (nn.Module): The target model to train the shadow model against.
+    #      shadow_model (nn.Module): The shadow model to train.
+    #      trainloader (DataLoader): The training data loader.
+    #      valloader (DataLoader): The validation data loader.
+    #      epochs (int): The number of epochs to train the shadow model.
+    #      optimizer (torch.optim.Optimizer, optional): The optimizer to use for training. If None, Adam optimizer will be used.
+    #      criterion (nn.Module, optional): The loss function to use. If None, MSELoss will be used.
+    #      verbose (bool, optional): Whether to print verbose output during training. Default is False.
+    #      wandb_logging (bool, optional): Whether to log training metrics to Weights & Biases. Default is True.
+     
+     
+     
+
+    if not criterion:
+        criterion = torch.nn.MSELoss()
+    if not optimizer:
+        optimizer = torch.optim.Adam(net.parameters())
+        # optimizer = optim.SGD(shadow_model.parameters(), lr=0.01)
+
+    # Split the dataset into training set and validation set
+    train_data, val_data = split_dataset(dataset)
+    
+    patience = 5
+    loss_min = 100000 # Inf
+    # Training loop
+    if not verbose:
+        pbar = tqdm(total=epochs)
+    for epoch in range(epochs):
+        if patience<= 0:
+                load_model(net, optimizer)
+                val_loss = test_shadow_model(target_model, shadow_model, valloader, criterion, DEVICE)
+                break
+        else:
+            # Training phase        
+            shadow_model.train()
+            target_model.eval()
+            epoch_loss =  0.0
+            # Forward pass through both the models
+            for images, _ in trainloader:
+                images = images.to(DEVICE)
+                optimizer.zero_grad()
+                expected_outputs = target_model(images)
+                achieved_outputs = shadow_model(images)
+                loss = criterion(achieved_outputs, expected_outputs)
+                loss.backward()
+                optimizer.step()
+                # Metrics
+                epoch_loss += loss
+            epoch_loss /= len(trainloader.dataset)
+            if loss_min > loss:
+                patience = 0
+                loss_min = loss
+            else:
+                patience -= 1
+
+        # Validation phase
+        val_loss = test_shadow_model(target_model, shadow_model, valloader, criterion, DEVICE)
+
+        # Print the validation loss and metric
+        print(f"Validation Loss: {val_loss.item()}, Metric: {val_metric}")
+        
+        if wandb_logging:
+            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
+
+        if verbose:
+            print(f"Epoch {epoch+1}: train loss {epoch_loss}, val loss: {val_loss}")
+        else:
+            pbar.update(1)  
+            pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, v_loss: {loss:.4f}")
+    if not verbose:
+        pbar.close()
+
+def test_shadow_model(target_model, shadow_model, testloader, criterion = None, DEVICE = get_device()):
+    """Evaluate the model similirity on the entire test set."""
+    criterion = torch.nn.CrossEntropyLoss()
+    loss = 0.0
+    target_model.eval()
+    shadow_model.eval()
+    with torch.no_grad():
+        for images, _ in testloader:
+            images = images.to(DEVICE)
+            expected_outputs = target_model(images)
+            achieved_outputs = shadow_model(images)
+            loss += criterion(achieved_outputs, expected_outputs).item()            
+    loss /= len(testloader.dataset)
+    return loss, 

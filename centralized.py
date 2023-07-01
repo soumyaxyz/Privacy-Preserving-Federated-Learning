@@ -4,7 +4,7 @@ import flwr as fl
 import wandb
 import torch
 from utils.client_utils import load_datasets
-from utils.training_utils import wandb_init,  print_info, get_device, get_parameters, train, test
+from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test
 from utils.models import basicCNN as Net
 import argparse
 
