@@ -6,4 +6,4 @@ Run simulate.py to simulate federated learning
 
 Use weights and biases api key when prompted
 
-For instructions: python filename.py -h
+For instructions: python <filename>.py -h
