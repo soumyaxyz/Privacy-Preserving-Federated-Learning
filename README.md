@@ -1,4 +1,4 @@
-# Privacy Preverving Federated Learning
+# Privacy Preserving Federated Learning
 
 Run centrailzed.py to execute a centralized run
 
