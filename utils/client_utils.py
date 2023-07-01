@@ -6,11 +6,7 @@ from utils.training_utils import *
 import pdb,traceback
 
 
-DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
-print(
-    f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
-)
-
+    
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)

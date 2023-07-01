@@ -90,7 +90,7 @@ def test(net, testloader, DEVICE = get_device() ):
     accuracy = correct / total
     return loss, accuracy
 
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=True, wandb_logging=True):
+def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
@@ -101,10 +101,8 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     loss_min = 100000 # Inf
 
     if not verbose:
-        iterrator = tqdm(range(epochs))
-    else:
-        iterrator = range(epochs)
-    for epoch in iterrator:
+        pbar = tqdm(total=epochs)
+    for epoch in range(epochs):
         if patience<= 0:
                 load_model(net, optimizer)
                 loss, accuracy = test(net, valloader)
@@ -114,8 +112,11 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             loss, accuracy = test(net, valloader)
 
         if wandb_logging:
-            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss})
-            
+            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
+
         if verbose:
             print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
+        else:
+            pbar.update(1)  
+            pbar.set_description(f"t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
     return net, optimizer
