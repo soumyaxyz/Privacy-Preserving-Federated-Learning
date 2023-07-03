@@ -5,9 +5,10 @@ import flwr as fl
 import torch
 from tqdm import tqdm
 import wandb
+import pdb,traceback
 
 def wandb_init(
-    project="Ferderated-CIFAR_10", 
+    project="Privacy-Preverving-Ferderated-Learning", 
     entity="soumyabanerjee", 
     model_name="CNN_1", 
     dataset_name="CIFAR_10",
@@ -28,18 +29,24 @@ def get_device():
     else:
       return torch.device("cpu")
 
-def print_info(device):
-    print(f"Training on {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+def print_info(device, model_name="model", dataset_name="dataset"):
+    print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
-def save_model(net, optim, path ='./cifar_net.pth'):
-    torch.save({'model_state_dict': net.state_dict(),
+def save_model(net, optim = None, filename ='filename'):
+    path = './saved_models/'+filename+'.pt'
+    if optim:
+        torch.save({'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optim.state_dict()
             }, path)
+    else:
+        torch.save({'model_state_dict': net.state_dict()}, path)
 
-def load_model(net, optim, path ='./cifar_net.pth'):
+def load_model(net, optim, filename ='filename'):
+    path = './saved_models/'+filename+'.pt'
     checkpoint = torch.load(path)
     net.load_state_dict(checkpoint['model_state_dict'])
-    optim.load_state_dict(checkpoint['optimizer_state_dict'])
+    if optim:
+        optim.load_state_dict(checkpoint['optimizer_state_dict'])
 
 def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
@@ -99,20 +106,29 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
 
     patience = 5
     loss_min = 100000 # Inf
+    savefilename = net.__class__.__name__
 
     if not verbose:
         pbar = tqdm(total=epochs)
     for epoch in range(epochs):
         if patience<= 0:
-                load_model(net, optimizer)
+                try:
+                    
+                    load_model(net, optimizer, savefilename)
+                except Exception as e:
+                    print(traceback.print_exc())
+                    pdb.set_trace()
+
                 loss, accuracy = test(net, valloader)
+                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
                 break
         else:
             train_loss, train_acc = train_single_epoch(net, trainloader, optimizer, criterion) 
             loss, accuracy = test(net, valloader)
-            if loss_min > loss:
-                patience = 0
+            if loss_min > loss: # validation loss improved
+                patience = 5
                 loss_min = loss
+                save_model(net, optimizer, savefilename)
             else:
                 patience -= 1
 
