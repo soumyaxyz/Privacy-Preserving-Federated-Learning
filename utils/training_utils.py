@@ -72,7 +72,7 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEV
         loss.backward()
         optimizer.step()
         # Metrics
-        epoch_loss += loss
+        epoch_loss += loss.item()
         total += labels.size(0)
         correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
     epoch_loss /= len(trainloader.dataset)
@@ -108,20 +108,28 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     loss_min = 100000 # Inf
     savefilename = net.__class__.__name__
 
+    record_mode = False
+
     if not verbose:
         pbar = tqdm(total=epochs)
     for epoch in range(epochs):
-        if patience<= 0:
-                try:
-                    
-                    load_model(net, optimizer, savefilename)
-                except Exception as e:
-                    print(traceback.print_exc())
-                    pdb.set_trace()
+        if record_mode:
+            wandb.log({"acc": accuracy,"loss": loss})
+            pbar.update(1)
+        elif patience<= 0:
+            try:
+                
+                load_model(net, optimizer, savefilename)
+            except Exception as e:
+                print(traceback.print_exc())
+                pdb.set_trace()
 
-                loss, accuracy = test(net, valloader)
-                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
-                break
+            loss, accuracy = test(net, valloader)
+            wandb.log({"acc": accuracy,"loss": loss}) 
+            pbar.update(1)  
+            pbar.set_description(f"Early stopped, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+            # break
+            record_mode = True
         else:
             train_loss, train_acc = train_single_epoch(net, trainloader, optimizer, criterion) 
             loss, accuracy = test(net, valloader)
@@ -132,14 +140,14 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             else:
                 patience -= 1
 
-        if wandb_logging:
-            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
+            if wandb_logging:
+                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
 
-        if verbose:
-            print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
-        else:
-            pbar.update(1)  
-            pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+            if verbose:
+                print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
+            else:
+                pbar.update(1)  
+                pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
     if not verbose:
         pbar.close()
     return net, optimizer
