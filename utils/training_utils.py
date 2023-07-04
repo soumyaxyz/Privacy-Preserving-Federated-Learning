@@ -114,7 +114,8 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
         pbar = tqdm(total=epochs)
     for epoch in range(epochs):
         if record_mode:
-            wandb.log({"acc": accuracy,"loss": loss})
+            if wandb_logging:
+                wandb.log({"acc": accuracy,"loss": loss})
             pbar.update(1)
         elif patience<= 0:
             try:
