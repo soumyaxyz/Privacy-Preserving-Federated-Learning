@@ -6,6 +6,7 @@ import torch
 from utils.client_utils import load_datasets, client_fn
 from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
 from utils.models import basicCNN as Net
+from utils.server_utils import post_round_evaluate_function
 import pdb
 import argparse
 
@@ -50,18 +51,7 @@ class Simulator(object):
         
 
     # The `evaluate` function will be by Flower called after every round
-    def evaluate(self, server_round: int,
-        parameters: fl.common.NDArrays,
-        config: Dict[str, fl.common.Scalar],
-    ) -> Optional[Tuple[float, Dict[str, fl.common.Scalar]]]:
-        net = Net().to(self.device)
-        valloader = self.valloader_all   
-        set_parameters(net, parameters)  # Update model with the latest parameters
-        loss, accuracy = test(net, valloader)
-        print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
-        if self.wandb_logging:
-            wandb.log({"acc": accuracy, "loss": loss})
-        return loss, {"accuracy": accuracy}
+    
 
     def get_info(self):        
         model_name = self.net.__class__.__name__
@@ -90,7 +80,8 @@ class Simulator(object):
             min_evaluate_clients=min(3,self.num_clients),
             min_available_clients=self.num_clients,
             initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(Net())),
-            evaluate_fn=self.evaluate,  # Pass the evaluation function
+            # evaluate_fn=post_round_evaluate_function,  # Pass the evaluation function
+            evaluate_fn=lambda server_round, parameters, config : post_round_evaluate_function(server_round, parameters, config, self.net, self.valloaders_all),  # Pass the evaluation function
         )
         
 

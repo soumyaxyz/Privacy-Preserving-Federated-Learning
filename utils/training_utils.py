@@ -30,7 +30,10 @@ def get_device():
       return torch.device("cpu")
 
 def print_info(device, model_name="model", dataset_name="dataset"):
-    print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+    if device.type=="cuda":
+        print(f"Training on {model_name} with {dataset_name} in {torch.cuda.get_device_name(0)} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+    else:
+        print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def save_model(net, optim = None, filename ='filename'):
     path = './saved_models/'+filename+'.pt'
@@ -111,7 +114,11 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     record_mode = False
 
     if not verbose:
-        pbar = tqdm(total=epochs)
+        pbar = tqdm(total=epochs, position=1, leave=False)
+        pbar2 = tqdm(total=patience, position=2, leave=False)
+        pbar2.update(patience)
+        pbar.set_description(f"Epoch {1}")
+        pbar2.set_description(f"patience")
     for epoch in range(epochs):
         if record_mode:
             if wandb_logging:
@@ -119,21 +126,22 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             pbar.update(1)
         elif patience<= 0:
             try:
-                
                 load_model(net, optimizer, savefilename)
             except Exception as e:
                 print(traceback.print_exc())
                 pdb.set_trace()
-
             loss, accuracy = test(net, valloader)
-            wandb.log({"acc": accuracy,"loss": loss}) 
-            pbar.update(1)  
-            pbar.set_description(f"Early stopped, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+            if wandb_logging:
+                wandb.log({"acc": accuracy,"loss": loss}) 
+            if not verbose:
+                pbar.update(1)  
+                pbar2.set_description(f"Early stopped at epoch {epoch+1}, train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}")
             # break
             record_mode = True
         else:
-            train_loss, train_acc = train_single_epoch(net, trainloader, optimizer, criterion) 
+            train_loss, train_acc =  train_single_epoch(net, trainloader, optimizer, criterion) 
             loss, accuracy = test(net, valloader)
+
             if loss_min > loss: # validation loss improved
                 patience = 5
                 loss_min = loss
@@ -147,10 +155,13 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             if verbose:
                 print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
             else:
-                pbar.update(1)  
-                pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, loss: {loss:.4f}, t_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+                pbar.update(1)
+                pbar2.update(patience-pbar2.n) 
+                pbar.set_description(f"Epoch: {epoch+1}")
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}, Patience: ")
     if not verbose:
         pbar.close()
+        pbar2.close()
     return net, optimizer
 
 def train_shadow_model(target_model, shadow_model, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):

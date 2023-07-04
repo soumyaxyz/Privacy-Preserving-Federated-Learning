@@ -11,7 +11,7 @@ import argparse
 
 
 def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=None, dataset_name='CIFAR10'):
-    model = load_model("basicCNN", num_channels=3, num_classes=10).to(device)
+    model = load_model("basic_CNN", num_channels=3, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters())
     model_name=model.__class__.__name__
 
