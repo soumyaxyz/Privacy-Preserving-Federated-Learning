@@ -4,10 +4,13 @@ import torch.nn.functional as F
 import pdb, traceback
 
 def load_model(model_name ="basic_CNN", num_channels=3, num_classes=10):
+    # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":
         return basic_CNN(num_channels, num_classes)
     elif model_name == "basicCNN":
         return  basicCNN()
+    elif model_name == "efficientnet":
+        return  load_efficientnet(classes = num_classes)
     else:
         raise NotImplementedError
 
@@ -54,3 +57,32 @@ class basic_CNN(nn.Module):
         except Exception as e:
                 print(traceback.print_exc())
                 pdb.set_trace()
+
+
+def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
+    """Replaces the final layer of the classifier."""
+    num_features = efficientnet_model.classifier.fc.in_features
+    efficientnet_model.classifier.fc = torch.nn.Linear(num_features, num_classes)
+
+def load_efficientnet(entrypoint: str = "nvidia_efficientnet_b0", classes: int = None):
+    """Loads pretrained efficientnet model from torch hub. Replaces final
+    classifying layer if classes is specified.
+
+    Args:
+        entrypoint: EfficientNet model to download.
+                    For supported entrypoints, please refer
+                    https://pytorch.org/hub/nvidia_deeplearningexamples_efficientnet/
+        classes: Number of classes in final classifying layer. Leave as None to get the downloaded
+                 model untouched.
+    Returns:
+        EfficientNet Model
+
+    Note: One alternative implementation can be found at https://github.com/lukemelas/EfficientNet-PyTorch
+    """
+    efficientnet = torch.hub.load(
+        "NVIDIA/DeepLearningExamples:torchhub", entrypoint, pretrained=True
+    )
+
+    if classes is not None:
+        replace_classifying_layer(efficientnet, classes)
+    return efficientnet

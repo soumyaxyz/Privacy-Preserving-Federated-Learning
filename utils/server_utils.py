@@ -1,7 +1,9 @@
 import flwr as fl
 from collections import OrderedDict
+import wandb
 from typing import Dict, List, Optional, Tuple
 from utils.training_utils import test, set_parameters
+
 
 def post_round_evaluate_function(server_round: int,
         parameters: fl.common.NDArrays,

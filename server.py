@@ -32,14 +32,22 @@ def main():
     
     parser = argparse.ArgumentParser(description='A description of your program')     
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
+    parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     args = parser.parse_args()
 
+    
+    
+
     model = load_model(args.model_name, num_channels=3, num_classes=10)     
-    _,_,_ , valloader_all = load_partitioned_datasets(args.number_of_total_clients)
+    _,_,_ , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
     sc = Server_configs(model, valloader_all, args.wandb_logging)
+
+    if args.wandb_logging:
+        comment = 'Federated_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+        wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
 
     fl.server.start_server(config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), strategy=sc.strategy)
 

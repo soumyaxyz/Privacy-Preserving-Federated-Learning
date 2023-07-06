@@ -10,8 +10,9 @@ import argparse
 
 
 
-def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=None, dataset_name='CIFAR10'):
-    model = load_model("basic_CNN", num_channels=3, num_classes=10).to(device)
+def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN'):
+    # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+    model = load_model(model_name, num_channels=3, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters())
     model_name=model.__class__.__name__
 
@@ -52,12 +53,13 @@ def main():
     parser.add_argument('-s', '--save_filename', type=str, default=None, help='Save filename')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
+    parser.add_argument('-m', '--model_name', type=str, default='basic_CNN', help='Model name')
     args = parser.parse_args()
 
     device = get_device()
 
     for _ in range(args.num_experiments):
-        train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name)
+        train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name)
         
 
 
