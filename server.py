@@ -1,13 +1,17 @@
 import flwr as fl
 import argparse
-from utils.client_utils import load_partitioned_datasets, load_datasets
+from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
+from utils.client_utils import load_partitioned_datasets
 from utils.models import load_model
 from utils.server_utils import post_round_evaluate_function
 
 class Server_configs:
-    def __init__(self, model, valloder):
+    def __init__(self, model, valloader, wandb_logging):
         self.model = model
-        self.valloder = valloder
+        self.valloader = valloader
+        self.device = get_device()
+        self.wandb_logging = wandb_logging
+        self.model.to(self.device)
 
         self.strategy = fl.server.strategy.FedAvg(
                     fraction_fit=0.3,
@@ -15,8 +19,8 @@ class Server_configs:
                     # min_fit_clients= min(3,self.num_clients),
                     # min_evaluate_clients=min(3,self.num_clients),
                     # min_available_clients=self.num_clients,
-                    initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(Net())),
-                    evaluate_fn=lambda server_round, parameters, config : post_round_evaluate_function(server_round, parameters, config, self.model, self.valloaders)
+                    initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
+                    evaluate_fn=lambda server_round, parameters, config : post_round_evaluate_function(server_round, parameters, config, self.model, self.valloader, self.device, self.wandb_logging)
                 )
 
 
@@ -30,11 +34,12 @@ def main():
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
+    parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     args = parser.parse_args()
 
     model = load_model(args.model_name, num_channels=3, num_classes=10)     
-    _,_,_ , valloader_all = load_datasets(args.number_of_total_clients)
-    sc = Server_configs(model, valloader_all)
+    _,_,_ , valloader_all = load_partitioned_datasets(args.number_of_total_clients)
+    sc = Server_configs(model, valloader_all, args.wandb_logging)
 
     fl.server.start_server(config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), strategy=sc.strategy)
 
