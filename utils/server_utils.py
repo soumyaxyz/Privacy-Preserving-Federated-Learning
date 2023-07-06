@@ -14,5 +14,5 @@ def post_round_evaluate_function(server_round: int,
         loss, accuracy = test(model, valloader, device)
         print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
         if wandb_logging:
-            wandb.log({"acc": accuracy, "loss": loss})
+            wandb.log({"acc": accuracy, "loss": loss}, step=server_round*10)
         return loss, {"accuracy": accuracy}

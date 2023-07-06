@@ -100,15 +100,13 @@ def test(net, testloader, DEVICE = get_device() ):
     accuracy = correct / total
     return loss, accuracy
 
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):
+def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True, patience= 5, loss_min = 100000):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
     if not optimizer:
         optimizer = torch.optim.Adam(net.parameters())
 
-    patience = 5
-    loss_min = 100000 # Inf
     savefilename = net.__class__.__name__
 
     record_mode = False
@@ -162,7 +160,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     if not verbose:
         pbar.close()
         pbar2.close()
-    return net, optimizer
+    return net, optimizer, loss, accuracy 
 
 def train_shadow_model(target_model, shadow_model, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):
      

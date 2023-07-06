@@ -56,14 +56,15 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         # print(f"[Client {self.cid}] fit, config: {config}")
         set_parameters(self.net, parameters)
-        train_single_epoch(self.net, self.trainloader)
+        # train_single_epoch(self.net, self.trainloader)
+        _, _, self.loss, self.accuracy = train(self.net, self.trainloader, self.valloader, epochs=10,  wandb_logging=False, patience= 2)
         return get_parameters(self.net), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
         # print(f"[Client {self.cid}] evaluate, config: {config}")
-        set_parameters(self.net, parameters)
-        loss, accuracy = test(self.net, self.valloader)
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        # set_parameters(self.net, parameters)
+        # loss, accuracy = test(self.net, self.valloader)
+        return float(self.loss), len(self.valloader), {"accuracy": float(self.accuracy)}
 
 
 def client_fn(cid, net, trainloaders, valloaders) -> FlowerClient:    

@@ -29,8 +29,10 @@ def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=
     comment = 'Centralized_item_'+model_name+'_'+dataset_name
     if wandb_logging:
         wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
+        wandb.watch(model, log_freq=100)
+        
 
-    model, optimizer = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
+    model, optimizer, loss, accuracy  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
     loss, accuracy = test(model, test_loader)
 
     if wandb_logging:

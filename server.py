@@ -36,6 +36,7 @@ def main():
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
+    parser.add_argument('-db','--debug', action='store_false', help='Enable debug mode')
     args = parser.parse_args()
 
     
@@ -49,8 +50,16 @@ def main():
         comment = 'Federated_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
 
-    fl.server.start_server(config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), strategy=sc.strategy)
-
+    try :
+        fl.server.start_server(config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), strategy=sc.strategy)
+    except KeyboardInterrupt:
+        print("Stopped with by user. Exiting.")
+    except Exception as e:
+        if args.debug:
+            traceback.print_exc()
+            pdb.set_trace()
+        else:
+            print("Stopped with errors. Exiting.")
 
 
 if __name__ == '__main__':

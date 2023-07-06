@@ -15,7 +15,8 @@ def main():
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')      
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name') 
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name') 
-    parser.add_argument('-n', '--client_number', type=int, help='Client number')
+    parser.add_argument('-n', '--client_number', type=int, help='Client number')    
+    parser.add_argument('-db','--debug', action='store_false', help='Enable debug mode')
     args = parser.parse_args()
     model = load_model(args.model_name, num_channels=3, num_classes=10)
     model.to(get_device())
@@ -23,9 +24,14 @@ def main():
     client_defination = client_fn(args.client_number, model, trainloaders, valloaders)
     try:
         fl.client.start_numpy_client(server_address=args.server_address+':'+ args.server_port, client=client_defination)
+    except KeyboardInterrupt:
+        print("Stopped with by user. Exiting.")
     except Exception as e:
-        traceback.print_exc()
-        pdb.set_trace()
+        if args.debug:
+            traceback.print_exc()
+            pdb.set_trace()
+        else:
+            print("Stopped with errors. Exiting.")
     
 
 
