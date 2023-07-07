@@ -16,7 +16,7 @@ def wandb_init(
     lr ='', 
     optimizer = ''
     ):    
-    wandb.login()
+    wandb.login( key="6a2ec88cea517d22c5c4db178898f7143e8a6ef3" )
     wandb.init(
       project=project, entity=entity,
       config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}

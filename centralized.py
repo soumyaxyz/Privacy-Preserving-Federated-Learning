@@ -26,7 +26,7 @@ def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=
         
     
 
-    comment = 'Centralized_item_'+model_name+'_'+dataset_name
+    comment = 'Centralized_'+model_name+'_'+dataset_name
     if wandb_logging:
         wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
         wandb.watch(model, log_freq=100)

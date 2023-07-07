@@ -4,6 +4,10 @@ from utils.training_utils import *
 
 import pdb,traceback
 
+def get_training_epoch():
+    train_epochs = 1
+    return train_epochs
+
 def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32): 
 
     # Split training set into `num_clients` partitions to simulate different local datasets
@@ -56,14 +60,16 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         # print(f"[Client {self.cid}] fit, config: {config}")
         set_parameters(self.net, parameters)
-        # train_single_epoch(self.net, self.trainloader)
-        _, _, self.loss, self.accuracy = train(self.net, self.trainloader, self.valloader, epochs=10,  wandb_logging=False, patience= 2)
+        if get_training_epoch() == 1:
+            train_single_epoch(self.net, self.trainloader)
+        else:
+            _, _, self.loss, self.accuracy = train(self.net, self.trainloader, self.valloader, epochs=get_training_epoch(),  wandb_logging=False, patience= 2)
         return get_parameters(self.net), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
         # print(f"[Client {self.cid}] evaluate, config: {config}")
-        # set_parameters(self.net, parameters)
-        # loss, accuracy = test(self.net, self.valloader)
+        set_parameters(self.net, parameters)
+        self.loss, self.accuracy = test(self.net, self.valloader)
         return float(self.loss), len(self.valloader), {"accuracy": float(self.accuracy)}
 
 

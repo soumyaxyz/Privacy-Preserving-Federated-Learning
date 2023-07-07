@@ -16,7 +16,7 @@ def main():
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name') 
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name') 
     parser.add_argument('-n', '--client_number', type=int, help='Client number')    
-    parser.add_argument('-db','--debug', action='store_false', help='Enable debug mode')
+    parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
     model = load_model(args.model_name, num_channels=3, num_classes=10)
     model.to(get_device())

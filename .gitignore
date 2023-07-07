@@ -1,4 +1,7 @@
 *.pyc
+*.bat
 dataset/
 wandb/
 saved_models/
+.vscode/
+docker*
