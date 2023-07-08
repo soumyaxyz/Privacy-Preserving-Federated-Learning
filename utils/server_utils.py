@@ -6,7 +6,20 @@ from utils.training_utils import test, set_parameters
 from utils.client_utils import get_training_epoch
 
 
-def post_round_evaluate_function(server_round: int,
+def fit_config(server_round: int):
+    """Return training configuration dict for each round.
+
+    Keep batch size fixed at 32, perform two rounds of training with one
+    local epoch, increase to two local epochs afterwards.
+    """
+    config = {
+        "batch_size": 16,
+        "local_epochs": 1 if server_round < 2 else 2,
+    }
+    return config
+
+
+def get_evaluate_fn(server_round: int,
         parameters: fl.common.NDArrays,
         config: Dict[str, fl.common.Scalar],
         model, valloader, device, wandb_logging

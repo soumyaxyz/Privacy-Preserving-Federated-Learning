@@ -1,6 +1,6 @@
 import flwr as fl
 import argparse
-from utils.client_utils import FlowerClient, load_partitioned_datasets, print_info, get_device
+from utils.client_utils import  load_partitioned_datasets, print_info, get_device
 from utils.models import load_model
 from utils.client_utils import client_fn
 import pdb, traceback
@@ -19,7 +19,14 @@ def main():
     parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
     model = load_model(args.model_name, num_channels=3, num_classes=10)
-    model.to(get_device())
+
+    device = get_device()
+    
+    model.to(device)    
+    
+    
+    print_info(device, args.model_name, args.dataset_name)
+
     trainloaders, valloaders, _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
     client_defination = client_fn(args.client_number, model, trainloaders, valloaders)
     try:
