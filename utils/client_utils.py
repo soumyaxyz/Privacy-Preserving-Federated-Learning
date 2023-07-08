@@ -47,11 +47,15 @@ def load_partitioned_datasets(num_clients: int, val_percent = 10, batch_size=32,
 
         
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, cid, net, trainloader, valloader):
+    def __init__(self, cid, net, trainloader, valloader, N , wandb_logging=False, dataset_name='CIFAR10'):
         self.cid = cid
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
+        self.wandb_logging = wandb_logging
+        if self.wandb_logging:
+            comment = 'Client_'+str(N)+'_'+net.__class__.__name__+'_'+dataset_name
+            wandb_init(comment=comment, model_name=net.__class__.__name__, dataset_name=dataset_name)
 
     def get_parameters(self, config):
         # print(f"[Client {self.cid}] get_parameters")
@@ -59,21 +63,26 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         # print(f"[Client {self.cid}] fit, config: {config}")
+        # print(f"[Client {self.cid}] fit()")
         set_parameters(self.net, parameters)
         if get_training_epoch() == 1:
-            train_single_epoch(self.net, self.trainloader)
+            self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)
         else:
             _, _, self.loss, self.accuracy = train(self.net, self.trainloader, self.valloader, epochs=get_training_epoch(),  wandb_logging=False, patience= 2)
+        if self.wandb_logging:
+            wandb.log({"train_acc": self.accuracy,"train_loss": self.loss})
+            print(f"[Client {self.cid}] fit(loss: {self.loss:.4f}, accuracy: {self.accuracy:.4f})")
         return get_parameters(self.net), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
         # print(f"[Client {self.cid}] evaluate, config: {config}")
         set_parameters(self.net, parameters)
         self.loss, self.accuracy = test(self.net, self.valloader)
+        print(f"[Client {self.cid}] evaluate(loss: {self.loss:.4f}, accuracy: {self.accuracy:.4f})")
         return float(self.loss), len(self.valloader), {"accuracy": float(self.accuracy)}
 
 
-def client_fn(cid, net, trainloaders, valloaders) -> FlowerClient:    
+def client_fn(cid, net, trainloaders, valloaders, N=2, wandb_logging=False, dataset_name='CIFAR10') -> FlowerClient:    
     trainloader = trainloaders[int(cid)]
     valloader = valloaders[int(cid)]
-    return FlowerClient(cid, net, trainloader, valloader)
+    return FlowerClient(cid, net, trainloader, valloader, N, wandb_logging, dataset_name)

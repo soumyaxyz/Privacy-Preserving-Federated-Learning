@@ -54,7 +54,7 @@ def main():
     sc = Server_configs(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device)
 
     if args.wandb_logging:
-        comment = 'Federated_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+        comment = 'Federated_|_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
 
     try :

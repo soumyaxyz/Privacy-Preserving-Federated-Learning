@@ -16,19 +16,20 @@ def main():
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name') 
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name') 
     parser.add_argument('-n', '--client_number', type=int, help='Client number')    
+    parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
     model = load_model(args.model_name, num_channels=3, num_classes=10)
 
     device = get_device()
-    
+
     model.to(device)    
     
     
     print_info(device, args.model_name, args.dataset_name)
 
     trainloaders, valloaders, _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
-    client_defination = client_fn(args.client_number, model, trainloaders, valloaders)
+    client_defination = client_fn(args.client_number, model, trainloaders, valloaders, args.number_of_total_clients, args.wandb_logging, args.dataset_name)
     try:
         fl.client.start_numpy_client(server_address=args.server_address+':'+ args.server_port, client=client_defination)
     except KeyboardInterrupt:
