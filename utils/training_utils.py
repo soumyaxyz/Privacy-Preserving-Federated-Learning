@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 import wandb
 import pdb,traceback
+import os
 
 def wandb_init(
     project="Privacy-Preverving-Ferderated-Learning", 
@@ -35,8 +36,16 @@ def print_info(device, model_name="model", dataset_name="dataset"):
     else:
         print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
+def verify_folder_exist(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+        print(f"{path} created")
+    return path
+
 def save_model(net, optim = None, filename ='filename'):
-    path = './saved_models/'+filename+'.pt'
+    sanatized_filename = "".join(x for x in filename if x.isalnum())
+    save_folder = './saved_models/'
+    path = verify_folder_exist(save_folder)+sanatized_filename+'.pt'
     if optim:
         torch.save({'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optim.state_dict()
@@ -44,8 +53,9 @@ def save_model(net, optim = None, filename ='filename'):
     else:
         torch.save({'model_state_dict': net.state_dict()}, path)
 
-def load_model(net, optim, filename ='filename'):
-    path = './saved_models/'+filename+'.pt'
+def load_model(net, optim=None, filename ='filename'):
+    sanatized_filename = "".join(x for x in filename if x.isalnum())
+    path = './saved_models/'+sanatized_filename+'.pt'
     checkpoint = torch.load(path)
     net.load_state_dict(checkpoint['model_state_dict'])
     if optim:

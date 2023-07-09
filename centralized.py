@@ -4,10 +4,46 @@ import flwr as fl
 import wandb
 import torch
 from utils.client_utils import load_partitioned_datasets
-from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test
+from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model 
 import argparse
+import pdb,traceback
 
+def evaluate(evaluation_model, device="cpu", wandb_logging=True,  dataset_name='CIFAR10', model_name = 'basic_CNN'):
+    # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+    model = load_model(model_name, num_channels=3, num_classes=10).to(device)
+    optimizer = torch.optim.Adam(model.parameters())
+    model_name=model.__class__.__name__
+    load_saved_weights(model, filename =evaluation_model)
+
+
+    print_info(device, model_name, dataset_name)    
+
+    _, val_loaders, test_loader, _ = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name)
+
+    
+    val_loader = val_loaders[0]   
+        
+    
+
+    comment = 'Test_Centralized_('+evaluation_model+')_'+model_name+'_'+dataset_name
+    if wandb_logging:
+        wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
+        wandb.watch(model, log_freq=100)
+        
+
+    loss, accuracy = test(model, val_loader)
+    tst_loss, tst_accuracy = test(model, test_loader)
+
+    if wandb_logging:
+        wandb.log({"acc": accuracy, "loss": loss}, step = 100)
+        wandb.log({"test_acc": tst_accuracy, "test_loss": tst_loss})
+        wandb.finish()
+    print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
+          
+    if wandb_logging:
+        wandb.finish()
+    # pdb.set_trace()
 
 
 def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN'):
@@ -56,12 +92,15 @@ def main():
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-m', '--model_name', type=str, default='basic_CNN', help='Model name')
+    parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
     args = parser.parse_args()
 
     device = get_device()
-
-    for _ in range(args.num_experiments):
-        train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name)
+    if args.evaluation_model:
+        evaluate(args.evaluation_model, device, args.wandb_logging, args.dataset_name, args.model_name)
+    else:
+        for _ in range(args.num_experiments):
+            train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name)
         
 
 

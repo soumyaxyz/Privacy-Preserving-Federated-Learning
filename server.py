@@ -1,5 +1,5 @@
 import flwr as fl
-import argparse
+import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
 from utils.client_utils import load_partitioned_datasets
 from utils.models import load_model
@@ -18,12 +18,13 @@ class Server_configs:
         self.strategy = fl.server.strategy.FedAvg(
                     fraction_fit=0.3,
                     fraction_evaluate=0.3,
-                    min_fit_clients= min(3,self.num_clients),
-                    min_evaluate_clients=min(3,self.num_clients),
-                    min_available_clients=self.num_clients,
+                    # min_fit_clients= min(2,self.num_clients),
+                    # min_evaluate_clients=min(2,self.num_clients),
+                    # min_available_clients=self.num_clients,
                     initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
                     evaluate_fn=lambda server_round, parameters, config : get_evaluate_fn(server_round, parameters, config, self.model, self.valloader, self.device, self.wandb_logging)
                 )
+
 
 
 def main():
@@ -36,6 +37,7 @@ def main():
     parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
     parser.add_argument('-p', '--server_port', type=str, default="8080", help='Server port')    
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
+    parser.add_argument('-c', '--comment', type=str, default='Federated_', help='Comment for this run')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
@@ -45,7 +47,7 @@ def main():
     
 
     model = load_model(args.model_name, num_channels=3, num_classes=10)     
-    _,_,_ , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    _,_,test_loader , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
 
     device = get_device()
     print_info(device, args.model_name, args.dataset_name)
@@ -54,7 +56,7 @@ def main():
     sc = Server_configs(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device)
 
     if args.wandb_logging:
-        comment = 'Federated_|_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+        comment = args.comment+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
 
     try :
@@ -67,6 +69,16 @@ def main():
             pdb.set_trace()
         else:
             print("Stopped with errors. Exiting.")
+    try:
+        save_model(model,filename =comment)
+        loss, accuracy = test(model, test_loader)
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
+
+    if args.wandb_logging:
+        wandb.log({"test_acc": accuracy, "test_loss": loss})
+        wandb.finish()
 
 
 if __name__ == '__main__':

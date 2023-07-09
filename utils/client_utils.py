@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader, random_split
 from utils.datasets import *
 from utils.training_utils import *
 
-import pdb,traceback
+import pdb,traceback, wandb
 
 def get_training_epoch():
     train_epochs = 1
@@ -56,6 +56,10 @@ class FlowerClient(fl.client.NumPyClient):
         if self.wandb_logging:
             comment = 'Client_'+str(N)+'_'+net.__class__.__name__+'_'+dataset_name
             wandb_init(comment=comment, model_name=net.__class__.__name__, dataset_name=dataset_name)
+    def __del__(self):
+        if self.wandb_logging:
+            wandb.finish()
+
 
     def get_parameters(self, config):
         # print(f"[Client {self.cid}] get_parameters")
