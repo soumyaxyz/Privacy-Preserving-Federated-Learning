@@ -68,12 +68,13 @@ def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=
         wandb.watch(model, log_freq=100)
         
 
-    model, optimizer, loss, accuracy  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
+    model, optimizer, val_loss, val_accuracy  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
     loss, accuracy = test(model, test_loader)
 
     if wandb_logging:
         wandb.log({"test_acc": accuracy, "test_loss": loss})
         wandb.finish()
+    print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
     print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
           
     

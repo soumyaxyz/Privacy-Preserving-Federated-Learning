@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import numpy as np
 import flwr as fl
 import torch
@@ -42,7 +42,7 @@ def verify_folder_exist(path):
         print(f"{path} created")
     return path
 
-def save_model(net, optim = None, filename ='filename'):
+def save_model(net, optim = None, filename ='filename', print_info=False):
     sanatized_filename = "".join(x for x in filename if x.isalnum())
     save_folder = './saved_models/'
     path = verify_folder_exist(save_folder)+sanatized_filename+'.pt'
@@ -53,13 +53,18 @@ def save_model(net, optim = None, filename ='filename'):
     else:
         torch.save({'model_state_dict': net.state_dict()}, path)
 
-def load_model(net, optim=None, filename ='filename'):
+    if print_info:
+        print(f"Saved model to {path}")
+
+def load_model(net, optim=None, filename ='filename', print_info=False):
     sanatized_filename = "".join(x for x in filename if x.isalnum())
     path = './saved_models/'+sanatized_filename+'.pt'
     checkpoint = torch.load(path)
     net.load_state_dict(checkpoint['model_state_dict'])
     if optim:
         optim.load_state_dict(checkpoint['optimizer_state_dict'])
+    if print_info:
+        print(f"Loaded model from {path}")
 
 def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]

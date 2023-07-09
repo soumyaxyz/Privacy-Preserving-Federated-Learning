@@ -46,7 +46,6 @@ def load_partitioned_datasets(num_clients: int, val_percent = 10, batch_size=32,
 
 
 
-        
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, cid, net, trainloader, valloader, N , wandb_logging=False, dataset_name='CIFAR10'):
         self.cid = cid

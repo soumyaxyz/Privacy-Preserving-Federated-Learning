@@ -28,10 +28,28 @@ class Server_configs:
 
 
 def main():
-    # parser = argparse.ArgumentParser(description='A description of your program')
-    # parser.add_argument('-a', '--server address', type=str, default="[::]", help='Number of experiments')
-    # parser.add_argument('-p', '--server port', type=str, default="8080", help='Number of experiments')
-    # args = parser.parse_args()
+    """
+    Main function that executes the program.
+
+    Parses command line arguments, loads model and datasets,
+    initializes server configurations, starts the Federated Learning server,
+    handles exceptions, tests the model, and logs test accuracy and loss.
+
+    Args:
+        -a, --server_address (str): The server address. Default is "[::]".
+        -p, --server_port (str): The server port. Default is "8080".
+        -m, --model_name (str): The model name. Default is "basicCNN".
+        -c, --comment (str): The comment for this run. Default is "Federated_".
+        -d, --dataset_name (str): The dataset name. Default is "CIFAR10".
+        -r, --number_of_FL_rounds (int): The number of rounds of Federated Learning. Default is 3.
+        -N, --number_of_total_clients (int): The total number of clients. Default is 2.
+        -w, --wandb_logging: Enable wandb logging.
+        -db, --debug: Enable debug mode.
+
+    Returns:
+        None
+    """
+    
     
     parser = argparse.ArgumentParser(description='A description of your program') 
     parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
@@ -70,8 +88,8 @@ def main():
         else:
             print("Stopped with errors. Exiting.")
     try:
-        save_model(model,filename =comment)
         loss, accuracy = test(model, test_loader)
+        save_model(model,filename =comment, print_info=True)
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()
