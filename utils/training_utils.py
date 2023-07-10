@@ -66,6 +66,14 @@ def load_model(net, optim=None, filename ='filename', print_info=False):
     if print_info:
         print(f"Loaded model from {path}")
 
+def delete_saved_model(filename ='filename', print_info=False):
+    sanatized_filename = "".join(x for x in filename if x.isalnum())
+    path = './saved_models/'+sanatized_filename+'.pt'
+    if os.path.exists(path):
+        os.remove(path)
+    if print_info:
+        print(f"Deleted model from {path}")
+
 def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
@@ -126,6 +134,8 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
 
     record_mode = False
 
+    initial_patience = patience
+
     if not verbose:
         pbar = tqdm(total=epochs, position=1, leave=False)
         pbar2 = tqdm(total=patience, position=2, leave=False)
@@ -156,7 +166,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             loss, accuracy = test(net, valloader)
 
             if loss_min > loss: # validation loss improved
-                patience = 5
+                patience = initial_patience
                 loss_min = loss
                 save_model(net, optimizer, savefilename)
             else:

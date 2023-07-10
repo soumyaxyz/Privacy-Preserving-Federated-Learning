@@ -92,7 +92,7 @@ def main():
     parser.add_argument('-s', '--save_filename', type=str, default=None, help='Save filename')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
-    parser.add_argument('-m', '--model_name', type=str, default='basic_CNN', help='Model name')
+    parser.add_argument('-m', '--model_name', type=str, default='basicCNN', help='Model name')
     parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
     args = parser.parse_args()
 

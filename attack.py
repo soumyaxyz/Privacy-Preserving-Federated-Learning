@@ -1,3 +1,5 @@
+import pdb, traceback
+import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, ConcatDataset, Subset, random_split 
 from torchvision.datasets import Dataset
@@ -28,7 +30,7 @@ class Membership_inference_attack:
 
         return class_datasets
     
-    def start():
+    def start(self):
         loss, accuracy = 0.0, 0.0
         for c in range(self.num_classes):
             class_wise_datasets = [self.class_wise_trainset[c], self.class_wise_testset[c]]

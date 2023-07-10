@@ -1,29 +1,11 @@
 import flwr as fl
 import argparse, wandb
-from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
-from utils.client_utils import load_partitioned_datasets
+from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
+from utils.datasets import load_partitioned_datasets
 from utils.models import load_model
-from utils.server_utils import get_evaluate_fn, fit_config
+from utils.server_utils import Server_details
 import pdb, traceback
 
-class Server_configs:
-    def __init__(self, model, valloader, wandb_logging, num_clients, device):
-        self.model = model
-        self.valloader = valloader
-        self.device = device
-        self.wandb_logging = wandb_logging
-        self.model.to(self.device)
-        self.num_clients = num_clients
-
-        self.strategy = fl.server.strategy.FedAvg(
-                    fraction_fit=0.3,
-                    fraction_evaluate=0.3,
-                    # min_fit_clients= min(2,self.num_clients),
-                    # min_evaluate_clients=min(2,self.num_clients),
-                    # min_available_clients=self.num_clients,
-                    initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
-                    evaluate_fn=lambda server_round, parameters, config : get_evaluate_fn(server_round, parameters, config, self.model, self.valloader, self.device, self.wandb_logging)
-                )
 
 
 
@@ -61,6 +43,8 @@ def main():
     parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
+    parser.add_argument('-e', '--epochs_per_round', type=int, default = 1, help='Epochs of training in client per round')
     args = parser.parse_args()
     
 
@@ -71,14 +55,28 @@ def main():
     print_info(device, args.model_name, args.dataset_name)
 
 
-    sc = Server_configs(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device)
+    server_details = Server_details(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device, args.epochs_per_round)
 
-    if args.wandb_logging:
-        comment = args.comment+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+    comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+
+    if args.wandb_logging:        
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
 
+    if args.secure:
+        certificates = server_details.get_certificates()
+    else:
+        certificates = None
+
     try :
-        fl.server.start_server(server_address = args.server_address+':'+ args.server_port, config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), strategy=sc.strategy)
+        fl.server.start_server(
+                                server_address = args.server_address+':'+ args.server_port, 
+                                config=fl.server.ServerConfig(num_rounds=args.number_of_FL_rounds), 
+                                strategy=server_details.strategy,
+                                certificates=certificates
+                            )
+        
+        loss, accuracy = test(model, test_loader)
+        save_model(model,filename =comment, print_info=True)
     except KeyboardInterrupt:
         print("Stopped with by user. Exiting.")
     except Exception as e:
@@ -87,15 +85,13 @@ def main():
             pdb.set_trace()
         else:
             print("Stopped with errors. Exiting.")
-    try:
-        loss, accuracy = test(model, test_loader)
-        save_model(model,filename =comment, print_info=True)
-    except Exception as e:
-        traceback.print_exc()
-        pdb.set_trace()
+    
 
     if args.wandb_logging:
-        wandb.log({"test_acc": accuracy, "test_loss": loss})
+        try:
+            wandb.log({"test_acc": accuracy, "test_loss": loss})
+        except UnboundLocalError:
+            pass
         wandb.finish()
 
 
