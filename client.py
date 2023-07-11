@@ -35,6 +35,8 @@ def main():
         certificate = get_certificate()
     else:
         certificate = None
+        
+    print(f'certificate: {certificate}')
     
     
     print_info(device, args.model_name, args.dataset_name)

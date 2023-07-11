@@ -24,9 +24,9 @@ class Server_details:
     def get_certificates(self):
         try:
             certificates=(
-                Path(".cache/certificates/domain.crt").read_bytes(),
-                Path(".cache/certificates/domain.pem").read_bytes(),
-                Path(".cache/certificates/domain.key").read_bytes(),
+                Path(".cache/certificates/ca.crt").read_bytes(),
+                Path(".cache/certificates/server.pem").read_bytes(),
+                Path(".cache/certificates/server.key").read_bytes()
             )
         except FileNotFoundError:
             print("Certificates not found. Falling back to unsecure mode")
