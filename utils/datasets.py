@@ -66,6 +66,6 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
     unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size)
     return trainloaders, valloaders, testloader, unsplit_valloader
 
-def load_partitioned_datasets(num_clients: int, val_percent = 10, batch_size=32, dataset_name = 'CIFAR10'):
+def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32):
     trainset, testset = load_datasets(dataset_name)
     return split_dataset(trainset, testset, num_clients, val_percent, batch_size)

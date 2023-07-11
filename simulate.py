@@ -1,12 +1,12 @@
-from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List 
 import flwr as fl
 import wandb
-import torch
-from utils.client_utils import load_datasets, client_fn
+from utils.datasets import load_partitioned_datasets
+from utils.models import load_model
+from utils.client_utils import client_fn
+from utils.server_utils import Server_details
 from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
 from utils.models import basicCNN as Net
-from utils.server_utils import post_round_evaluate_function
 import pdb
 import argparse
 
@@ -37,27 +37,27 @@ class Simulator(object):
             Runs the simulation for a specified number of rounds.
     """
 
-    def __init__(self, num_clients, wandb_logging = True):
+    def __init__(self, num_clients, wandb_logging = True, model_name = "basicCNN", dataset_name = "CIFAR10", comment = "Simulation"):
         super(Simulator, self).__init__()
         self.wandb_logging  = wandb_logging
         self.device         = get_device()
         self.num_clients    = num_clients
-        self.trainloaders, self.valloaders, self.testloader , self.valloader_all = load_datasets(self.num_clients)
+        self.model_name     = model_name
+        self.dataset_name   = dataset_name
+        self.comment        = comment
+        self.trainloaders, self.valloaders, self.testloader , self.valloader_all = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name)
         if self.device.type == "cuda":
             self.client_resources = {"num_gpus": 1}
         else:
             self.client_resources = None
-        self.net = Net().to(self.device)
+        
+        self.net = load_model(self.model_name).to(self.device)
         
 
     # The `evaluate` function will be by Flower called after every round
     
 
-    def get_info(self):        
-        model_name = self.net.__class__.__name__
-        comment = 'Ferderated_'+str(self.num_clients)+'_'+model_name
-        return  model_name, comment
-   
+    
 
     def run_for_n_rounds(self, num_rounds):     
         """
@@ -69,27 +69,21 @@ class Simulator(object):
         Returns:
             None
         """
-        if self.wandb_logging:
-            model_name, comment =  self.get_info()
-            wandb_init(comment, model_name)
+        
+        print_info(self.device)    
 
-        strategy = fl.server.strategy.FedAvg(
-            fraction_fit=0.3,
-            fraction_evaluate=0.3,
-            min_fit_clients= min(3,self.num_clients),
-            min_evaluate_clients=min(3,self.num_clients),
-            min_available_clients=self.num_clients,
-            initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(Net())),
-            # evaluate_fn=post_round_evaluate_function,  # Pass the evaluation function
-            evaluate_fn=lambda server_round, parameters, config : post_round_evaluate_function(server_round, parameters, config, self.net, self.valloaders_all),  # Pass the evaluation function
-        )
+        if self.wandb_logging:
+            wandb_init(comment=self.comment, model_name=self.model_name, dataset_name=self.dataset_name)
+
+        server_details = Server_details(self.net, self.valloader_all, self.wandb_logging, self.num_clients, self.device, num_rounds)
+
         
 
         fl.simulation.start_simulation(
-            client_fn= lambda cid: client_fn(cid, self.net, self.trainloaders, self.valloaders),
+            client_fn= lambda cid: client_fn(cid, self.net, self.trainloaders, self.valloaders, N=self.num_clients, wandb_logging=False, dataset_name=self.dataset_name, simulation=True),
             num_clients=self.num_clients,
-            config=fl.server.ServerConfig(num_rounds=num_rounds),  # Just three rounds
-            strategy=strategy,
+            config=fl.server.ServerConfig(num_rounds=num_rounds),  
+            strategy=server_details.strategy,
             client_resources=self.client_resources,
         )
 
@@ -101,31 +95,36 @@ def main():
     parser = argparse.ArgumentParser(description='A description of your program')
 
     # Add arguments here
-    parser.add_argument('--num_clients', type=int, default=5, help='Number of clients')
-    parser.add_argument('--num_experiments', type=int, default=1, help='Number of experiments')
-    parser.add_argument('--num_rounds', type=int, default=5, help='Number of rounds')
-    parser.add_argument('--save_location', type=str, default='./saved_models/', help='Save location')
-    parser.add_argument('--wandb_logging', action='store_true', help='Enable wandb logging')
+    parser.add_argument('-n', '--num_clients', type=int, default=5, help='Number of clients')
+    parser.add_argument('-r', '--num_rounds', type=int, default=5, help='Number of rounds')   
+    parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
+    parser.add_argument('-c', '--comment', type=str, default='Simulated_', help='Comment for this run')
+    parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
+    parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
 
     args = parser.parse_args()
 
-    
-    simulator = Simulator(args.num_clients, args.wandb_logging)
-    print_info(simulator.device)    
-    for _ in range(args.num_experiments):
-        simulator.run_for_n_rounds(args.num_rounds)
+    comment = args.comment+'_'+str(args.num_clients)+'_'+args.model_name+'_'+args.dataset_name
 
-    net = Net().to(simulator.device)  
-    simulator.set_parameters(net, parameters)
-    _, comment = simulator.get_info()
-    save_path = args.save_location + comment + ".pt"
-    save_model(net, optim, save_path)
+    
+    simulator = Simulator(args.num_clients, args.wandb_logging, args.model_name, args.dataset_name, comment)
+    simulator.run_for_n_rounds(args.num_rounds)
+
+    # net = Net().to(simulator.device)  
+    # simulator.set_parameters(net, parameters)
+
+    
+
+    
+    
+    save_model(simulator.net ,filename = comment, print_info = True)
 
 
 
 
 
 if __name__ == "__main__":
-    main()
+    print("Simulator mode deprecated, use server client mode instead.")
+    # main()
          
     

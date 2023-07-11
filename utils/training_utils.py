@@ -11,7 +11,7 @@ import os
 def wandb_init(
     project="Privacy-Preverving-Ferderated-Learning", 
     entity="soumyabanerjee", 
-    model_name="CNN_1", 
+    model_name="basicCNN", 
     dataset_name="CIFAR_10",
     comment= '',  
     lr ='', 
