@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import flwr as fl
 import wandb
 import torch
-from utils.client_utils import load_partitioned_datasets
+from utils.datasets import load_partitioned_datasets
 from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model 
 import argparse
