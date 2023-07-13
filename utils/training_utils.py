@@ -30,11 +30,16 @@ def get_device():
     else:
       return torch.device("cpu")
 
-def print_info(device, model_name="model", dataset_name="dataset"):
+def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None):
     if device.type=="cuda":
-        print(f"Training on {model_name} with {dataset_name} in {torch.cuda.get_device_name(0)} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        device_type = torch.cuda.get_device_name(0)  
     else:
-        print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        device_type = device.type
+        
+    if teacher_name:
+        print(f"Distiling on {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
+    else:
+        print(f"Training on {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def verify_folder_exist(path):
     if not os.path.exists(path):
@@ -187,7 +192,18 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
         pbar2.close()
     return net, optimizer, loss, accuracy 
 
-def train_shadow_model(target_model, shadow_model, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True):
+def train_shadow_model(target_model, 
+                       shadow_model, 
+                       trainloader, 
+                       valloader, 
+                       epochs: int, 
+                       optimizer = None, 
+                       criterion = None,  
+                       device = get_device(), 
+                       verbose=False, 
+                       wandb_logging=False, 
+                       accuracy_defined=False, 
+                       patience= 5):
      
     #  Train a shadow model using a target model and a given dataset.
      
@@ -207,75 +223,122 @@ def train_shadow_model(target_model, shadow_model, trainloader, valloader, epoch
 
     if not criterion:
         criterion = torch.nn.MSELoss()
+        # criterion = torch.nn.CrossEntropyLoss()
     if not optimizer:
-        optimizer = torch.optim.Adam(net.parameters())
+        optimizer = torch.optim.Adam(shadow_model.parameters())
         # optimizer = optim.SGD(shadow_model.parameters(), lr=0.01)
 
-    # Split the dataset into training set and validation set
-    train_data, val_data = split_dataset(dataset)
+    # # Split the dataset into training set and validation set
+    # train_data, val_data = split_dataset(dataset)
     
-    patience = 5
+    
+    initial_patience = patience
     loss_min = 100000 # Inf
     # Training loop
     if not verbose:
-        pbar = tqdm(total=epochs)
+        pbar = tqdm(total=epochs, position=1, leave=False)
+        pbar2 = tqdm(total=patience, position=2, leave=False)
+        pbar2.update(patience)
+        pbar.set_description(f"Epoch {1}")
+        pbar2.set_description(f"patience")
     for epoch in range(epochs):
         if patience<= 0:
-                load_model(net, optimizer)
-                val_loss = test_shadow_model(target_model, shadow_model, valloader, criterion, DEVICE)
+                load_model(shadow_model, optimizer)
+                val_loss = test_shadow_model(target_model, shadow_model, valloader, criterion, device)
                 break
         else:
             # Training phase        
             shadow_model.train()
             target_model.eval()
-            epoch_loss =  0.0
+            correct, total, train_loss = 0, 0, 0.0 
             # Forward pass through both the models
-            for images, _ in trainloader:
-                images = images.to(DEVICE)
+            # pdb.set_trace()
+            for images, labels in trainloader:
+                images = images.to(device)
+                labels = labels.to(device)
                 optimizer.zero_grad()
                 expected_outputs = target_model(images)
                 achieved_outputs = shadow_model(images)
                 loss = criterion(achieved_outputs, expected_outputs)
                 loss.backward()
                 optimizer.step()
-                # Metrics
-                epoch_loss += loss
-            epoch_loss /= len(trainloader.dataset)
-            if loss_min > loss:
-                patience = 0
-                loss_min = loss
+                
+                train_loss += loss.item()
+
+                if accuracy_defined:  # Metrics
+                    total += labels.size(0)
+                    correct += (torch.max(achieved_outputs.data, 1)[1] == labels).sum().item()
+
+            train_loss /= len(trainloader.dataset)
+            if accuracy_defined:
+                train_acc = correct / total
+
+            # Validation phase
+            val_loss, val_acc = test_shadow_model(target_model, shadow_model, valloader, criterion, device, accuracy_defined=accuracy_defined)
+
+            if loss_min > val_loss:
+                if verbose:
+                    print(f"Patience reset")
+                else:
+                    pbar2.colour ="green"
+                patience = initial_patience
+                loss_min = val_loss
+                save_model(shadow_model, optimizer)
             else:
                 patience -= 1
+                if not verbose:
+                    pbar2.colour ="red"
 
-        # Validation phase
-        val_loss = test_shadow_model(target_model, shadow_model, valloader, criterion, DEVICE)
+            
 
-        # Print the validation loss and metric
-        print(f"Validation Loss: {val_loss.item()}, Metric: {val_metric}")
+        
         
         if wandb_logging:
-            wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": accuracy,"loss": loss}) 
+            if accuracy_defined:
+                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": val_acc,"loss": val_loss})
+            else:
+                wandb.log({"train_loss": train_loss, "val_loss": val_loss})
 
         if verbose:
-            print(f"Epoch {epoch+1}: train loss {epoch_loss}, val loss: {val_loss}")
+            print(f"Epoch {epoch+1}:train_loss: {train_loss:.4f}, Min loss: {loss_min:.4f}, Current loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: {patience}")
         else:
-            pbar.update(1)  
-            pbar.set_description(f"p: {patience}, t_loss: {train_loss:.4f}, v_loss: {loss:.4f}")
+            pbar.update(1)
+            pbar2.update(patience-pbar2.n) 
+            pbar.set_description(f"Epoch: {epoch+1}")
+            if accuracy_defined:
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: ")
+            else:
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, Patience: ")
     if not verbose:
         pbar.close()
 
-def test_shadow_model(target_model, shadow_model, testloader, criterion = None, DEVICE = get_device()):
+def test_shadow_model(target_model, shadow_model, testloader, criterion = None, device = get_device(), accuracy_defined=False):
     """Evaluate the model similirity on the entire test set."""
-    criterion = torch.nn.CrossEntropyLoss()
+    if not criterion:
+        # criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.MSELoss()
+ 
     loss = 0.0
     target_model.eval()
     shadow_model.eval()
+    acc = None
+    correct, total = 0, 0
     with torch.no_grad():
-        for images, _ in testloader:
-            images = images.to(DEVICE)
+        for images, labels in testloader:
+            images = images.to(device)
+            labels = labels.to(device)
             expected_outputs = target_model(images)
             achieved_outputs = shadow_model(images)
-            loss += criterion(achieved_outputs, expected_outputs).item()            
-    loss /= len(testloader.dataset)
-    return loss
+            loss_now = criterion(achieved_outputs, expected_outputs)
+            loss += loss_now.item()   
+            if accuracy_defined:  # Metrics
+                total += labels.size(0)
+                correct += (torch.max(achieved_outputs.data, 1)[1] == labels).sum().item()
+
+        loss /= len(testloader.dataset)
+        
+        # pdb.set_trace()
+        if accuracy_defined:
+            acc = correct / total  
+    return loss, acc
 

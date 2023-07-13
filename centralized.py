@@ -13,7 +13,6 @@ def evaluate(evaluation_model, device="cpu", wandb_logging=True,  dataset_name='
     # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
     model = load_model(model_name, num_channels=3, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters())
-    model_name=model.__class__.__name__
     load_saved_weights(model, filename =evaluation_model)
 
 

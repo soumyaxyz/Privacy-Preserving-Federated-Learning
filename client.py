@@ -21,6 +21,7 @@ def main():
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
+    parser.add_argument('-hl','--headless', action='store_true', help='Enable headless mode')
     args = parser.parse_args()
     model = load_model(args.model_name, num_channels=3, num_classes=10)
 
@@ -42,7 +43,10 @@ def main():
     print_info(device, args.model_name, args.dataset_name)
 
     trainloaders, valloaders, _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
-    client_defination = client_fn(args.client_number, model, trainloaders, valloaders, args.number_of_total_clients, args.wandb_logging, args.dataset_name, args.overfit_patience)
+    client_defination = client_fn(args.client_number, model, trainloaders, valloaders, 
+                                  args.number_of_total_clients, args.wandb_logging, args.dataset_name, 
+                                  args.overfit_patience, simulation=args.headless
+                                  )
     try:
         fl.client.start_numpy_client(
                                     server_address=args.server_address+':'+ args.server_port, 
