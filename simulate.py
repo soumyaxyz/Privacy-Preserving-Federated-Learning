@@ -2,7 +2,7 @@ from typing import Dict, List
 import flwr as fl
 import wandb
 from utils.datasets import load_partitioned_datasets
-from utils.models import load_model
+from utils.models import load_model_defination
 from utils.client_utils import client_fn
 from utils.server_utils import Server_details
 from utils.training_utils import print_info, save_model, wandb_init, get_device, get_parameters, set_parameters, test
@@ -51,7 +51,7 @@ class Simulator(object):
         else:
             self.client_resources = None
         
-        self.net = load_model(self.model_name).to(self.device)
+        self.net = load_model_defination(self.model_name).to(self.device)
         
 
     # The `evaluate` function will be by Flower called after every round

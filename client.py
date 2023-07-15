@@ -3,7 +3,7 @@ import argparse
 from utils.datasets import load_partitioned_datasets
 from utils.training_utils import print_info, get_device
 from utils.client_utils import client_fn, get_certificate
-from utils.models import load_model
+from utils.models import load_model_defination
 import pdb, traceback
 
 
@@ -23,7 +23,7 @@ def main():
     parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
     parser.add_argument('-hl','--headless', action='store_true', help='Enable headless mode')
     args = parser.parse_args()
-    model = load_model(args.model_name, num_channels=3, num_classes=10)
+    model = load_model_defination(args.model_name, num_channels=3, num_classes=10)
 
     device = get_device()
 

@@ -2,7 +2,7 @@ import argparse
 
 import wandb
 from utils.datasets import load_partitioned_datasets
-from utils.models import load_model
+from utils.models import load_model_defination
 from utils.training_utils import get_device, print_info, save_model, test, train_shadow_model, load_model as load_saved_weights, wandb_init
 
 
@@ -22,14 +22,14 @@ class Model_Distilation:
     def distil_for_epochs(self, epochs, optimizer = None, criterion = None,  verbose=False, patience= 5):   
         print_info(self.device, self.student_model_name, self.dataset_name, self.teacher_weights)
                 
-        teacher = load_model(self.teacher_model_name).to(self.device)
+        teacher = load_model_defination(self.teacher_model_name).to(self.device)
         try:
             load_saved_weights(teacher, filename =self.teacher_weights)
         except FileNotFoundError:
             print("Teacher weights not found. Fatal error")   
             raise SystemError  
 
-        student = load_model(self.student_model_name).to(self.device)
+        student = load_model_defination(self.student_model_name).to(self.device)
         try:
             load_saved_weights(student, filename =self.student_weights)
         except FileNotFoundError:

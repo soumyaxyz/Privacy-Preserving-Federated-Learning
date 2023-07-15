@@ -35,6 +35,17 @@ def load_datasets(dataset_name = 'CIFAR10'):
         print(f'Unknown dataset name: {dataset_name}')
         raise NotImplementedError
     
+def get_datasets_details(dataset_name = 'CIFAR10'):
+    # return num_channels, num_classes
+    if dataset_name == 'CIFAR10':
+        return 3, 10
+    elif dataset_name == 'MNIST':
+        return 1, 10
+    else:
+        # import pdb; pdb.set_trace()
+        print(f'Unknown dataset name: {dataset_name}')
+        raise NotImplementedError
+    
 def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32): 
 
     # Split training set into `num_clients` partitions to simulate different local datasets

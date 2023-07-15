@@ -2,7 +2,7 @@ import flwr as fl
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
 from utils.datasets import load_partitioned_datasets
-from utils.models import load_model
+from utils.models import load_model_defination
 from utils.server_utils import Server_details
 import pdb, traceback
 
@@ -48,7 +48,7 @@ def main():
     args = parser.parse_args()
     
 
-    model = load_model(args.model_name, num_channels=3, num_classes=10)     
+    model = load_model_defination(args.model_name, num_channels=3, num_classes=10)     
     _,_,test_loader , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
 
     device = get_device()

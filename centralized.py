@@ -5,13 +5,13 @@ import wandb
 import torch
 from utils.datasets import load_partitioned_datasets
 from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
-from utils.models import load_model 
+from utils.models import load_model_defination 
 import argparse
 import pdb,traceback
 
 def evaluate(evaluation_model, device="cpu", wandb_logging=True,  dataset_name='CIFAR10', model_name = 'basic_CNN'):
     # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model(model_name, num_channels=3, num_classes=10).to(device)
+    model = load_model_defination(model_name, num_channels=3, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters())
     load_saved_weights(model, filename =evaluation_model)
 
@@ -47,9 +47,8 @@ def evaluate(evaluation_model, device="cpu", wandb_logging=True,  dataset_name='
 
 def train_centralized(epochs=50, device="cpu", wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN'):
     # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model(model_name, num_channels=3, num_classes=10).to(device)
+    model = load_model_defination(model_name, num_channels=3, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters())
-    model_name=model.__class__.__name__
 
 
     print_info(device, model_name, dataset_name)    

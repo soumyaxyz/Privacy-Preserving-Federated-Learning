@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pdb, traceback
 
-def load_model(model_name ="basic_CNN", num_channels=3, num_classes=10):
+def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10):
     # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":
         return basic_CNN(num_channels, num_classes)
