@@ -9,20 +9,28 @@ from utils.datasets import get_datasets_details, load_datasets
 
 
 class Membership_inference_attack:
-    def __init__(self, target_model, target_dataset_name, shadow_model, shadow_count, attack_model, device, epochs, wandb_logging=False):
+    def __init__(self, 
+                 target_model, target_dataset_name, 
+                 shadow_model_name, shadow_count, 
+                 attack_model_name, 
+                 device, 
+                 shadow_epochs, attack_epochs, 
+                 wandb_logging=False
+                 ):
         
         self.shadow_count = shadow_count
 
         self.target_model           = target_model
-        self.shadow_model           = shadow_model
-        self.attack_model           = attack_model
+        self.shadow_model_name      = shadow_model_name
+        self.attack_model_name      = attack_model_name
         self.num_classes            = 10    
         trainset, testset           = load_datasets(target_dataset_name)
         self.datasets_details       = get_datasets_details(target_dataset_name)
         self.class_wise_trainset    = self.split_dataset_by_label(trainset)
         self.class_wise_testset     = self.split_dataset_by_label(testset)
         self.device                 = device
-        self.epochs                 = epochs
+        self.shadow_epochs          = shadow_epochs
+        self.attack_epochs          = attack_epochs
         self.wandb_logging          = wandb_logging    
 
     def split_dataset_by_label(self, dataset):   
@@ -42,11 +50,12 @@ class Membership_inference_attack:
                 self.target_model,
                 class_wise_datasets, 
                 self.datasets_details,
-                self.shadow_model, 
+                self.shadow_model_name, 
                 self.shadow_count, 
-                self.attack_model,
+                self.attack_model_name,
                 self.device,
-                self.epochs,
+                self.shadow_epochs,
+                self.attack_epochs,
                 self.wandb_logging
             )
             class_loss, class_accuracy = attack_instance.run_membership_inference_attack()
@@ -60,10 +69,10 @@ class Membership_inference_attack:
 class Loss_Label_Dataset(Dataset):
     """Loss_label_Dataset."""
 
-    def __init__(self, original_dataset, target_model):
-       
-        trainset                = original_dataset[0]
-        testset                 = original_dataset[1]
+    def __init__(self, original_dataset, target_model, batch_size = 32):
+        self.batch_size         = batch_size    
+        trainset                = original_dataset[0].dataset
+        testset                 = original_dataset[1].dataset
         self.target_model       = target_model
         self.device             = get_device()
 
@@ -79,11 +88,15 @@ class Loss_Label_Dataset(Dataset):
         sample = {'loss': self.data[idx], 'label': self.label[idx]}
         return sample
     
-    def append_loss_label(self, dataset, seen_unseen_label, criterion=None):
+    def append_loss_label(self, dataLoader, seen_unseen_label, criterion=None):
         if not criterion:
             criterion = torch.nn.CrossEntropyLoss()
 
-        for images, labels in dataset:
+        
+        # dataLoader =DataLoader(dataset, self.batch_size)
+        # pdb.set_trace()
+
+        for images, labels in dataLoader:
             images, labels = images.to(self.device), labels.to(self.device)
             outputs = self.target_model(images)
             loss = criterion(outputs, labels).item()
@@ -96,7 +109,16 @@ class Loss_Label_Dataset(Dataset):
 
 
 class Membership_inference_attack_instance:
-    def __init__(self, class_id, target_model, target_dataset, datasets_details, shadow_model_name, shadow_count, attack_model_name, device, epochs=50, wandb_logging=False):
+    def __init__(self, class_id, 
+                 target_model, target_dataset, 
+                 datasets_details, 
+                 shadow_model_name, shadow_count, 
+                 attack_model_name, 
+                 device, 
+                 shadow_shadow_epochs=50, 
+                 attack_shadow_epochs=50, 
+                 wandb_logging=False
+                 ):
 
 
         self.overlap_fraction   = 0.8
@@ -109,14 +131,18 @@ class Membership_inference_attack_instance:
         self.shadow_count = shadow_count
 
         self.target_trainset, self.target_testset = target_dataset
+        num_channels, num_classes = datasets_details
 
         self.target_model       = target_model
         self.shadow_models      = []
-        for i in range(shadow_count):
-            self.shadow_models.append(load_model_defination(shadow_model_name, datasets_details).to(device))
-        self.shadow_train, self.shadow_val, self.shadow_test    = self.get_shadow_datasets()
-        self.attack_model       = load_model_defination(attack_model_name, datasets_details).to(device)
-        self.epochs             = epochs
+        for _ in range(shadow_count):
+            self.shadow_models.append(load_model_defination(shadow_model_name, num_channels, num_classes).to(device))
+            
+            
+        self.shadow_train_dataloader, self.shadow_val_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
+        self.attack_model       = load_model_defination(attack_model_name, num_channels, num_classes).to(device)
+        self.shadow_shadow_epochs      = shadow_shadow_epochs
+        self.attack_shadow_epochs      = attack_shadow_epochs
         self.wandb_logging      = wandb_logging
         self.shadow_models_trained = False
 
@@ -147,6 +173,7 @@ class Membership_inference_attack_instance:
             len_val     = int(len(ds) *self.val_fraction)        # validation set size
             len_train = len(ds) - (len_test + len_val)      # train set size
             lengths = [len_train, len_val, len_test]
+            # assert len_test + len_val + len_train == len(ds)
             ds_train, ds_val, ds_test = random_split(ds, lengths, torch.Generator().manual_seed(42))
             try:
                 trainloaders.append(DataLoader(ds_train, self.batch_size, shuffle=True))
@@ -177,21 +204,21 @@ class Membership_inference_attack_instance:
         partial_dataset = []
         for i in range(self.shadow_count):
             shadow_model    = self.shadow_models[i]
-            shadow_dataset  = [self.shadow_train[i], self.shadow_val[i]]
+            shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_val_dataloader[i]]
             partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model) )
-        
-        target_dataset= [self.target_trainset, self.target_testset]
 
+        loss_dataset = ConcatDataset(partial_dataset)
+        loss_dataset_size = len(loss_dataset)
         
-        val_size    = int(len(target_dataset) * self.val_fraction)
-        train_size  = len(target_dataset) - val_size
+        val_size    = int(loss_dataset_size * self.val_fraction)
+        train_size  = loss_dataset_size - val_size
 
-        
-
-        attack_trainset, attack_valset = random_split(ConcatDataset(partial_dataset), [train_size, val_size], torch.Generator().manual_seed(42))
+        attack_trainset, attack_valset = random_split(ConcatDataset(partial_dataset), [train_size, val_size])
         
         attack_trainloder       = DataLoader(attack_trainset, self.batch_size, shuffle=True)
         attack_valloder         = DataLoader(attack_valset, self.batch_size)
+
+        target_dataset= [self.target_trainset, self.target_testset]
         attack_testloder        = DataLoader(Loss_Label_Dataset(target_dataset, self.target_model), self.batch_size)
 
         return attack_trainloder, attack_valloder, attack_testloder
@@ -202,12 +229,25 @@ class Membership_inference_attack_instance:
         # runs membership inference attack on the target model
         # creates a training loop where the output of the shadow model is trained to mimic the target model
         for i in range(self.shadow_count):
-            train_shadow_model(self.target_model, self.shadow_models[i], self.shadow_train[i], self.shadow_val[i], self.epochs, verbose=False, wandb_logging=True)
+            train_shadow_model(self.target_model, 
+                               self.shadow_models[i], 
+                               self.shadow_train_dataloader[i], 
+                               self.shadow_val_dataloader[i], 
+                               self.shadow_shadow_epochs, 
+                               verbose=False, 
+                               wandb_logging=self.wandb_logging
+                               )
 
         self.shadow_models_trained = True
         attack_trainloder, attack_valloder, attack_testloder = self.build_attack_dataset()
 
-        self.train_attack_model(self.attack_model, attack_trainloder, attack_valloder, self.epochs, verbose=False, wandb_logging=True)
+        self.train_attack_model(self.attack_model, 
+                                attack_trainloder, 
+                                attack_valloder, 
+                                self.attack_shadow_epochs, 
+                                verbose=False, 
+                                wandb_logging =self.wandb_logging
+                                )
 
         loss, accurecy = self.test_attack_model(self.attack_model, attack_testloder)
 
@@ -224,9 +264,10 @@ class Membership_inference_attack_instance:
 def main():
     parser = argparse.ArgumentParser(description='A description of your program')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
-    parser.add_argument('-e', '--num_epochs', type=int, default=50, help='Number of rounds of shadow training')
+    parser.add_argument('-e', '--num_shadow_epochs', type=int, default=50, help='Number of rounds of shadow training')
+    parser.add_argument('-e1', '--num_attack_epochs', type=int, default=50, help='Number of rounds of attack training')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name, target dataset ')
-    parser.add_argument('-n', '--shadow_count', type=int, default=1, help='Number of shadow models')
+    parser.add_argument('-n', '--shadow_count', type=int, default=2, help='Number of shadow models')
     parser.add_argument('-m', '--target_model_name', type=str, default='basicCNN', help='Model name for the model to be attacked')
     parser.add_argument('-mw', '--target_model_weights', type=str, default='basicCNN', help='Weights for the model to be attacked')
     parser.add_argument('-s', '--shadow_model_name', type=str, default='basicCNN', help='Model name for the shadow model')
@@ -235,15 +276,18 @@ def main():
 
 
     device = get_device()
+    num_channels, num_classes = get_datasets_details(args.dataset_name)
 
-    target_model        = load_model_defination(args.target_model_name, get_datasets_details(args.dataset_name)).to(device)
+    target_model        = load_model_defination(args.target_model_name, num_channels, num_classes).to(device)
     load_saved_weights(target_model, filename =args.target_model_weights)
 
     attack = Membership_inference_attack(target_model, args.dataset_name, 
                                          args.shadow_model_name, 
-                                         args.shadow_count, 
+                                         args.shadow_count,
                                          args.attack_model_name, 
-                                         device, args.num_epochs, args.wandb_logging
+                                         device, 
+                                         args.num_shadow_epochs, args.num_attack_epochs,
+                                         args.wandb_logging
                                          )
 
     attack.start()

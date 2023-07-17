@@ -11,6 +11,8 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
         return  basicCNN()
     elif model_name == "efficientnet":
         return  load_efficientnet(classes = num_classes)
+    elif model_name == "attack_classifier":
+        return binary_classifier(num_channels)
     else:
         raise NotImplementedError
 
@@ -58,6 +60,18 @@ class basic_CNN(nn.Module):
                 print(traceback.print_exc())
                 pdb.set_trace()
 
+class binary_classifier(nn.Module):
+    def __init__(self,input_shape):
+        super(binary_classifier,self).__init__()
+        self.fc1 = nn.Linear(input_shape,32)
+        self.fc2 = nn.Linear(32,64)
+        self.fc3 = nn.Linear(64,1)  
+
+    def forward(self,x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.sigmoid(self.fc3(x))
+        return x
 
 def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
     """Replaces the final layer of the classifier."""
