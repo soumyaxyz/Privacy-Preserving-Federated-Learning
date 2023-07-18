@@ -68,9 +68,15 @@ class binary_classifier(nn.Module):
         self.fc3 = nn.Linear(64,1)  
 
     def forward(self,x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.sigmoid(self.fc3(x))
+        try:
+            x = torch.unsqueeze(x, 1).to(self.fc1.weight.dtype)
+            x = torch.relu(self.fc1(x))
+            x = torch.relu(self.fc2(x))
+            x = torch.sigmoid(self.fc3(x))
+            x = torch.squeeze(x)
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
         return x
 
 def replace_classifying_layer(efficientnet_model, num_classes: int = 10):

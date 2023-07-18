@@ -39,9 +39,9 @@ def print_info(device, model_name="model", dataset_name="dataset", teacher_name=
         device_type = device.type
         
     if teacher_name:
-        print(f"Distiling on {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
+        print(f"\nDistiling {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     else:
-        print(f"Training on {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def verify_folder_exist(path):
     if not os.path.exists(path):
@@ -107,7 +107,7 @@ def loss_fn_kd(outputs, labels, teacher_outputs, params):
 
 
 
-def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEVICE = get_device()):
+def train_single_epoch(net, trainloader, optimizer = None, criterion = None, device = get_device(), is_binary=False):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
@@ -116,39 +116,53 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, DEV
     net.train()
     correct, total, epoch_loss = 0, 0, 0.0
     for images, labels in trainloader:
-        images, labels = images.to(DEVICE), labels.to(DEVICE)
-        optimizer.zero_grad()
-        outputs = net(images)
-        loss = criterion(net(images), labels)
-        loss.backward()
-        optimizer.step()
-        # Metrics
-        epoch_loss += loss.item()
-        total += labels.size(0)
-        correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+        try:
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = net(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            # Metrics
+            epoch_loss += loss.item()
+            total += labels.size(0)
+            if is_binary:
+                correct += (torch.round(outputs.data) == labels).sum().item()
+            else:
+                correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
     epoch_loss /= len(trainloader.dataset)
     epoch_acc = correct / total
     # print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return epoch_loss, epoch_acc
 
-def test(net, testloader, DEVICE = get_device() ):
+def test(net, testloader, device = get_device(), is_binary=False):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     net.eval()
-    with torch.no_grad():
-        for images, labels in testloader:
-            images, labels = images.to(DEVICE), labels.to(DEVICE)
-            outputs = net(images)
-            loss += criterion(outputs, labels).item()
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-    loss /= len(testloader.dataset)
-    accuracy = correct / total
+    try:
+        with torch.no_grad():
+            for images, labels in testloader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = net(images)
+                loss += criterion(outputs, labels).item()                
+                total += labels.size(0)
+                if is_binary:
+                    correct += (torch.round(outputs.data) == labels).sum().item()
+                else:
+                    correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+        loss /= len(testloader.dataset)
+        accuracy = correct / total
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
+        
     return loss, accuracy
 
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, verbose=False, wandb_logging=True, patience= 5, loss_min = 100000):
+def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
@@ -171,14 +185,15 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
         if record_mode:
             if wandb_logging:
                 wandb.log({"acc": accuracy,"loss": loss})
-            pbar.update(1)
+            if not verbose:
+                pbar.update(1)
         elif patience<= 0:
             try:
                 load_model(net, optimizer, savefilename)
             except Exception as e:
                 print(traceback.print_exc())
                 pdb.set_trace()
-            loss, accuracy = test(net, valloader)
+            loss, accuracy = test(net, valloader, device, is_binary)
             if wandb_logging:
                 wandb.log({"acc": accuracy,"loss": loss}) 
             if not verbose:
@@ -187,8 +202,8 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             # break
             record_mode = True
         else:
-            train_loss, train_acc =  train_single_epoch(net, trainloader, optimizer, criterion) 
-            loss, accuracy = test(net, valloader)
+            train_loss, train_acc =  train_single_epoch(net, trainloader, optimizer, criterion, device, is_binary) 
+            loss, accuracy = test(net, valloader, device, is_binary)
 
             if loss_min > loss: # validation loss improved
                 patience = initial_patience
