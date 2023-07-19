@@ -14,7 +14,7 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
     elif model_name == "attack_classifier":
         return binary_classifier(num_channels)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f" {model_name=} not defined yet")
 
 class basicCNN(nn.Module):
     def __init__(self) -> None:
