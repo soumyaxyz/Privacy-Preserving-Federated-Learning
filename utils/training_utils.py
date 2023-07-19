@@ -11,6 +11,8 @@ import pdb,traceback
 import os
 import csv
 
+from utils.datasets import Wrapper_Dataset
+
 def wandb_init(
     project="Privacy-Preverving-Ferderated-Learning", 
     entity="soumyabanerjee", 
@@ -33,7 +35,7 @@ def get_device():
     else:
       return torch.device("cpu")
 
-def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None):
+def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None, no_FL = False):
     if device.type=="cuda":
         device_type = torch.cuda.get_device_name(0)  
     else:
@@ -41,6 +43,8 @@ def print_info(device, model_name="model", dataset_name="dataset", teacher_name=
         
     if teacher_name:
         print(f"\nDistiling {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
+    elif no_FL:
+        print(f"\n\tTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     else:
         print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
@@ -62,7 +66,7 @@ def save_model(net, optim = None, filename ='filename', print_info=False):
         torch.save({'model_state_dict': net.state_dict()}, path)
 
     if print_info:
-        print(f"Saved model to {path}")
+        print(f"\nSaved model to {path}")
 
 def load_model(net, optim=None, filename ='filename', print_info=False):
     sanatized_filename = "".join(x for x in filename if x.isalnum())
@@ -84,18 +88,44 @@ def delete_saved_model(filename ='filename', print_info=False):
 
 
 def save_loss_dataset(dataset, filename='datset'):
-        save_path = './saved_models/'+filename+'.csv'
-        with open(save_path, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['data', 'label'])  # Write the header row
+    save_path = './saved_models/'+filename+'.csv'
+    with open(save_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['data', 'label'])  # Write the header row
 
-            for data, label in dataset:
-                # Convert tensors to numpy arrays if needed
-                data = data.numpy() if isinstance(data, torch.Tensor) else data
-                label = label.numpy() if isinstance(label, torch.Tensor) else label
+        for data, label in dataset:
+            # Convert tensors to numpy arrays if needed
+            data = data.numpy() if isinstance(data, torch.Tensor) else data
+            label = label.numpy() if isinstance(label, torch.Tensor) else label
 
-                writer.writerow([data, label])  # Write each data and label as a row
+            writer.writerow([data, label])  # Write each data and label as a row
 
+
+def load_loss_dataset(filename='dataset'):
+    load_path = './saved_models/' + filename + '.csv'
+    dataset = []
+
+    with open(load_path, mode='r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip the header row
+
+        data = []
+        label = []
+
+        for row in reader:
+            data_i, label_i = row
+            # Convert data and label to appropriate types if needed
+            try:
+                data.append(eval(data_i))
+                label.append(eval(label_i))
+            except:
+                pdb.set_trace()
+
+            
+
+        dataset = Wrapper_Dataset(data, label)
+
+    return dataset
 
 
 def get_parameters(net) -> List[np.ndarray]:

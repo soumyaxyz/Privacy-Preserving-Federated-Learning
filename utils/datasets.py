@@ -1,8 +1,9 @@
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import  Dataset, DataLoader, random_split
 import pdb,traceback
+
 
 
 def load_CIFAR10():
@@ -24,6 +25,74 @@ def load_MNIST():
     testset = MNIST("./dataset", train=False, download=True, transform=transform)
 
     return trainset, testset
+
+
+class Loss_Label_Dataset(Dataset):
+    """Loss_label_Dataset."""
+
+    def __init__(self, original_dataset, target_model, device, batch_size = 32):
+        self.batch_size         = batch_size  
+        trainset                = original_dataset[0]
+        testset                 = original_dataset[1]
+        # seen_count              = len(trainset)
+        # unseen_count            = len(testset)
+        self.target_model       = target_model
+        self.device             = device
+
+        # try:
+        #     assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
+        #     # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
+        # except AssertionError as e:
+        #     print(f'Unballanced dataset: seen {seen_count}, unseen {unseen_count}')
+        #     # pdb.set_trace()
+
+        self.data   = []
+        self.label  = []
+
+        self.append_loss_label(trainset, 1.0)
+        self.append_loss_label(testset, 0.0)
+        
+
+    def __len__(self):
+        return len(self.label)
+
+    def __getitem__(self, idx):        
+        sample = [self.data[idx], self.label[idx]]
+        return sample
+    
+    def append_loss_label(self, dataLoader, seen_unseen_label, criterion=None):
+        if not criterion:
+            criterion = torch.nn.CrossEntropyLoss()
+
+
+        for images, labels in dataLoader:
+            images, labels = images.to(self.device), labels.to(self.device)
+            outputs = self.target_model(images)
+            loss = criterion(outputs, labels).item()
+
+            # pdb.set_trace()
+
+            self.data.append(loss)
+            self.label.append(seen_unseen_label)
+
+        return 
+
+
+class Wrapper_Dataset(Dataset):
+    def __init__(self, data, label):
+        self.data   = data
+        self.label  = label
+         
+    def __len__(self):
+        return len(self.label)
+
+    def __getitem__(self, idx):        
+        sample = [self.data[idx], self.label[idx]]
+        return sample
+
+    
+
+
 
 def load_datasets(dataset_name = 'CIFAR10'):
     if dataset_name == 'CIFAR10':
