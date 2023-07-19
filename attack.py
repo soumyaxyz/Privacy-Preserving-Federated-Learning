@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, Subset, random_split 
 from utils.models import load_model_defination
-from utils.training_utils import get_device, train_shadow_model, get_device, print_info, save_model,train, test, load_model as load_saved_weights
+from utils.training_utils import get_device, save_loss_dataset, train_shadow_model, get_device, print_info, save_model,train, test, load_model as load_saved_weights
 from utils.datasets import get_datasets_details, load_datasets, load_dataloaders
 
 
@@ -63,6 +63,9 @@ class Membership_inference_attack:
             print(f"Loss on class {c}: {class_loss}, and Accuracy on class {c}: {class_accuracy}")
             loss        += class_loss
             accuracy    += class_accuracy
+        
+        loss     /= self.num_classes
+        accuracy /= self.num_classes
 
         print(f"\nOverall Loss: {loss}, and Overall Accuracy: {accuracy}")
         
@@ -73,16 +76,26 @@ class Loss_Label_Dataset(Dataset):
 
     def __init__(self, original_dataset, target_model, batch_size = 32):
         self.batch_size         = batch_size 
-        # trainset, testset       = load_dataloaders(original_dataset[0], original_dataset[1], batch_size)   
-        trainset              = original_dataset[0]
-        testset               = original_dataset[1]
+        # trainset, testset     = load_dataloaders(original_dataset[0], original_dataset[1], batch_size)   
+        trainset                = original_dataset[0]
+        testset                 = original_dataset[1]
+        seen_count              = len(trainset)
+        unseen_count            = len(testset)
         self.target_model       = target_model
         self.device             = get_device()
 
-        self.data = []
-        self.label = []
-        self.append_loss_label(trainset, 1.1)
-        self.append_loss_label(testset, 0.0)
+        try:
+            assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
+            # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
+        except AssertionError as e:
+            print(f'Unballanced dataset: seen {seen_count}, unseen {unseen_count}')
+            # pdb.set_trace()
+
+        self.data   = []
+        self.label  = []
+        seen_count   = self.append_loss_label(trainset, 1.0)
+        unseen_count = self.append_loss_label(testset, 0.0)
+        
 
     def __len__(self):
         return len(self.label)
@@ -95,6 +108,7 @@ class Loss_Label_Dataset(Dataset):
         if not criterion:
             criterion = torch.nn.CrossEntropyLoss()
 
+
         for images, labels in dataLoader:
             images, labels = images.to(self.device), labels.to(self.device)
             outputs = self.target_model(images)
@@ -104,7 +118,17 @@ class Loss_Label_Dataset(Dataset):
 
             self.data.append(loss)
             self.label.append(seen_unseen_label)
+
         return 
+
+def build_label_dict(ds):
+    bal_dict = dict()
+    bal_dict[0] = 0
+    bal_dict[1] = 0
+    for j in range(ds.__len__()):
+        _, lbl = ds.__getitem__(j)
+        bal_dict[lbl] += 1
+    print(f'{bal_dict}')
 
 
 class Membership_inference_attack_instance:
@@ -119,14 +143,14 @@ class Membership_inference_attack_instance:
                  wandb_logging=False
                  ):
 
-
-        self.overlap_fraction   = 0.8
-        self.seen_fraction      = 0.2 
-        self.unseen_fraction    = 0.6
-        self.val_fraction       = 0.1
-        self.test_fraction      = 0.4
-        self.batch_size         = 32
-        self.device             = device
+        self.class_id               = class_id
+        self.overlap_fraction       = 0.8
+        self.seen_fraction          = 0.12 
+        self.unseen_fraction        = 0.6
+        self.val_fraction           = 0.2
+        self.shadow_test_fraction   = 0.5
+        self.batch_size             = 32
+        self.device                 = device
         
         self.shadow_count = shadow_count
 
@@ -139,7 +163,7 @@ class Membership_inference_attack_instance:
             self.shadow_models.append(load_model_defination(shadow_model_name, num_channels, num_classes).to(self.device))
             
             
-        self.shadow_train_dataloader, self.shadow_val_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
+        self.shadow_train_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
         self.attack_model       = load_model_defination(attack_model_name, num_channels = 1, num_classes = 2).to(device)
         self.shadow_epochs      = shadow_epochs
         self.attack_epochs      = attack_epochs
@@ -153,40 +177,8 @@ class Membership_inference_attack_instance:
     def get_shadow_datasets(self):
         initial_dataset = self.build_master_shadow_dataset(self.target_trainset, self.target_testset)
         return self.get_final_shadow_datasets(initial_dataset)
-        
-    def get_final_shadow_datasets(self, initial_dataset ):
-        # Split dataset into `self.shadow_count` overlapping partitions, with 'overlap_fraction' overlap, to simulate different shadow datasets
-        total_size = len(initial_dataset)
-        partition_size = int(total_size*self.overlap_fraction) 
-
-            
-
-        datasets = []
-        for i in range(self.shadow_count):
-            datasets.append( Subset(initial_dataset, torch.randperm(total_size)[:partition_size]) )
 
 
-        # Split each partition into train/val/test and create DataLoader
-        trainloaders = []
-        valloaders = []
-        testloaders = []
-        for ds in datasets:
-            len_test    = int(len(ds) * self.test_fraction)      # test set size
-            len_val     = int(len(ds) *self.val_fraction)        # validation set size
-            len_train = len(ds) - (len_test + len_val)      # train set size
-            lengths = [len_train, len_val, len_test]
-            # assert len_test + len_val + len_train == len(ds)
-            ds_train, ds_val, ds_test = random_split(ds, lengths, torch.Generator().manual_seed(42))
-            try:
-                trainloaders.append(DataLoader(ds_train, self.batch_size, shuffle=True))
-                valloaders.append(DataLoader(ds_val, self.batch_size))
-                testloaders.append(DataLoader(ds_test, self.batch_size))
-            except Exception as e:
-                traceback.print_exc()
-                pdb.set_trace()
-                
-        return trainloaders, valloaders, testloaders
-    
     def build_master_shadow_dataset(self, trainset, testset):
         
         trainset_size = len(trainset)
@@ -197,25 +189,86 @@ class Membership_inference_attack_instance:
         unseen_size = int(testset_size * self.unseen_fraction)
         unseen_dataset =  Subset(testset, torch.randperm(testset_size)[:unseen_size])
 
-        return ConcatDataset([seen_dataset, unseen_dataset])
+        print(f"Seen size: {seen_size}, unseen size: {unseen_size}")    
+
+        return ConcatDataset([seen_dataset, unseen_dataset])   
+
+        # print(f"Initial dataset ballance: {build_label_dict(initial_dataset)}")
+
+        # return initial_dataset
 
     
+
+    def get_final_shadow_datasets(self, initial_dataset ):
+        # Split dataset into `self.shadow_count` overlapping partitions, with 'overlap_fraction' overlap, to simulate different shadow datasets
+        total_size = len(initial_dataset)
+        partition_size = int(total_size*self.overlap_fraction) 
+
+        
+        
+
+        datasets = []
+        # dataset_ballance_dicts = []
+        for i in range(self.shadow_count):
+            datasets.append( Subset(initial_dataset, torch.randperm(total_size)[:partition_size]) )
+        #     ds = datasets[i]
+        #     bal_dict = build_label_dict(ds)
+
+        #     dataset_ballance_dicts.append(bal_dict)
+            
+
+            
+
+        # pdb.set_trace()
+
+        # Split each partition into train/val/test and create DataLoader
+        trainloaders = []
+        valloaders = []
+        testloaders = []
+        for ds in datasets:
+            len_test    = int(len(ds) * self.shadow_test_fraction)      # test set size
+            len_train = len(ds) - len_test      # train set size
+            lengths = [len_train, len_test]
+            # assert len_test +  len_train == len(ds)
+            ds_train, ds_test = random_split(ds, lengths, torch.Generator().manual_seed(42))
+
+        
+
+            try:
+                trainloaders.append(DataLoader(ds_train, self.batch_size, shuffle=True))
+                testloaders.append(DataLoader(ds_test, self.batch_size))
+            except Exception as e:
+                traceback.print_exc()
+                pdb.set_trace()
+                
+        return trainloaders, testloaders
+    
+    
+
+    
+
+
     def build_attack_dataset(self):
         if not self.shadow_models_trained:
             raise Exception("Shadow models not trained")
         partial_dataset = []
         for i in range(self.shadow_count):
             shadow_model    = self.shadow_models[i]
-            shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_val_dataloader[i]]
+            print(f'train size: {len(self.shadow_train_dataloader[i])}, test size: {len(self.shadow_test_dataloader[i])}')
+            shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_test_dataloader[i]]
             partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model) )
 
         loss_dataset = ConcatDataset(partial_dataset)
         loss_dataset_size = len(loss_dataset)
+
+        
         
         val_size    = int(loss_dataset_size * self.val_fraction)
         train_size  = loss_dataset_size - val_size
 
-        attack_trainset, attack_valset = random_split(ConcatDataset(partial_dataset), [train_size, val_size])
+        save_loss_dataset(loss_dataset, f'loss_dataset_class_{self.class_id}')
+
+        attack_trainset, attack_valset = random_split(loss_dataset, [train_size, val_size])
         
         attack_trainloder       = DataLoader(attack_trainset, self.batch_size, shuffle=True)
         attack_valloder         = DataLoader(attack_valset, self.batch_size)
@@ -241,7 +294,7 @@ class Membership_inference_attack_instance:
             train_shadow_model(self.target_model, 
                                self.shadow_models[i], 
                                self.shadow_train_dataloader[i], 
-                               self.shadow_val_dataloader[i], 
+                               self.shadow_test_dataloader[i], 
                                self.shadow_epochs, 
                                verbose=False, 
                                wandb_logging=self.wandb_logging
@@ -263,7 +316,7 @@ class Membership_inference_attack_instance:
                 attack_valloder, 
                 epochs=self.attack_epochs,
                 device=self.device,
-                verbose=True, 
+                verbose=False, 
                 wandb_logging =self.wandb_logging,
                 is_binary=True
                 )

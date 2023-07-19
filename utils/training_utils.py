@@ -9,6 +9,7 @@ from tqdm import tqdm
 import wandb
 import pdb,traceback
 import os
+import csv
 
 def wandb_init(
     project="Privacy-Preverving-Ferderated-Learning", 
@@ -80,6 +81,22 @@ def delete_saved_model(filename ='filename', print_info=False):
         os.remove(path)
     if print_info:
         print(f"Deleted model from {path}")
+
+
+def save_loss_dataset(dataset, filename='datset'):
+        save_path = './saved_models/'+filename+'.csv'
+        with open(save_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['data', 'label'])  # Write the header row
+
+            for data, label in dataset:
+                # Convert tensors to numpy arrays if needed
+                data = data.numpy() if isinstance(data, torch.Tensor) else data
+                label = label.numpy() if isinstance(label, torch.Tensor) else label
+
+                writer.writerow([data, label])  # Write each data and label as a row
+
+
 
 def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
