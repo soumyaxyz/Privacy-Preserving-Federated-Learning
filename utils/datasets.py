@@ -49,8 +49,8 @@ class Loss_Label_Dataset(Dataset):
         self.data   = []
         self.label  = []
 
-        self.append_loss_label(trainset, 1.0)
-        self.append_loss_label(testset, 0.0)
+        self.append_data_label(trainset, 1.0)
+        self.append_data_label(testset, 0.0)
         
 
     def __len__(self):
@@ -60,7 +60,7 @@ class Loss_Label_Dataset(Dataset):
         sample = [self.data[idx], self.label[idx]]
         return sample
     
-    def append_loss_label(self, dataLoader, seen_unseen_label, criterion=None):
+    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
         if not criterion:
             criterion = torch.nn.CrossEntropyLoss()
 
@@ -91,7 +91,25 @@ class Wrapper_Dataset(Dataset):
         return sample
 
     
+class Error_Label_Dataset(Loss_Label_Dataset):
+    def __init__(self, original_dataset, target_model, device, batch_size=32):
+        super().__init__(original_dataset, target_model, device, batch_size)
 
+    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
+        if not criterion:
+            criterion = torch.nn.CrossEntropyLoss()
+
+
+        for images, _ in dataLoader:
+            images  = images.to(self.device)
+            outputs = self.target_model(images)           
+
+            # pdb.set_trace()
+
+            self.data.append(outputs)
+            self.label.append(seen_unseen_label)
+
+        return 
 
 
 def load_datasets(dataset_name = 'CIFAR10'):
