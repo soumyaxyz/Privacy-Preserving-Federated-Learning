@@ -12,4 +12,4 @@ echo "Server is launching, the server will be available at: $(hostname):${port}"
 echo "$(hostname)" > .server_hostname
 echo "${port}"     > .server_port
 
-crun -p ~/envs/ppfl/ python server.py -p "$port" xxxxxx   # add rest of your arguments
+crun -p ~/envs/ppfl/ python server.py -p "$port" -r 100 -N 3 -m efficientnet -w    # add rest of your arguments

@@ -5,4 +5,5 @@ wandb/
 saved_models/
 .vscode/
 .cache/
+outputs/
 temp*
