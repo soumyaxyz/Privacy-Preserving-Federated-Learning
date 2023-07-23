@@ -2,7 +2,7 @@
 
 #SBATCH -c 4
 #SBATCH -t 1-0 # max run time set to 1 day
-#SBATCH -o server-%j.out
+#SBATCH -o /outputs/server-%j.out
 
 module load container_env python3
 

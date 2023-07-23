@@ -3,7 +3,7 @@
 #SBATCH -c 8
 #SBATCH -p gpu 
 #SBATCH --gres gpu:1
-#SBATCH -o client-%j.out
+#SBATCH -o /outputs/client-%j.out
 
 module load container_env python3
 

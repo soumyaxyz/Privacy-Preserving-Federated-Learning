@@ -10,22 +10,17 @@ from utils.datasets import Loss_Label_Dataset, get_datasets_details, load_datase
 
 
 class Classwise_membership_inference_attack:
-    def __init__(self, target_model, target_dataset_name, attack_instance, wandb_logging=False):
+    def __init__(self, target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging=False):
         
         # self.shadow_count = shadow_count
 
         self.target_model           = target_model
-        # self.shadow_model_name      = shadow_model_name
-        # self.load_attack_dataset    = load_attack_dataset
-        # self.attack_model_name      = attack_model_name
+        self.target_model_name      = target_model_name
         self.target_dataset_name    = target_dataset_name
         _, self.num_classes         = get_datasets_details(self.target_dataset_name)
         self.trainset, self.testset           = load_datasets(target_dataset_name)
         self.datasets_details       = get_datasets_details(target_dataset_name)
         self.attack_instance        = attack_instance
-        # self.device                 = device
-        # self.shadow_epochs          = shadow_epochs
-        # self.attack_epochs          = attack_epochs
         self.wandb_logging          = wandb_logging    
 
     def split_dataset_by_label(self, dataset):   
@@ -47,7 +42,7 @@ class Classwise_membership_inference_attack:
             class_wise_datasets = [class_wise_trainset[c], class_wise_testset[c]]
             attack_instance = deepcopy(self.attack_instance)
 
-            attack_instance.define_target_model_and_datasets(c, self.target_model, class_wise_datasets, self.target_dataset_name)
+            attack_instance.define_target_model_and_datasets(c, self.target_model, class_wise_datasets, self.target_dataset_name, self.target_model_name)
             class_loss, class_accuracy = attack_instance.run_membership_inference_attack()
             print(f"\n\tLoss on class {c}: {class_loss}, and Accuracy on class {c}: {class_accuracy}")
             loss        += class_loss
@@ -63,15 +58,15 @@ class Classwise_membership_inference_attack:
             # input("Press Enter to Log run with wandb...")
             wandb_init(dataset_name= self.target_dataset_name, 
                        model_name = self.target_model.__class__.__name__, 
-                       comment = f"classwise_membership_inference_attack_overall_{self.target_dataset_name}_{self.target_model.__class__.__name__}"
+                       comment = f"classwise_membership_inference_attack_overall_{self.target_model_name}"
                        )
             wandb.log({"test_acc": accuracy, "test_loss": loss})
             wandb.finish()
         
 
 class Combined_membership_inference_attack(Classwise_membership_inference_attack):
-    def __init__(self, target_model, target_dataset_name, attack_instance, wandb_logging=False):
-        super().__init__(target_model, target_dataset_name, attack_instance, wandb_logging)
+    def __init__(self, target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging=False):
+        super().__init__(target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging)
 
     def start(self):
         loss, accuracy = 0.0, 0.0
@@ -79,7 +74,7 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         print(f'\nMembership Inference Attack Instance on all classes at once initialized')
         class_wise_datasets = [self.trainset, self.testset]
 
-        self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset_name)
+        self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset_name, self.target_model_name)
         loss, accuracy = self.attack_instance.run_membership_inference_attack()
         
         del self.attack_instance
@@ -150,12 +145,14 @@ class Membership_inference_attack_instance:
         if self.wandb_logging:
             wandb.finish()
     
-    def define_target_model_and_datasets(self, class_id, target_model, target_dataset, target_dataset_name):       
+    def define_target_model_and_datasets(self, class_id, target_model, target_dataset, target_dataset_name, target_model_name):       
         
-        self.class_id           = class_id
-        self.target_model       = target_model  
+        self.class_id               = class_id
+        self.target_model           = target_model 
+        self.target_dataset_name    = target_dataset_name
+        self.target_model_name      = target_model_name 
         self.target_trainset, self.target_testset = target_dataset 
-        self.target_defined     = True
+        self.target_defined         = True
 
         num_channels, num_classes       = get_datasets_details(target_dataset_name)
         for _ in range(self.shadow_count):
@@ -163,9 +160,13 @@ class Membership_inference_attack_instance:
 
         self.shadow_train_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
         if self.wandb_logging:
+            if self.class_id == -1:
+                classID = "all_at_once"
+            else:
+                classID = self.class_id
             wandb_init(model_name = self.attack_model.__class__.__name__, 
                        dataset_name = 'Loss_Label_Dataset', 
-                       comment = f'MIA_{target_dataset_name}_attack_{self.target_model.__class__.__name__}_class_{self.class_id}')
+                       comment = f'MIA_{self.target_model_name}_attack_class_{classID}')
     
     def get_shadow_datasets(self):
         if not self.target_defined:
@@ -281,7 +282,8 @@ class Membership_inference_attack_instance:
         loss_dataset = ConcatDataset(partial_dataset)
 
         if self.save_attack_dataset:
-            save_loss_dataset(loss_dataset, f'loss_dataset_class_{self.class_id}')
+            file_path = f'{self.target_model_name}_{self.target_dataset_name}/loss_dataset_class_{self.class_id}'
+            save_loss_dataset(loss_dataset, file_path)
         
         self.build_attack_loaders(loss_dataset)
      
@@ -303,11 +305,13 @@ class Membership_inference_attack_instance:
 
         try:
             print(f'\tLoading saved attack dataset for class {self.class_id}')
-            loss_dataset = load_loss_dataset(f'loss_dataset_class_{self.class_id}')
+            file_path = f'{self.target_model_name}/loss_dataset_class_{self.class_id}'
+            loss_dataset = load_loss_dataset(file_path)
             self.build_attack_loaders(loss_dataset)
         except FileNotFoundError as e:
             # traceback.print_exc()
-            # pdb.set_trace()
+            print(file_path)
+            pdb.set_trace()
             print(f'\tAttack dataset for class {self.class_id} not found, building dataset...')
             self.build_attack_dataset()        
    
@@ -399,7 +403,7 @@ def main():
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name, target dataset ')
     parser.add_argument('-n', '--shadow_count', type=int, default=8, help='Number of shadow models')
     parser.add_argument('-m', '--target_model_name', type=str, default='basicCNN', help='Model name for the model to be attacked')
-    parser.add_argument('-mw', '--target_model_weights', type=str, default='basicCNN', help='Weights for the model to be attacked')
+    parser.add_argument('-mw', '--target_model_weights', type=str, default='centralizedbasicCNN', help='Weights for the model to be attacked')
     parser.add_argument('-s', '--shadow_model_name', type=str, default='basicCNN', help='Model name for the shadow model')
     parser.add_argument('-a', '--attack_model_name', type=str, default= 'attack_classifier', help='Classifier for the attack model')
     group = parser.add_mutually_exclusive_group()
@@ -426,9 +430,9 @@ def main():
                                                         )
 
     if args.combined_class:
-        attack = Combined_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.wandb_logging)
+        attack = Combined_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.target_model_weights, args.wandb_logging)
     else:
-        attack = Classwise_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.wandb_logging)
+        attack = Classwise_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.target_model_weights, args.wandb_logging)
     
     
 
