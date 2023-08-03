@@ -14,15 +14,15 @@ import csv
 from utils.datasets import Wrapper_Dataset
 
 def wandb_init(
-    project="Privacy-Preverving-Ferderated-Learning", 
-    entity="soumyabanerjee", 
+    project="Privacy_Preserving_Federated_Learning", 
+    entity="saham001", 
     model_name="basicCNN", 
     dataset_name="CIFAR_10",
     comment= '',  
     lr ='', 
     optimizer = ''
     ):    
-    wandb.login( key="6a2ec88cea517d22c5c4db178898f7143e8a6ef3" )
+    wandb.login( key="3ca866cc00388bed3df77669aabc6a9e40fcd7c4" )
     wandb.init(
       project=project, entity=entity,
       config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}

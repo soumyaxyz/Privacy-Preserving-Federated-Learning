@@ -7,6 +7,11 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
     # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":
         return basic_CNN(num_channels, num_classes)
+    elif model_name == "basicCNN_CIFAR100":
+        return basicCNN_CIFAR100()
+
+    elif model_name == "basicCNN_MNIST":
+        return  basicCNN_MNIST()
     elif model_name == "basicCNN":
         return  basicCNN()
     elif model_name == "efficientnet":
@@ -14,7 +19,7 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
     elif model_name == "attack_classifier":
         return binary_classifier(num_channels)
     else:
-        raise NotImplementedError(f" {model_name=} not defined yet")
+        raise NotImplementedError(f" {model_name} not defined yet")
 
 class basicCNN(nn.Module):
     def __init__(self) -> None:
@@ -34,6 +39,48 @@ class basicCNN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+class basicCNN_CIFAR100(nn.Module):
+    def __init__(self) -> None:
+        super(basicCNN_CIFAR100, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)  # Increase the number of output channels for conv1
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)  # Increase the number of output channels for conv2
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)  # Add a third convolutional layer
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(64 * 4 * 4, 256)  # Adjust the size of fc1
+        self.fc2 = nn.Linear(256, 128)  # Adjust the size of fc2
+        self.fc3 = nn.Linear(128, 100)  # Changed the output size to 100 for CIFAR-100
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv3(x)))  # Add a third convolutional layer
+        x = x.view(-1, 64 * 4 * 4)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+class basicCNN_MNIST(nn.Module):
+    def __init__(self) -> None:
+        super(basicCNN_MNIST, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5) # 90
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 4 * 4, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 4 * 4)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
     
 class basic_CNN(nn.Module):
     def __init__(self, num_channels, num_classes):

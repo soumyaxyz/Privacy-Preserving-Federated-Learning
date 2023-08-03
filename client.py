@@ -23,7 +23,7 @@ def main():
     parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
     parser.add_argument('-hl','--headless', action='store_true', help='Enable headless mode')
     args = parser.parse_args()
-    model = load_model_defination(args.model_name, num_channels=3, num_classes=10)
+    model = load_model_defination(args.model_name, num_channels=3, num_classes=100)
 
     device = get_device()
 
