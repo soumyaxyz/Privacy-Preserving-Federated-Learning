@@ -85,6 +85,8 @@ class basicCNN_MNIST(nn.Module):
 class basic_CNN(nn.Module):
     def __init__(self, num_channels, num_classes):
         super(basic_CNN, self).__init__()
+        self.num_channels = num_channels
+        self.num_channels = num_channels
         self.conv1 = nn.Conv2d(num_channels, 6, 5) 
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)        
@@ -97,7 +99,7 @@ class basic_CNN(nn.Module):
         try:
             x = self.pool(F.relu(self.conv1(x)))
             x = self.pool(F.relu(self.conv2(x)))
-            x = x.view(-1, 16 * 5 * 5)      
+            # x = x.view(-1, 16 * 5 * 5)      
             x = F.dropout(x, training=self.training)
             x = F.relu(self.fc1(x))
             x = F.relu(self.fc2(x))
