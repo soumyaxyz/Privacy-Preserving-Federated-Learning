@@ -1,6 +1,6 @@
 import torch
 import torchvision.transforms as transforms
-from torchvision.datasets import CIFAR10, MNIST
+from torchvision.datasets import CIFAR10, MNIST, CIFAR100
 from torch.utils.data import  Dataset, DataLoader, random_split
 import pdb,traceback
 
@@ -13,6 +13,16 @@ def load_CIFAR10():
     )
     trainset = CIFAR10("./dataset", train=True, download=True, transform=transform)
     testset = CIFAR10("./dataset", train=False, download=True, transform=transform)
+
+    return trainset, testset
+
+def load_CIFAR100():
+    # Download and transform CIFAR-10 (train and test)
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    )
+    trainset = CIFAR100("./dataset", train=True, download=True, transform=transform)
+    testset = CIFAR100("./dataset", train=False, download=True, transform=transform)
 
     return trainset, testset
 
@@ -115,6 +125,8 @@ class Error_Label_Dataset(Loss_Label_Dataset):
 def load_datasets(dataset_name = 'CIFAR10'):
     if dataset_name == 'CIFAR10':
         return load_CIFAR10()
+    elif dataset_name == 'CIFAR100':
+        return load_CIFAR100()
     elif dataset_name == 'MNIST':
         return load_MNIST()
     else:
@@ -126,6 +138,8 @@ def get_datasets_details(dataset_name = 'CIFAR10'):
     # return num_channels, num_classes
     if dataset_name == 'CIFAR10':
         return 3, 10
+    elif dataset_name == 'CIFAR100':
+        return 3, 100
     elif dataset_name == 'MNIST':
         return 1, 10
     else:
