@@ -17,7 +17,11 @@ def load_CIFAR10():
     return trainset, testset
 
 def load_CIFAR100():
+<<<<<<< HEAD
     # Download and transform CIFAR-100 (train and test)
+=======
+    # Download and transform CIFAR-10 (train and test)
+>>>>>>> 1d18fb68bf1176fec775d28e1c49f4fc9ed41af2
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
@@ -138,6 +142,8 @@ def get_datasets_details(dataset_name = 'CIFAR10'):
     # return num_channels, num_classes
     if dataset_name == 'CIFAR10':
         return 3, 10
+    elif dataset_name == 'CIFAR100':
+        return 3, 100
     elif dataset_name == 'MNIST':
         return 1, 10
     else:
