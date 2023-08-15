@@ -1,10 +1,6 @@
 import torch
 import torchvision.transforms as transforms
-<<<<<<< Updated upstream
-from torchvision.datasets import CIFAR10, MNIST, CIFAR100
-=======
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN
->>>>>>> Stashed changes
 from torch.utils.data import  Dataset, DataLoader, random_split
 import pdb,traceback
 
@@ -21,11 +17,7 @@ def load_CIFAR10():
     return trainset, testset
 
 def load_CIFAR100():
-<<<<<<< Updated upstream
-    # Download and transform CIFAR-10 (train and test)
-=======
     # Download and transform CIFAR-100 (train and test)
->>>>>>> Stashed changes
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
@@ -34,8 +26,6 @@ def load_CIFAR100():
 
     return trainset, testset
 
-<<<<<<< Updated upstream
-=======
 def load_SVHN():
     # Download and transform SVHN (train and test)
     transform = transforms.Compose(
@@ -46,7 +36,6 @@ def load_SVHN():
 
     return trainset, testset
 
->>>>>>> Stashed changes
 def load_MNIST():
     # Download and transform MNIST (train and test)
     transform = transforms.Compose(
