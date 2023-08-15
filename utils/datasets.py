@@ -1,6 +1,6 @@
 import torch
 import torchvision.transforms as transforms
-from torchvision.datasets import CIFAR10, MNIST
+from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN
 from torch.utils.data import  Dataset, DataLoader, random_split
 import pdb,traceback
 
@@ -16,13 +16,8 @@ def load_CIFAR10():
 
     return trainset, testset
 
-<<<<<<< HEAD
 def load_CIFAR100():
-<<<<<<< HEAD
     # Download and transform CIFAR-100 (train and test)
-=======
-    # Download and transform CIFAR-10 (train and test)
->>>>>>> 1d18fb68bf1176fec775d28e1c49f4fc9ed41af2
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
@@ -31,10 +26,18 @@ def load_CIFAR100():
 
     return trainset, testset
 
-=======
->>>>>>> parent of 80ccd63 (For 'fedcustom')
+def load_SVHN():
+    # Download and transform SVHN (train and test)
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    )
+    trainset = SVHN("./dataset", split="train", download=True, transform=transform)
+    testset = SVHN("./dataset", split="test", download=True, transform=transform)
+
+    return trainset, testset
+
 def load_MNIST():
-    # Download and transform CIFAR-10 (train and test)
+    # Download and transform MNIST (train and test)
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5), (0.5))]
     )
@@ -132,8 +135,12 @@ class Error_Label_Dataset(Loss_Label_Dataset):
 def load_datasets(dataset_name = 'CIFAR10'):
     if dataset_name == 'CIFAR10':
         return load_CIFAR10()
+    elif dataset_name == 'CIFAR100':
+        return load_CIFAR100()
     elif dataset_name == 'MNIST':
         return load_MNIST()
+    elif dataset_name == "SVHN":
+        return load_SVHN()
     else:
         # import pdb; pdb.set_trace()
         print(f'Unknown dataset name: {dataset_name}')
@@ -143,8 +150,6 @@ def get_datasets_details(dataset_name = 'CIFAR10'):
     # return num_channels, num_classes
     if dataset_name == 'CIFAR10':
         return 3, 10
-    elif dataset_name == 'CIFAR100':
-        return 3, 100
     elif dataset_name == 'MNIST':
         return 1, 10
     else:
