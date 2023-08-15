@@ -48,7 +48,7 @@ def main():
     args = parser.parse_args()
     
 
-    model = load_model_defination(args.model_name, num_channels=3, num_classes=10)     
+    model = load_model_defination(args.model_name, num_channels=3, num_classes=100)     
     _,_,test_loader , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
 
     device = get_device()

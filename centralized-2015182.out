@@ -1,0 +1,114 @@
+Using cache found in /home/saham001/.cache/torch/hub/NVIDIA_DeepLearningExamples_torchhub
+/home/saham001/.cache/torch/hub/NVIDIA_DeepLearningExamples_torchhub/PyTorch/Classification/ConvNets/image_classification/models/common.py:13: UserWarning: pytorch_quantization module not found, quantization will not be available
+  warnings.warn(
+/home/saham001/.cache/torch/hub/NVIDIA_DeepLearningExamples_torchhub/PyTorch/Classification/ConvNets/image_classification/models/efficientnet.py:17: UserWarning: pytorch_quantization module not found, quantization will not be available
+  warnings.warn(
+wandb: Currently logged in as: saham001 (soumyabanerjee). Use `wandb login --relogin` to force relogin
+wandb: Appending key for api.wandb.ai to your netrc file: /home/saham001/.netrc
+wandb: Currently logged in as: saham001. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.15.7
+wandb: Run data is saved locally in /home/saham001/federated_learning/Privacy-Preserving-Federated-Learning/wandb/run-20230801_031540-d2y7moqb
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upbeat-sunset-20
+wandb: ⭐️ View project at https://wandb.ai/saham001/Privacy_Preserving_Federated_Learning
+wandb: 🚀 View run at https://wandb.ai/saham001/Privacy_Preserving_Federated_Learning/runs/d2y7moqb
+
+Training efficientnet with CIFAR100 in Tesla V100-SXM2-16GB using PyTorch 2.0.1+cu118 and Flower 1.4.0
+Files already downloaded and verified
+Files already downloaded and verified
+
+  0%|          | 0/50 [00:00<?, ?it/s][A
+
+  0%|          | 0/5 [00:00<?, ?it/s][A[A
+Epoch 1:   0%|          | 0/50 [00:00<?, ?it/s][A
+
+patience: 100%|██████████| 5/5 [00:00<00:00, 6715.18it/s][A[A/opt/conda/lib/python3.10/site-packages/torch/nn/modules/conv.py:459: UserWarning: Applied workaround for CuDNN issue, install nvrtc.so (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:80.)
+  return F.conv2d(input, weight, bias, self.stride,
+
+Epoch 1:   2%|▏         | 1/50 [02:24<1:57:40, 144.09s/it][A
+
+patience: 100%|██████████| 5/5 [02:24<00:00, 28.82s/it]  [A[A
+Epoch: 1:   2%|▏         | 1/50 [02:24<1:57:40, 144.09s/it][A
+
+train_loss: 0.0901, loss: 0.0836, train_acc 0.2829, acc: 0.3912, Patience: : 100%|██████████| 5/5 [02:24<00:00, 28.82s/it][A[A
+Epoch: 1:   4%|▍         | 2/50 [04:24<1:44:05, 130.12s/it][A
+Epoch: 2:   4%|▍         | 2/50 [04:24<1:44:05, 130.12s/it][A
+
+train_loss: 0.0667, loss: 0.0599, train_acc 0.4287, acc: 0.4800, Patience: : 100%|██████████| 5/5 [04:24<00:00, 28.82s/it][A[A
+Epoch: 2:   6%|▌         | 3/50 [06:24<1:38:25, 125.65s/it][A
+Epoch: 3:   6%|▌         | 3/50 [06:24<1:38:25, 125.65s/it][A
+
+train_loss: 0.0583, loss: 0.0589, train_acc 0.4900, acc: 0.5024, Patience: : 100%|██████████| 5/5 [06:24<00:00, 28.82s/it][A[A
+Epoch: 3:   8%|▊         | 4/50 [08:24<1:34:34, 123.36s/it][A
+Epoch: 4:   8%|▊         | 4/50 [08:24<1:34:34, 123.36s/it][A
+
+train_loss: 0.0531, loss: 0.0620, train_acc 0.5274, acc: 0.5020, Patience: :  80%|████████  | 4/5 [08:24<00:28, 28.82s/it][A[A
+Epoch: 4:  10%|█         | 5/50 [10:24<1:31:39, 122.22s/it][A
+
+train_loss: 0.0531, loss: 0.0620, train_acc 0.5274, acc: 0.5020, Patience: : 100%|██████████| 5/5 [10:24<00:00, 129.24s/it][A[A
+Epoch: 5:  10%|█         | 5/50 [10:24<1:31:39, 122.22s/it][A
+
+train_loss: 0.0480, loss: 0.0564, train_acc 0.5714, acc: 0.5296, Patience: : 100%|██████████| 5/5 [10:24<00:00, 129.24s/it][A[A
+Epoch: 5:  12%|█▏        | 6/50 [12:24<1:28:59, 121.36s/it][A
+Epoch: 6:  12%|█▏        | 6/50 [12:24<1:28:59, 121.36s/it][A
+
+train_loss: 0.0445, loss: 0.0636, train_acc 0.5961, acc: 0.5164, Patience: :  80%|████████  | 4/5 [12:24<02:09, 129.24s/it][A[A
+Epoch: 6:  14%|█▍        | 7/50 [14:24<1:26:43, 121.01s/it][A
+
+train_loss: 0.0445, loss: 0.0636, train_acc 0.5961, acc: 0.5164, Patience: : 100%|██████████| 5/5 [14:24<00:00, 155.93s/it][A[A
+Epoch: 7:  14%|█▍        | 7/50 [14:24<1:26:43, 121.01s/it][A
+
+train_loss: 0.0409, loss: 0.0531, train_acc 0.6222, acc: 0.5426, Patience: : 100%|██████████| 5/5 [14:24<00:00, 155.93s/it][A[A
+Epoch: 7:  16%|█▌        | 8/50 [16:24<1:24:25, 120.62s/it][A
+Epoch: 8:  16%|█▌        | 8/50 [16:24<1:24:25, 120.62s/it][A
+
+train_loss: 0.0381, loss: 0.0591, train_acc 0.6463, acc: 0.5228, Patience: :  80%|████████  | 4/5 [16:24<02:35, 155.93s/it][A[A
+Epoch: 8:  18%|█▊        | 9/50 [18:24<1:22:13, 120.33s/it][A
+Epoch: 9:  18%|█▊        | 9/50 [18:24<1:22:13, 120.33s/it][A
+
+train_loss: 0.0356, loss: 0.0642, train_acc 0.6659, acc: 0.5390, Patience: :  60%|██████    | 3/5 [18:24<05:11, 155.93s/it][A[A
+Epoch: 9:  20%|██        | 10/50 [20:23<1:20:02, 120.05s/it][A
+Epoch: 10:  20%|██        | 10/50 [20:23<1:20:02, 120.05s/it][A
+
+train_loss: 0.0330, loss: 0.0567, train_acc 0.6860, acc: 0.5526, Patience: :  40%|████      | 2/5 [20:23<07:47, 155.93s/it][A[A
+Epoch: 10:  22%|██▏       | 11/50 [22:22<1:17:51, 119.78s/it][A
+Epoch: 11:  22%|██▏       | 11/50 [22:22<1:17:51, 119.78s/it][A
+
+train_loss: 0.0310, loss: 0.0594, train_acc 0.7038, acc: 0.5520, Patience: :  20%|██        | 1/5 [22:22<10:23, 155.93s/it][A[A
+Epoch: 11:  24%|██▍       | 12/50 [24:21<1:15:43, 119.56s/it][A
+Epoch: 12:  24%|██▍       | 12/50 [24:21<1:15:43, 119.56s/it][A
+
+train_loss: 0.0282, loss: 0.0731, train_acc 0.7255, acc: 0.5364, Patience: :   0%|          | 0/5 [24:21<12:59, 155.93s/it][A[A
+Epoch: 12:  26%|██▌       | 13/50 [24:25<52:05, 84.46s/it]   [A
+
+Early stopped at epoch 13, train_loss: 0.0282, loss: 0.0531, train_acc 0.7255, acc: 0.5426:   0%|          | 0/5 [24:25<12:59, 155.93s/it][A[A
+                                                          [A
+
+                                                                                                                                          [A[Awandb: Waiting for W&B process to finish... (success).
+wandb: - 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: \ 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: | 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: / 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: - 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: 
+wandb: Run history:
+wandb:        acc ▁▅▆▆▆█▇▇█▇██████████████████████████████
+wandb:       loss █▃▂▃▃▁▂▄▂▆▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   test_acc ▁
+wandb:  test_loss ▁
+wandb:  train_acc ▁▃▄▅▆▆▆▇▇▇██
+wandb: train_loss █▅▄▄▃▃▂▂▂▂▁▁
+wandb: 
+wandb: Run summary:
+wandb:        acc 0.5426
+wandb:       loss 0.05306
+wandb:   test_acc 0.5466
+wandb:  test_loss 0.05287
+wandb:  train_acc 0.72551
+wandb: train_loss 0.02824
+wandb: 
+wandb: 🚀 View run upbeat-sunset-20 at: https://wandb.ai/saham001/Privacy_Preserving_Federated_Learning/runs/d2y7moqb
+wandb: ️⚡ View job at https://wandb.ai/saham001/Privacy_Preserving_Federated_Learning/jobs/QXJ0aWZhY3RDb2xsZWN0aW9uOjg1OTMxNDk1/version_details/v4
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20230801_031540-d2y7moqb/logs
+Final validation set performance:
+	loss 0.053063132762908936
+	accuracy 0.5426
+Final test set performance:
+	loss 0.05286585553884506
+	accuracy 0.5466

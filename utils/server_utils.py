@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from utils.training_utils import test, set_parameters, get_parameters
 import pdb
+#from utils.fedcustom import FedCusTest
 
 
 
@@ -35,7 +36,7 @@ class Server_details:
         
 
     def get_strategy(self):
-        strategy = fl.server.strategy.FedAvg(
+        strategy =  fl.server.strategy.FedAvg(
                     fraction_fit=0.3,
                     fraction_evaluate=0.3,
                     # min_fit_clients= min(2,self.num_clients),
