@@ -186,7 +186,7 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
         
         val_datasets.append(ds_val)
     testloader = DataLoader(testset, batch_size)
-    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size)
+    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size) # type: ignore
     return trainloaders, valloaders, testloader, unsplit_valloader
 
 def load_dataloaders(trainset, testset, batch_size=32):

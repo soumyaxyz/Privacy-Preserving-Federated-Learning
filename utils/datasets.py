@@ -3,7 +3,30 @@ import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN
 from torch.utils.data import  Dataset, DataLoader, random_split
 import pdb,traceback
+from typing import List
 
+
+class DatasetWrapper():
+    def __init__(self, dataset_name = 'CIFAR10'):
+        self.name = dataset_name
+        self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
+
+        
+    def _load_datasets(self, dataset_name):
+        if dataset_name == 'CIFAR10':
+            return load_CIFAR10()
+        elif dataset_name == 'CIFAR100':
+            return load_CIFAR100()
+        elif dataset_name == 'MNIST':
+            return load_MNIST()
+        elif dataset_name == "SVHN":
+            return load_SVHN()
+        else:
+            # import pdb; pdb.set_trace()
+            print(f'Unknown dataset name: {dataset_name}')
+            raise NotImplementedError
+    
+   
 
 
 def load_CIFAR10():
@@ -14,7 +37,10 @@ def load_CIFAR10():
     trainset = CIFAR10("./dataset", train=True, download=True, transform=transform)
     testset = CIFAR10("./dataset", train=False, download=True, transform=transform)
 
-    return trainset, testset
+    num_channels=3
+    num_classes=10
+
+    return trainset, testset, num_channels, num_classes
 
 def load_CIFAR100():
     # Download and transform CIFAR-100 (train and test)
@@ -24,7 +50,10 @@ def load_CIFAR100():
     trainset = CIFAR100("./dataset", train=True, download=True, transform=transform)
     testset = CIFAR100("./dataset", train=False, download=True, transform=transform)
 
-    return trainset, testset
+    num_channels = 3
+    num_classes = 100
+
+    return trainset, testset, num_channels, num_classes
 
 def load_SVHN():
     # Download and transform SVHN (train and test)
@@ -34,7 +63,10 @@ def load_SVHN():
     trainset = SVHN("./dataset", split="train", download=True, transform=transform)
     testset = SVHN("./dataset", split="test", download=True, transform=transform)
 
-    return trainset, testset
+    num_channels=3
+    num_classes = 10
+
+    return trainset, testset, num_channels, num_classes
 
 def load_MNIST():
     # Download and transform MNIST (train and test)
@@ -44,7 +76,12 @@ def load_MNIST():
     trainset = MNIST("./dataset", train=True, download=True, transform=transform)
     testset = MNIST("./dataset", train=False, download=True, transform=transform)
 
-    return trainset, testset
+    num_channels = 1
+    num_classes = 10
+
+    return trainset, testset, num_channels, num_classes
+
+
 
 
 class Loss_Label_Dataset(Dataset):
@@ -132,32 +169,8 @@ class Error_Label_Dataset(Loss_Label_Dataset):
         return 
 
 
-def load_datasets(dataset_name = 'CIFAR10'):
-    if dataset_name == 'CIFAR10':
-        return load_CIFAR10()
-    elif dataset_name == 'CIFAR100':
-        return load_CIFAR100()
-    elif dataset_name == 'MNIST':
-        return load_MNIST()
-    elif dataset_name == "SVHN":
-        return load_SVHN()
-    else:
-        # import pdb; pdb.set_trace()
-        print(f'Unknown dataset name: {dataset_name}')
-        raise NotImplementedError
-    
-def get_datasets_details(dataset_name = 'CIFAR10'):
-    # return num_channels, num_classes
-    if dataset_name == 'CIFAR10':
-        return 3, 10
-    elif dataset_name == 'MNIST':
-        return 1, 10
-    else:
-        # import pdb; pdb.set_trace()
-        print(f'Unknown dataset name: {dataset_name}')
-        raise NotImplementedError
-    
-def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32): 
+ 
+def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
 
     # Split training set into `num_clients` partitions to simulate different local datasets
     total_size = len(trainset)
@@ -186,7 +199,7 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
         
         val_datasets.append(ds_val)
     testloader = DataLoader(testset, batch_size)
-    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size)
+    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size) #type:ignore
     return trainloaders, valloaders, testloader, unsplit_valloader
 
 def load_dataloaders(trainset, testset, batch_size=32):
@@ -194,6 +207,6 @@ def load_dataloaders(trainset, testset, batch_size=32):
     testloader     = DataLoader(testset, batch_size)
     return trainloader,  testloader
 
-def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32):
-    trainset, testset = load_datasets(dataset_name)
-    return split_dataset(trainset, testset, num_clients, val_percent, batch_size)
+def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
+    dataset = DatasetWrapper(dataset_name)
+    return split_dataset(dataset.trainset, dataset.testset, num_clients, val_percent, batch_size), dataset.num_channels, dataset.num_classes

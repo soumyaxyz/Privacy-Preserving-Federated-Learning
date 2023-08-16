@@ -17,7 +17,7 @@ def plot_data(filename, sort=False, trendline=False):
     data = pd.read_csv(filename)
     data_len = len(data)
     if sort:
-        data.sort_values(data.columns[1], axis=0, inplace=True)
+        data.sort_values(data.columns[1], axis=0, inplace=True) # type: ignore
 
     # Get the second column
     col2 = data.iloc[:, 1]
@@ -26,12 +26,12 @@ def plot_data(filename, sort=False, trendline=False):
         
         zeros = data.loc[data['label'] == 0.0]
         avg_zeros = np.mean(zeros['data'])
-        plt.plot( [*range(data_len)] , [avg_zeros]*data_len, color=plt.cm.viridis(0), label='zeros')
+        plt.plot( [*range(data_len)] , [avg_zeros]*data_len, color=plt.cm.viridis(0), label='zeros') # type: ignore
         
 
         ones = data.loc[data['label'] == 1.0]   
         avg_ones = np.mean(ones['data'])
-        plt.plot( [*range(data_len)] , [avg_ones]*data_len, color=plt.cm.viridis(256), label='ones')
+        plt.plot( [*range(data_len)] , [avg_ones]*data_len, color=plt.cm.viridis(256), label='ones') # type: ignore
         # pdb.set_trace()
         plt.legend()
 
