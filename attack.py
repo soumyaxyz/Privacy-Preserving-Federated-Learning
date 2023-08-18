@@ -376,9 +376,9 @@ class Membership_inference_attack_instance:
 
         self.train_attack_model()
 
-        
+        plot_roc = self.load_saved_attack_dataset
             
-        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=True)
+        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=plot_roc)
 
 
         if self.wandb_logging:
