@@ -12,6 +12,7 @@ import os
 import csv
 
 from utils.datasets import Wrapper_Dataset
+from utils.utils.plot_utils import plot_ROC_curve
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
@@ -185,12 +186,15 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
     # print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return epoch_loss, epoch_acc
 
-def test(net, testloader, device = get_device(), is_binary=False):
+def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     net.eval()
     try:
+        if plot_ROC:
+            gold = []
+            pred = []
         with torch.no_grad():
             for images, labels in testloader:
                 images, labels = images.to(device), labels.to(device)
@@ -201,8 +205,20 @@ def test(net, testloader, device = get_device(), is_binary=False):
                     correct += (torch.round(outputs.data) == labels).sum().item()
                 else:
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+
+                if plot_ROC:
+                    gold = np.append(gold, labels.cpu().numpy())
+                    if is_binary:
+                        pred = np.append(pred, torch.round(outputs).cpu().numpy())
+                    else:
+                        pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified
+
         loss /= len(testloader.dataset)
         accuracy = correct / total
+        if plot_ROC:
+            plot_ROC_curve(gold, pred)            
+            # pdb.set_trace()
+            
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()

@@ -7,3 +7,5 @@ saved_models/
 .cache/
 outputs/
 temp*
+.*
+*.out

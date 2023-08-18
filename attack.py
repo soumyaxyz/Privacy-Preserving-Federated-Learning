@@ -252,6 +252,8 @@ class Membership_inference_attack_instance:
         target_dataset= load_dataloaders(self.target_dataset.trainset, self.target_dataset.testset)
 
         self.attack_testloder        = DataLoader(Loss_Label_Dataset(target_dataset, self.target_model, self.device), self.batch_size)
+
+        # pdb.set_trace()
         
         
         self.attack_dataset_built   = True 
@@ -376,7 +378,7 @@ class Membership_inference_attack_instance:
 
         
             
-        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True)
+        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=True)
 
 
         if self.wandb_logging:

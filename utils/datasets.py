@@ -91,23 +91,25 @@ class Loss_Label_Dataset(Dataset):
         self.batch_size         = batch_size  
         trainset                = original_dataset[0]
         testset                 = original_dataset[1]
-        # seen_count              = len(trainset)
-        # unseen_count            = len(testset)
+        seen_count              = trainset.dataset.__len__()
+        unseen_count            = testset.dataset.__len__()
         self.target_model       = target_model
         self.device             = device
 
-        # try:
-        #     assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
-        #     # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
-        # except AssertionError as e:
-        #     print(f'Unballanced dataset: seen {seen_count}, unseen {unseen_count}')
-        #     # pdb.set_trace()
+        try:
+            assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
+            # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
+        except AssertionError as e:
+            print(f'Unballanced dataset: seen {seen_count}, unseen {unseen_count}')
+            # pdb.set_trace()
 
         self.data   = []
         self.label  = []
 
         self.append_data_label(trainset, 1.0)
         self.append_data_label(testset, 0.0)
+
+        # pdb.set_trace()
         
 
     def __len__(self):
@@ -119,18 +121,24 @@ class Loss_Label_Dataset(Dataset):
     
     def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
         if not criterion:
-            criterion = torch.nn.CrossEntropyLoss()
+            criterion = torch.nn.CrossEntropyLoss( )
 
 
         for images, labels in dataLoader:
             images, labels = images.to(self.device), labels.to(self.device)
             outputs = self.target_model(images)
-            loss = criterion(outputs, labels).item()
+
+            for i, label in enumerate(labels):
+                instance_loss = criterion(outputs[i], label).item()
+                self.data.append(instance_loss)
+                self.label.append(seen_unseen_label)
+
+            # loss = criterion(outputs, labels).item()
 
             # pdb.set_trace()
 
-            self.data.append(loss)
-            self.label.append(seen_unseen_label)
+            # self.data.append(loss)
+            # self.label.append(seen_unseen_label)
 
         return 
 
