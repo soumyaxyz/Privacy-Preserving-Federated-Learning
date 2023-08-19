@@ -50,7 +50,7 @@ def plot_CM(gold, pred):
     class_names = ['Negative', 'Positive']  # Replace with your class names
     plt.figure(figsize=(6, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                xticklabels=class_names, yticklabels=class_names)
+                xticklabels=class_names, yticklabels=class_names) # type: ignore
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Confusion Matrix')
