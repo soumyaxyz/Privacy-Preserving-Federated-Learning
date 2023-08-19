@@ -12,7 +12,7 @@ import os
 import csv
 
 from utils.datasets import Wrapper_Dataset
-from utils.utils.plot_utils import plot_ROC_curve
+from utils.plot_utils import plot_ROC_curve
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 

@@ -126,7 +126,9 @@ class Membership_inference_attack_instance:
         try:
             assert self.save_attack_dataset != self.load_saved_attack_dataset
         except AssertionError as e:
-            raise AssertionError(f'{self.save_attack_dataset=} and {self.load_saved_attack_dataset=} cant both be same')
+            self.load_saved_attack_dataset = not self.save_attack_dataset
+            # raise AssertionError(f'{self.save_attack_dataset=} and {self.load_saved_attack_dataset=} cant both be same')
+            
             # pdb.set_trace()
         self.shadow_epochs              = shadow_epochs
         self.attack_epochs              = attack_epochs
@@ -285,7 +287,7 @@ class Membership_inference_attack_instance:
         loss_dataset = ConcatDataset(partial_dataset)
 
         if self.save_attack_dataset:
-            file_path = f'{self.target_model_name}_{self.target_dataset.name}/loss_dataset_class_{self.class_id}'
+            file_path = f'{self.target_model_name}/loss_dataset_class_{self.class_id}'
             save_loss_dataset(loss_dataset, file_path)
         
         self.build_attack_loaders(loss_dataset)
@@ -376,9 +378,9 @@ class Membership_inference_attack_instance:
 
         self.train_attack_model()
 
-        plot_roc = self.load_saved_attack_dataset
+        # plot_roc = self.load_saved_attack_dataset
             
-        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=plot_roc)
+        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True)#, plot_ROC=plot_roc)
 
 
         if self.wandb_logging:
@@ -421,6 +423,13 @@ def main():
     # pdb.set_trace()
 
     target_dataset = DatasetWrapper(args.dataset_name)
+    
+    if args.combined_class:
+        mode = 'Combined Class'
+    else:
+        mode = 'Classwise'
+
+    print(f'Executing {mode} Membership Inference Attack on {args.target_model_weights}')
 
     target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes).to(device)
     load_saved_weights(target_model, filename =args.target_model_weights)
