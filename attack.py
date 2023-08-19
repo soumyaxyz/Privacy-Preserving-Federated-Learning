@@ -1,4 +1,4 @@
-import argparse
+import argparse, os
 import pdb, traceback
 import torch
 import wandb
@@ -105,6 +105,7 @@ class Membership_inference_attack_instance:
                  save_attack_dataset,
                  save_attack_model,
                  attack_model_name, 
+                 batchwise_loss,
                  device, 
                  shadow_epochs=50, 
                  attack_epochs=50, 
@@ -121,6 +122,7 @@ class Membership_inference_attack_instance:
         self.device                     = device
         self.wandb_logging              = wandb_logging
         self.save_attack_model          = save_attack_model
+        self.batchwise_loss             = batchwise_loss
         self.save_attack_dataset        = save_attack_dataset
         self.load_saved_attack_dataset  = load_attack_dataset
         try:
@@ -253,7 +255,7 @@ class Membership_inference_attack_instance:
 
         target_dataset= load_dataloaders(self.target_dataset.trainset, self.target_dataset.testset)
 
-        self.attack_testloder        = DataLoader(Loss_Label_Dataset(target_dataset, self.target_model, self.device), self.batch_size)
+        self.attack_testloder        = DataLoader(Loss_Label_Dataset(target_dataset, self.target_model, self.device, loss_batchwise=False), self.batch_size)
 
         # pdb.set_trace()
         
@@ -282,12 +284,14 @@ class Membership_inference_attack_instance:
             shadow_model    = self.shadow_models[i]
             # print(f'train size: {len(self.shadow_train_dataloader[i])}, test size: {len(self.shadow_test_dataloader[i])}')
             shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_test_dataloader[i]]
-            partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model, self.device) )
+            partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model, self.device, loss_batchwise=self.batchwise_loss) )
 
         loss_dataset = ConcatDataset(partial_dataset)
 
         if self.save_attack_dataset:
-            file_path = f'{self.target_model_name}/loss_dataset_class_{self.class_id}'
+            suffix= 'batch' if self.batchwise_loss else 'single'
+            directory = f'{self.target_model_name}_{suffix}'
+            file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
             save_loss_dataset(loss_dataset, file_path)
         
         self.build_attack_loaders(loss_dataset)
@@ -310,7 +314,9 @@ class Membership_inference_attack_instance:
 
         try:
             print(f'\tLoading saved attack dataset for class {self.class_id}')
-            file_path = f'{self.target_model_name}/loss_dataset_class_{self.class_id}'
+            suffix= 'batch' if self.batchwise_loss else 'single'
+            directory = f'{self.target_model_name}_{suffix}'
+            file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
             loss_dataset = load_loss_dataset(file_path)
             self.build_attack_loaders(loss_dataset)
         except FileNotFoundError as e:
@@ -403,6 +409,7 @@ def main():
     
     parser.add_argument('-sm', '--save_attack_model', action='store_true', help='save the developed attack model')
     parser.add_argument('-e', '--num_shadow_epochs', type=int, default=50, help='Number of rounds of shadow training')
+    parser.add_argument('-b', '--batchwise_loss', action='store_true', help='For attack model training, loss is calculated batchwise, otherwise loss is calculated samplewise')
     parser.add_argument('-c', '--combined_class', action='store_true', help='if tihs flag is present, combined class attack, otherwise classwise separate attack')
     parser.add_argument('-e1', '--num_attack_epochs', type=int, default=50, help='Number of rounds of attack training')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name, target dataset ')
@@ -424,12 +431,11 @@ def main():
 
     target_dataset = DatasetWrapper(args.dataset_name)
     
-    if args.combined_class:
-        mode = 'Combined Class'
-    else:
-        mode = 'Classwise'
+    mode    = 'Combined Class' if args.combined_class else 'Classwise'
+    suffix  = 'batchwise' if args.batchwise_loss else 'samplewise'
+    
 
-    print(f'Executing {mode} Membership Inference Attack on {args.target_model_weights}')
+    print(f'\n\nExecuting {mode} Membership Inference Attack on {args.target_model_weights}, computing loss for training attack model {suffix}\n\n')
 
     target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes).to(device)
     load_saved_weights(target_model, filename =args.target_model_weights)
@@ -439,6 +445,7 @@ def main():
                                                             save_attack_dataset = args.save_attack_dataset,
                                                             save_attack_model   = args.save_attack_model,
                                                             attack_model_name   = args.attack_model_name,
+                                                            batchwise_loss      = args.batchwise_loss,
                                                             device              = device,
                                                             shadow_epochs       = args.num_shadow_epochs,
                                                             attack_epochs       = args.num_attack_epochs,

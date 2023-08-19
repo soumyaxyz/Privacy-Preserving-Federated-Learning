@@ -87,8 +87,9 @@ def load_MNIST():
 class Loss_Label_Dataset(Dataset):
     """Loss_label_Dataset."""
 
-    def __init__(self, original_dataset, target_model, device, batch_size = 32):
+    def __init__(self, original_dataset, target_model, device, batch_size = 32, loss_batchwise = False):
         self.batch_size         = batch_size  
+        self.loss_batchwise     = loss_batchwise
         trainset                = original_dataset[0]
         testset                 = original_dataset[1]
         seen_count              = trainset.dataset.__len__()
@@ -127,18 +128,16 @@ class Loss_Label_Dataset(Dataset):
         for images, labels in dataLoader:
             images, labels = images.to(self.device), labels.to(self.device)
             outputs = self.target_model(images)
+            if self.loss_batchwise:
+                for i, label in enumerate(labels):
+                    instance_loss = criterion(outputs[i], label).item()
+                    self.data.append(instance_loss)
+                    self.label.append(seen_unseen_label)
 
-            for i, label in enumerate(labels):
-                instance_loss = criterion(outputs[i], label).item()
-                self.data.append(instance_loss)
+            else:
+                loss = criterion(outputs, labels).item()
+                self.data.append(loss)
                 self.label.append(seen_unseen_label)
-
-            # loss = criterion(outputs, labels).item()
-
-            # pdb.set_trace()
-
-            # self.data.append(loss)
-            # self.label.append(seen_unseen_label)
 
         return 
 

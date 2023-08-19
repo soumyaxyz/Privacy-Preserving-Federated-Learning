@@ -96,7 +96,8 @@ def delete_saved_model(filename ='filename', print_info=False):
         print(f"Deleted model from {path}")
 
 
-def save_loss_dataset(dataset, filename='datset'):
+def save_loss_dataset(dataset, filename='datset'):    
+    # print(f'Saving dataset to {filename}')
     save_path = './saved_models/'+filename+'.csv'
     with open(save_path, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -111,6 +112,7 @@ def save_loss_dataset(dataset, filename='datset'):
 
 
 def load_loss_dataset(filename='dataset'):
+    # print(f'Loading dataset from {filename}')
     load_path = './saved_models/' + filename + '.csv'
     dataset = []
 
