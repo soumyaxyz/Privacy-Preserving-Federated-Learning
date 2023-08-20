@@ -2,6 +2,6 @@
     "_comment": "print supports: none, err, out, all",
     "print": "none", 
     "server": "false",
-    "redirect_to": "outFile.txt"
+    "redirect_to": "output.out"
 
 }
