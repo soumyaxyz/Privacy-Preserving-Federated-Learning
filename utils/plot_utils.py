@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
 import seaborn as sns
 import pdb, traceback
+from utils.lib import blockPrintingIfServer
 
+@blockPrintingIfServer
 def plot_ROC_curve(gold, pred, log_log = False):
     try:
         fpr, tpr, thresholds = roc_curve(gold, pred)
@@ -41,7 +43,7 @@ def plot_ROC_curve(gold, pred, log_log = False):
 
     plot_CM(gold, pred)
 
-
+@blockPrintingIfServer
 def plot_CM(gold, pred):
     # Compute confusion matrix
     cm = confusion_matrix(gold, pred)

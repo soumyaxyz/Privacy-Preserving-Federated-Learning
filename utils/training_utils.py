@@ -98,10 +98,11 @@ def delete_saved_model(filename ='filename', print_info=False):
 
 
 def save_loss_dataset(dataset, filename='datset'):    
-    # print(f'Saving dataset to {filename}')
+    print(f'\tSaving dataset of size {len(dataset)} to {filename}')
     save_path = './saved_models/'+filename+'.csv'
     with open(save_path, mode='w', newline='') as file:
         writer = csv.writer(file)
+
         writer.writerow(['data', 'label'])  # Write the header row
 
         for data, label in dataset:
@@ -113,7 +114,7 @@ def save_loss_dataset(dataset, filename='datset'):
 
 
 def load_loss_dataset(filename='dataset'):
-    # print(f'Loading dataset from {filename}')
+    print(f'\tLoading dataset from {filename}')
     load_path = './saved_models/' + filename + '.csv'
     dataset = []
 

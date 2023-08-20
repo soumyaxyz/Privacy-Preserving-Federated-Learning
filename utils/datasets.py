@@ -130,15 +130,15 @@ class Loss_Label_Dataset(Dataset):
             images, labels = images.to(self.device), labels.to(self.device)
             outputs = self.target_model(images)
             if self.loss_batchwise:
+                loss = criterion(outputs, labels).item()
+                self.data.append(loss)
+                self.label.append(seen_unseen_label)               
+
+            else:
                 for i, label in enumerate(labels):
                     instance_loss = criterion(outputs[i], label).item()
                     self.data.append(instance_loss)
                     self.label.append(seen_unseen_label)
-
-            else:
-                loss = criterion(outputs, labels).item()
-                self.data.append(loss)
-                self.label.append(seen_unseen_label)
 
         return 
 
