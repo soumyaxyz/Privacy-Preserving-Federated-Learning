@@ -2,6 +2,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN
 from torch.utils.data import  Dataset, DataLoader, random_split
+from utils.lib import blockPrinting
 import pdb,traceback
 from typing import List
 
@@ -11,7 +12,7 @@ class DatasetWrapper():
         self.name = dataset_name
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
 
-        
+    @blockPrinting   
     def _load_datasets(self, dataset_name):
         if dataset_name == 'CIFAR10':
             return load_CIFAR10()
@@ -27,7 +28,6 @@ class DatasetWrapper():
             raise NotImplementedError
     
    
-
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)
@@ -101,7 +101,8 @@ class Loss_Label_Dataset(Dataset):
             assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
             # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
         except AssertionError as e:
-            print(f'Unballanced dataset: seen {seen_count}, unseen {unseen_count}')
+            type  = 'batchwise' if loss_batchwise else 'samplewise'
+            print(f'\tUnballanced {type} dataset: seen {seen_count}, unseen {unseen_count}')
             # pdb.set_trace()
 
         self.data   = []

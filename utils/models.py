@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pdb, traceback
+from utils.lib import blockPrinting
 
+@blockPrinting
 def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10):
     # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":

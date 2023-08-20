@@ -165,10 +165,9 @@ class Membership_inference_attack_instance:
 
         self.shadow_train_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
         if self.wandb_logging:
-            if self.class_id == -1:
-                classID = "all_at_once"
-            else:
-                classID = self.class_id
+            classID = 'all_at_once' if self.class_id == -1 else self.class_id
+
+            
             wandb_init(model_name = self.attack_model.__class__.__name__, 
                        dataset_name = 'Loss_Label_Dataset', 
                        comment = f'MIA_{self.target_model_name}_attack_class_{classID}')
@@ -310,10 +309,17 @@ class Membership_inference_attack_instance:
         Returns:
             None
         """
+
+
+
+
+
+        
         
 
         try:
-            print(f'\tLoading saved attack dataset for class {self.class_id}')
+            classID = 'combined class' if self.class_id == -1 else self.class_id
+            print(f'\tLoading saved attack dataset for class {classID}')
             suffix= 'batch' if self.batchwise_loss else 'single'
             directory = f'{self.target_model_name}_{suffix}'
             file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
@@ -323,7 +329,7 @@ class Membership_inference_attack_instance:
             # traceback.print_exc()
             print(file_path) # type: ignore
             pdb.set_trace()
-            print(f'\tAttack dataset for class {self.class_id} not found, building dataset...')
+            print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
             self.build_attack_dataset()        
    
     def train_shadow_model(self):
@@ -348,8 +354,8 @@ class Membership_inference_attack_instance:
     def train_attack_model(self):
         if not self.attack_dataset_built:
             raise  Exception("Attack dataset not built")
-        
-        print_info(self.device, model_name=f'attack model {self.class_id}', dataset_name=f'attack dataset', no_FL=True)
+        classID = 'combined' if self.class_id == -1 else self.class_id
+        print_info(self.device, model_name=f'attack model {classID}', dataset_name=f'attack dataset', no_FL=True)
         train(  self.attack_model, 
                 self.attack_trainloder, 
                 self.attack_valloder, 
@@ -433,7 +439,6 @@ def main():
     
     mode    = 'Combined Class' if args.combined_class else 'Classwise'
     suffix  = 'batchwise' if args.batchwise_loss else 'samplewise'
-    
 
     print(f'\n\nExecuting {mode} Membership Inference Attack on {args.target_model_weights}, computing loss for training attack model {suffix}\n\n')
 
