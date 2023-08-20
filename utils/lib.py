@@ -1,7 +1,7 @@
 import sys, os, json
 # from IPython.utils.io import capture_output 
 
-def blockPrinting(func, ifServer = False):
+def blockPrinting(func):
     config_path = os.path.join('config.json')
     
     with open(config_path) as config_file:
@@ -9,18 +9,19 @@ def blockPrinting(func, ifServer = False):
             mode = config.get('print')
             try:
                 server = config.get('server')
-                if server:
+                if server=="true":
                     mode = "none"
             except:
                 pass
+
     def func_wrapper(*args, **kwargs):
         # block all printing to the console
         if mode =="all":
             pass #this decorator does nothing
         elif mode =="err":
-            sys.stderr = open(os.devnull, 'w')
-        elif mode =="out":
             sys.stdout = open(os.devnull, 'w')
+        elif mode =="out":
+            sys.stderr = open(os.devnull, 'w')
         elif mode =="none":
             sys.stderr = open(os.devnull, 'w')
             sys.stdout = open(os.devnull, 'w')

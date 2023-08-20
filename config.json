@@ -1,6 +1,6 @@
 {
-    "_comment": "print supports: none, err, all, all",
-    "print": "none", 
+    "_comment": "print supports: none, err, out, all",
+    "print": "out", 
     "server": "false"
 
 }
