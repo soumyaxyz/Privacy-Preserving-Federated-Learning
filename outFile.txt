@@ -1,0 +1,3 @@
+Using cache found in C:\Users\soumy/.cache\torch\hub\NVIDIA_DeepLearningExamples_torchhub
+C:\Users\soumy/.cache\torch\hub\NVIDIA_DeepLearningExamples_torchhub\PyTorch\Classification\ConvNets\image_classification\models\efficientnet.py:17: UserWarning: pytorch_quantization module not found, quantization will not be available
+  warnings.warn(

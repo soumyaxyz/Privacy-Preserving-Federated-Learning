@@ -14,7 +14,7 @@ import json
 
 from utils.datasets import Wrapper_Dataset
 from utils.plot_utils import plot_ROC_curve
-from utils.lib import blockPrinting
+from utils.lib import blockPrintingIfServer
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
@@ -165,7 +165,7 @@ def loss_fn_kd(outputs, labels, teacher_outputs, params):
     return KD_loss
 
 
-@blockPrinting
+@blockPrintingIfServer
 def train_single_epoch(net, trainloader, optimizer = None, criterion = None, device = get_device(), is_binary=False):
     """Train the network on the training set."""
     if not criterion:
@@ -197,7 +197,7 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
     # print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return epoch_loss, epoch_acc
 
-@blockPrinting
+@blockPrintingIfServer
 def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -237,7 +237,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
         
     return loss, accuracy # type: ignore
 
-@blockPrinting
+@blockPrintingIfServer
 def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
     """Train the network on the training set."""
     if not criterion:
@@ -303,7 +303,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
         pbar2.close()# type: ignore
     return net, optimizer, loss, accuracy # type: ignore
 
-@blockPrinting
+@blockPrintingIfServer
 def train_shadow_model(target_model, 
                        shadow_model, 
                        trainloader, 
@@ -424,7 +424,7 @@ def train_shadow_model(target_model,
     if not verbose:
         pbar.close() # type: ignore
 
-@blockPrinting
+@blockPrintingIfServer
 def test_shadow_model(target_model, shadow_model, testloader, criterion = None, device = get_device(), accuracy_defined=False):
     """Evaluate the model similirity on the entire test set."""
     if not criterion:
