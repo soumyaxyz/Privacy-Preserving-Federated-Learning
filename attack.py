@@ -279,22 +279,32 @@ class Membership_inference_attack_instance:
             self.train_shadow_model()
 
         partial_dataset = []
+        inverse_loss_mode = not self.batchwise_loss # for saving the loss dataset not defined by self.batchwise_loss        
+        partial_dataset2 = []  #  (both are saved at once) 
         for i in range(self.shadow_count):
             shadow_model    = self.shadow_models[i]
             # print(f'train size: {len(self.shadow_train_dataloader[i])}, test size: {len(self.shadow_test_dataloader[i])}')
             shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_test_dataloader[i]]
             partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model, self.device, loss_batchwise=self.batchwise_loss) )
+            partial_dataset2.append(  Loss_Label_Dataset(shadow_dataset, shadow_model, self.device, loss_batchwise= inverse_loss_mode) )
+
 
         loss_dataset = ConcatDataset(partial_dataset)
+        other_loss_dataset = ConcatDataset(partial_dataset)
 
         if self.save_attack_dataset:
-            suffix= 'batch' if self.batchwise_loss else 'single'
-            directory = f'{self.target_model_name}_{suffix}'
-            file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
-            save_loss_dataset(loss_dataset, file_path)
-        
+            (suffix1, suffix2) = ('batch', 'single') if self.batchwise_loss else ('single', 'batch')
+            self.save_loss_dataset_with_suffix(loss_dataset, suffix1)
+            self.save_loss_dataset_with_suffix(other_loss_dataset, suffix2)
+
+
         self.build_attack_loaders(loss_dataset)
-     
+
+    def save_loss_dataset_with_suffix(self, loss_dataset, suffix):
+        directory = f'{self.target_model_name}_{suffix}'
+        file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
+        save_loss_dataset(loss_dataset, file_path)
+
     def load_attack_dataset(self):
         """
         Loads the attack dataset for the given class.
@@ -309,14 +319,6 @@ class Membership_inference_attack_instance:
         Returns:
             None
         """
-
-
-
-
-
-        
-        
-
         try:
             classID = 'combined class' if self.class_id == -1 else self.class_id
             print(f'\tLoading saved attack dataset for class {classID}')
@@ -390,11 +392,11 @@ class Membership_inference_attack_instance:
 
         self.train_attack_model()
 
-        # plot_roc = self.load_saved_attack_dataset
+        plot_roc = self.load_saved_attack_dataset
         
         # pdb.set_trace()
             
-        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=True)
+        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=plot_roc)
 
 
         if self.wandb_logging:

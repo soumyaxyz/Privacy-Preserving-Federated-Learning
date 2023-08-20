@@ -100,6 +100,7 @@ def delete_saved_model(filename ='filename', print_info=False):
 def save_loss_dataset(dataset, filename='datset'):    
     print(f'\tSaving dataset of size {len(dataset)} to {filename}')
     save_path = './saved_models/'+filename+'.csv'
+    create_directories_if_not_exist(save_path)
     with open(save_path, mode='w', newline='') as file:
         writer = csv.writer(file)
 
@@ -111,6 +112,13 @@ def save_loss_dataset(dataset, filename='datset'):
             label = label.numpy() if isinstance(label, torch.Tensor) else label
 
             writer.writerow([data, label])  # Write each data and label as a row
+
+
+
+def create_directories_if_not_exist(path):
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 
 def load_loss_dataset(filename='dataset'):
