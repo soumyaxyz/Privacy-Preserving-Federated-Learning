@@ -1,3 +1,5 @@
 {
-    "print": "None"
+    "_comment": "print supports: none, err, all, all",
+    "print": "all" 
+
 }
