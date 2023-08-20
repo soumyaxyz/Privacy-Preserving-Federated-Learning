@@ -1,11 +1,18 @@
 import sys, os, json
 # from IPython.utils.io import capture_output 
 
-def blockPrinting(func):
+def blockPrinting(func, ifServer = False):
     config_path = os.path.join('config.json')
+    
     with open(config_path) as config_file:
-        config = json.load(config_file)  
-        mode = config.get('print')
+            config = json.load(config_file)  
+            mode = config.get('print')
+            try:
+                server = config.get('server')
+                if server:
+                    mode = "none"
+            except:
+                pass
     def func_wrapper(*args, **kwargs):
         # block all printing to the console
         if mode =="all":
