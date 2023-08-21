@@ -296,9 +296,24 @@ class Membership_inference_attack_instance:
             (suffix1, suffix2) = ('batch', 'single') if self.batchwise_loss else ('single', 'batch')
             self.save_loss_dataset_with_suffix(loss_dataset, suffix1)
             self.save_loss_dataset_with_suffix(other_loss_dataset, suffix2)
+            for batch_size in [8, 16, 64, 128, 256]:
+                self.other_batchwise_loss(batch_size)
+
+            
 
 
         self.build_attack_loaders(loss_dataset)
+
+
+    def other_batchwise_loss(self, batch_size = 32):
+        partial_dataset = []
+        for i in range(self.shadow_count):
+            shadow_model    = self.shadow_models[i]
+            # print(f'train size: {len(self.shadow_train_dataloader[i])}, test size: {len(self.shadow_test_dataloader[i])}')
+            shadow_dataset  = [self.shadow_train_dataloader[i], self.shadow_test_dataloader[i]]
+            partial_dataset.append(  Loss_Label_Dataset(shadow_dataset, shadow_model, self.device, loss_batchwise= True, batch_size = batch_size) )
+        loss_dataset = ConcatDataset(partial_dataset)
+        self.save_loss_dataset_with_suffix(loss_dataset, f'batch_{batch_size}')
 
     def save_loss_dataset_with_suffix(self, loss_dataset, suffix):
         directory = f'{self.target_model_name}_{suffix}'
