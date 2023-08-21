@@ -290,7 +290,7 @@ class Membership_inference_attack_instance:
 
 
         loss_dataset = ConcatDataset(partial_dataset)
-        other_loss_dataset = ConcatDataset(partial_dataset)
+        other_loss_dataset = ConcatDataset(partial_dataset2)
 
         if self.save_attack_dataset:
             (suffix1, suffix2) = ('batch', 'single') if self.batchwise_loss else ('single', 'batch')
