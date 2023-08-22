@@ -13,7 +13,8 @@ class Model_Distilation:
         self.student_weights                            = student_weights
         self.student_model_name                         = student_model_name
         self.dataset_name                               = dataset_name                     
-        trainloaders, valloaders, self.testloader, _    = load_partitioned_datasets(num_clients= 1, dataset_name = self.dataset_name, val_percent = 10, batch_size=32)
+        loaders,  self.num_channels, self.num_classes   = load_partitioned_datasets(num_clients= 1, dataset_name = self.dataset_name, val_percent = 10, batch_size=32)
+        [trainloaders, valloaders, self.testloader, _]  = loaders
         self.trainloader                                = trainloaders[0]
         self.valloader                                  = valloaders[0]  
         self.device                                     = device
@@ -22,14 +23,14 @@ class Model_Distilation:
     def distil_for_epochs(self, epochs, optimizer = None, criterion = None,  verbose=False, patience= 5):   
         print_info(self.device, self.student_model_name, self.dataset_name, self.teacher_weights)
                 
-        teacher = load_model_defination(self.teacher_model_name).to(self.device)
+        teacher = load_model_defination(self.teacher_model_name, self.num_channels, self.num_classes).to(self.device)
         try:
             load_saved_weights(teacher, filename =self.teacher_weights)
         except FileNotFoundError:
             print("Teacher weights not found. Fatal error")   
             raise SystemError  
 
-        student = load_model_defination(self.student_model_name).to(self.device)
+        student = load_model_defination(self.student_model_name, self.num_channels, self.num_classes).to(self.device)
         try:
             load_saved_weights(student, filename =self.student_weights)
         except FileNotFoundError:

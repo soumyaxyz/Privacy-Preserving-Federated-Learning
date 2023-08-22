@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pdb, traceback
+from utils.lib import blockPrinting
 
+@blockPrinting
 def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10):
     # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":
@@ -153,13 +155,13 @@ def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
     num_features = efficientnet_model.classifier.fc.in_features
     efficientnet_model.classifier.fc = torch.nn.Linear(num_features, num_classes)
 
-def load_efficientnet(entrypoint: str = "nvidia_efficientnet_b0", classes: int = None):
+def load_efficientnet(entrypoint: str = "nvidia_efficientnet_b0", classes: int = None): # type: ignore
     efficientnet = torch.hub.load("NVIDIA/DeepLearningExamples:torchhub", entrypoint, pretrained=True)
     if classes is not None:
         replace_classifying_layer(efficientnet, classes)
     return efficientnet
 
-def load_resnet(entrypoint: str = "resnet18", classes:int = None):
+def load_resnet(entrypoint: str = "resnet18", classes:int = None):# type: ignore
     resnet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet34', pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
@@ -168,26 +170,28 @@ def load_resnet(entrypoint: str = "resnet18", classes:int = None):
     return resnet
 
 
-def load_googlenet(entrypoint: str = "googlenet", classes:int = None):
+def load_googlenet(entrypoint: str = "googlenet", classes:int = None):# type: ignore
     googlenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return googlenet
 
+
 def load_resnext(entrypoint: str = "resnext50_32x4d", classes:int = None):
     resnext = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
+
     return resnext
 
-def load_densenet(entrypoint: str = "densenet121", classes:int = None):
+def load_densenet(entrypoint: str = "densenet121", classes:int = None):# type: ignore
     densenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'densenet169', pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'densenet201', pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'densenet161', pretrained=True)
     return densenet
 
-def load_mobilenet(entrypoint: str = "mobilenet_v2", classes:int = None):
+def load_mobilenet(entrypoint: str = "mobilenet_v2", classes:int = None):# type: ignore
     mobilenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return mobilenet
 
-def load_vgg(entrypoint: str = "vgg11", classes:int = None):
+def load_vgg(entrypoint: str = "vgg11", classes:int = None):# type: ignore
     vgg = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg11_bn', pretrained=True)
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg13', pretrained=True)
@@ -198,18 +202,18 @@ def load_vgg(entrypoint: str = "vgg11", classes:int = None):
     # model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg19_bn', pretrained=True)
     return vgg
 
-def load_inception(entrypoint: str = "inception_v3", classes:int = None):
+def load_inception(entrypoint: str = "inception_v3", classes:int = None):# type: ignore
     inception = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return inception
 
-def load_squeezenet(entrypoint: str = "squeezenet1_0", classes:int = None):
+def load_squeezenet(entrypoint: str = "squeezenet1_0", classes:int = None):# type: ignore
     squeezenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return squeezenet
 
-def load_shufflenet (entrypoint: str = "shufflenet_v2_x1_0", classes:int = None):
+def load_shufflenet (entrypoint: str = "shufflenet_v2_x1_0", classes:int = None):# type: ignore
     shufflenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return shufflenet
 
-def load_alexnet (entrypoint: str = "alexnet", classes:int = None):
+def load_alexnet (entrypoint: str = "alexnet", classes:int = None):# type: ignore
     alexnet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return alexnet

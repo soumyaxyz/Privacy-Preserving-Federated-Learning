@@ -42,7 +42,7 @@ def main():
     
     print_info(device, args.model_name, args.dataset_name)
 
-    trainloaders, valloaders, _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    [trainloaders, valloaders], _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
     client_defination = client_fn(args.client_number, model, trainloaders, valloaders, 
                                   args.number_of_total_clients, args.wandb_logging, args.dataset_name, 
                                   args.overfit_patience, simulation=args.headless
