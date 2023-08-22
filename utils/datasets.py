@@ -1,7 +1,7 @@
 import torch
 import torchvision.transforms as transforms
-from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN
-from torch.utils.data import  Dataset, DataLoader, random_split
+from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
+from torch.utils.data import  Dataset, DataLoader, ConcatDataset, random_split
 from utils.lib import blockPrinting
 import pdb,traceback
 from typing import List
@@ -12,7 +12,8 @@ class DatasetWrapper():
         self.name = dataset_name
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
 
-    @blockPrinting   
+
+    @blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'CIFAR10':
             return load_CIFAR10()
@@ -20,6 +21,8 @@ class DatasetWrapper():
             return load_CIFAR100()
         elif dataset_name == 'MNIST':
             return load_MNIST()
+        elif dataset_name == 'FashionMNIST':
+            return load_FashionMNIST()
         elif dataset_name == "SVHN":
             return load_SVHN()
         else:
@@ -28,6 +31,7 @@ class DatasetWrapper():
             raise NotImplementedError
     
    
+
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)
@@ -39,6 +43,17 @@ def load_CIFAR10():
 
     num_channels=3
     num_classes=10
+
+
+    #full_dataset = ConcatDataset([train_dataset,test_dataset])
+
+    #train_size = int(len(full_dataset)*train_percent)
+    #test_size = len(full_dataset) - train_size
+
+    #trainset, testset = random_split(full_dataset, [train_size, test_size])
+
+
+
 
     return trainset, testset, num_channels, num_classes
 
@@ -71,15 +86,37 @@ def load_SVHN():
 def load_MNIST():
     # Download and transform MNIST (train and test)
     transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5), (0.5))]
+        [transforms.Grayscale(num_output_channels=3), #expand to 3 channels
+        transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
     trainset = MNIST("./dataset", train=True, download=True, transform=transform)
     testset = MNIST("./dataset", train=False, download=True, transform=transform)
 
-    num_channels = 1
+
+    num_channels = 3
+#     num_channels = 1
     num_classes = 10
 
     return trainset, testset, num_channels, num_classes
+
+
+def load_FashionMNIST():
+    # Download and transform FashionMNIST (train and test)
+    transform = transforms.Compose(
+        [
+            transforms.Grayscale(num_output_channels=3),  # Expand to 3 channels
+            transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
+    trainset = FashionMNIST("./dataset", train=True, download=True, transform=transform)
+    testset = FashionMNIST("./dataset", train=False, download=True, transform=transform)
+
+    num_channels = 3  # Set to 3 channels
+    num_classes = 10
+
+    return trainset, testset, num_channels, num_classes
+
+
 
 
 
@@ -177,8 +214,9 @@ class Error_Label_Dataset(Loss_Label_Dataset):
         return 
 
 
- 
+
 def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
+
 
     # Split training set into `num_clients` partitions to simulate different local datasets
     total_size = len(trainset)
@@ -215,6 +253,8 @@ def load_dataloaders(trainset, testset, batch_size=32):
     testloader     = DataLoader(testset, batch_size)
     return trainloader,  testloader
 
+
 def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
+
     dataset = DatasetWrapper(dataset_name)
     return split_dataset(dataset.trainset, dataset.testset, num_clients, val_percent, batch_size), dataset.num_channels, dataset.num_classes
