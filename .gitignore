@@ -9,3 +9,5 @@ outputs/
 temp*
 *.zip
 *.out
+*.json
+*.csv
