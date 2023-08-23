@@ -7,7 +7,5 @@ saved_models/
 .cache/
 outputs/
 temp*
-.*
+*.zip
 *.out
-*.csv
-*.json

@@ -89,7 +89,7 @@ class basicCNN_CIFAR100(nn.Module):
 class basicCNN_MNIST(nn.Module):
     def __init__(self) -> None:
         super(basicCNN_MNIST, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5) # 90
+        self.conv1 = nn.Conv2d(3, 6, 5) # 90
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
         self.fc1 = nn.Linear(16 * 4 * 4, 120)
@@ -174,8 +174,10 @@ def load_googlenet(entrypoint: str = "googlenet", classes:int = None):# type: ig
     googlenet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     return googlenet
 
-def load_resnext(entrypoint: str = "resnext50_32x4d", classes:int = None):# type: ignore
-    resnext = torch.hub.load('pytorch/vision:v0.10.0', 'resnext50_32x4d', pretrained=True)
+
+def load_resnext(entrypoint: str = "resnext50_32x4d", classes:int = None):
+    resnext = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
+
     return resnext
 
 def load_densenet(entrypoint: str = "densenet121", classes:int = None):# type: ignore
