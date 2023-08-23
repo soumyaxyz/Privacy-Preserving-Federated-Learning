@@ -5,8 +5,8 @@ import seaborn as sns
 import pdb, traceback
 from utils.lib import blockPrintingIfServer
 
-@blockPrintingIfServer
-def plot_ROC_curve(gold, pred, log_log = False):
+
+def build_ROC(plt, gold, pred, log_log = False):
     try:
         fpr, tpr, thresholds = roc_curve(gold, pred)
         roc_auc = roc_auc_score(gold, pred)
@@ -20,8 +20,7 @@ def plot_ROC_curve(gold, pred, log_log = False):
             plt.ylabel('True Positive Rate (log)')
             plt.title('ROC Curve (log-log scale)')
         else:
-            # Plot the ROC curve
-            plt.figure(figsize=(8, 6))
+            # Plot the ROC curve            
             plt.plot(fpr, tpr, color='blue', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
             plt.plot([0, 1], [0, 1], color='gray', linestyle='--')
             plt.xlim([0.0, 1.0])
@@ -32,11 +31,16 @@ def plot_ROC_curve(gold, pred, log_log = False):
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()
-    
 
 
     
 
+
+
+@blockPrintingIfServer
+def plot_ROC_curve(gold, pred, log_log = False):
+    plt.figure(figsize=(8, 6))
+    build_ROC(plt, gold, pred, log_log)   
 
     plt.legend(loc='lower right')
     plt.show()

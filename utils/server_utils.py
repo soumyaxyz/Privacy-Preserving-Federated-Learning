@@ -94,7 +94,7 @@ class Server_details:
 
 
             set_parameters(model, parameters)  # Update model with the latest parameters
-            loss, accuracy = test(model, valloader, device)
+            loss, accuracy, _ = test(model, valloader, device)
             print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
             if wandb_logging:
                 wandb.log({"acc": accuracy, "loss": loss}, step=server_round*self.epochs_per_round)            

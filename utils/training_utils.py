@@ -14,7 +14,7 @@ import json
 
 from utils.datasets import Wrapper_Dataset
 from utils.plot_utils import plot_ROC_curve
-from utils.lib import blockPrintingIfServer
+from utils.lib import blockPrintingIfServer, create_directories_if_not_exist
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
@@ -115,10 +115,6 @@ def save_loss_dataset(dataset, filename='datset'):
 
 
 
-def create_directories_if_not_exist(path):
-    directory = os.path.dirname(path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
 
 def load_loss_dataset(filename='dataset'):
@@ -140,7 +136,8 @@ def load_loss_dataset(filename='dataset'):
                 data.append(eval(data_i))
                 label.append(eval(label_i))
             except:
-                pdb.set_trace()
+                traceback.print_exc()
+                # pdb.set_trace()
 
             
 
@@ -212,6 +209,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     net.eval()
+    predictions = None
     try:
         if plot_ROC:
             gold = []
@@ -237,6 +235,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
         loss /= len(testloader.dataset)
         accuracy = correct / total
         if plot_ROC:
+            predictions = [pred, gold]  # type: ignore   
             plot_ROC_curve(gold, pred)  # type: ignore          
             # pdb.set_trace()
             
@@ -244,7 +243,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
         traceback.print_exc()
         pdb.set_trace()
         
-    return loss, accuracy # type: ignore
+    return loss, accuracy, predictions # type: ignore
 
 @blockPrintingIfServer
 def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
@@ -278,7 +277,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             except Exception as e:
                 print(traceback.print_exc())
                 pdb.set_trace()
-            loss, accuracy = test(net, valloader, device, is_binary)
+            loss, accuracy, _ = test(net, valloader, device, is_binary)
             if wandb_logging:
                 wandb.log({"acc": accuracy,"loss": loss}) 
             if not verbose:
@@ -288,7 +287,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             record_mode = True
         else:
             train_loss, train_acc =  train_single_epoch(net, trainloader, optimizer, criterion, device, is_binary) 
-            loss, accuracy = test(net, valloader, device, is_binary)
+            loss, accuracy, _ = test(net, valloader, device, is_binary)
 
             if loss_min > loss: # validation loss improved
                 patience = initial_patience

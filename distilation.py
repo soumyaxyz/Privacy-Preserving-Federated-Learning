@@ -36,7 +36,7 @@ class Model_Distilation:
         except FileNotFoundError:
             print("Student weights not found. Proceding with distillation") 
 
-        pre_loss, pre_accuracy = test(student, self.testloader)
+        pre_loss, pre_accuracy, _ = test(student, self.testloader)
         print(f"\n\nPre-Distillation test set performance:\n\tloss {pre_loss}\n\taccuracy {pre_accuracy}\n\n")
 
         train_shadow_model(teacher, student, self.trainloader, self.valloader, 
@@ -44,7 +44,7 @@ class Model_Distilation:
                            wandb_logging = self.wandb_logging, accuracy_defined=True,
                            patience=patience, verbose=False)
         
-        post_loss, post_accuracy = test(student, self.testloader)
+        post_loss, post_accuracy, _ = test(student, self.testloader)
         print(f"\n\nPost-Distillation test set performance:\n\tloss {post_loss}\n\taccuracy {post_accuracy}\n\n")
         return student
 

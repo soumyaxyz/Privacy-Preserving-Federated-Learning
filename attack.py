@@ -1,5 +1,6 @@
 import argparse, os
-import pdb, traceback
+# import pdb, 
+import traceback
 import torch
 import wandb
 from copy import deepcopy
@@ -37,13 +38,21 @@ class Classwise_membership_inference_attack:
         class_wise_trainset    = self.split_dataset_by_label(self.target_dataset.trainset)
         class_wise_testset     = self.split_dataset_by_label(self.target_dataset.testset)
         loss, accuracy = 0.0, 0.0
+        predictions = [[],[]]
         for c in range(self.target_dataset.num_classes):
             print(f'\nMembership Inference Attack Instance on class {c} initialized')
             class_wise_datasets = [class_wise_trainset[c], class_wise_testset[c]]
             attack_instance = deepcopy(self.attack_instance)
 
             attack_instance.define_target_model_and_datasets(c, self.target_model, class_wise_datasets, self.target_dataset, self.target_model_name)
-            class_loss, class_accuracy = attack_instance.run_membership_inference_attack()
+            class_loss, class_accuracy, class_predictions = attack_instance.run_membership_inference_attack()
+            try:
+                predictions[0].extend(class_predictions[0])
+                predictions[1].extend(class_predictions[1])
+            except:
+                traceback.print_exc()
+                import pdb
+                pdb.set_trace()
             print(f"\n\tLoss on class {c}: {class_loss}, and Accuracy on class {c}: {class_accuracy}")
             loss        += class_loss
             accuracy    += class_accuracy
@@ -62,6 +71,7 @@ class Classwise_membership_inference_attack:
                        )
             wandb.log({"test_acc": accuracy, "test_loss": loss})
             wandb.finish()
+        return loss, accuracy, predictions
         
 
 class Combined_membership_inference_attack(Classwise_membership_inference_attack):
@@ -75,7 +85,7 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         class_wise_datasets = [self.target_dataset.trainset, self.target_dataset.testset]
 
         self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset, self.target_model_name)
-        loss, accuracy = self.attack_instance.run_membership_inference_attack()
+        loss, accuracy, predictions = self.attack_instance.run_membership_inference_attack()
         
         del self.attack_instance
         
@@ -92,6 +102,7 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         #                )
         #     wandb.log({"test_acc": accuracy, "test_loss": loss})
         #     wandb.finish()
+        return loss, accuracy, predictions
 
         
 
@@ -236,7 +247,7 @@ class Membership_inference_attack_instance:
                 testloaders.append(DataLoader(ds_test, self.batch_size))
             except Exception as e:
                 traceback.print_exc()
-                pdb.set_trace()
+                # pdb.set_trace()
                 
         return trainloaders, testloaders
 
@@ -337,21 +348,25 @@ class Membership_inference_attack_instance:
         try:
             classID = 'combined class' if self.class_id == -1 else self.class_id
             print(f'\tLoading saved attack dataset for class {classID}')
-            suffix= 'batch' if self.batchwise_loss else 'single'
+            if type(self.batchwise_loss) == bool:
+                suffix= 'batch' if self.batchwise_loss else 'single'
+            else:
+                suffix = self.batchwise_loss
             directory = f'{self.target_model_name}_{suffix}'
             file_path = os.path.join(directory, 'loss_dataset_class_' + str(self.class_id))
             loss_dataset = load_loss_dataset(file_path)
             self.build_attack_loaders(loss_dataset)
         except FileNotFoundError as e:
             # traceback.print_exc()
-            print(file_path) # type: ignore
-            pdb.set_trace()
-            print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
-            self.build_attack_dataset()        
+            print(f'{file_path} not found') # type: ignore
+            # pdb.set_trace()
+            # print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
+            # self.build_attack_dataset()      
+            raise e  
    
     def train_shadow_model(self):
         target_dataloader=  DataLoader(self.target_dataset.testset, self.batch_size) 
-        loss, accuracy = test(self.target_model, target_dataloader)
+        loss, accuracy, _ = test(self.target_model, target_dataloader)
         print(f'\n\tFor the target model on the target test set, Loss: {loss}, Accuracy: {accuracy}')
 
         for i in range(self.shadow_count):
@@ -364,7 +379,7 @@ class Membership_inference_attack_instance:
                                verbose=False, 
                                wandb_logging=self.wandb_logging
                                )
-            loss, accuracy = test(self.shadow_models[i], target_dataloader)
+            loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
             print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
         self.shadow_models_trained = True
 
@@ -405,13 +420,14 @@ class Membership_inference_attack_instance:
         else:
             self.load_attack_dataset()
 
-        self.train_attack_model()
+        # self.train_attack_model()
 
-        plot_roc = self.load_saved_attack_dataset
+        # plot_roc = self.load_saved_attack_dataset
         
         # pdb.set_trace()
             
-        loss, accuracy = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=plot_roc)
+        # loss, accuracy, predictions = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=False)
+        loss, accuracy, predictions = 0,0, []
 
 
         if self.wandb_logging:
@@ -422,7 +438,7 @@ class Membership_inference_attack_instance:
         if self.save_attack_model:
             save_model(self.attack_model ,filename =f'Attack_model_{self.class_id}', print_info=False)
 
-        return loss, accuracy
+        return loss, accuracy, predictions
         
 
         
