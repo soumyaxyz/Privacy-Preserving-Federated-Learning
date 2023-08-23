@@ -27,16 +27,16 @@ for model_train_mode in model_train_modes:
     
     lines += f'\n{model_train_mode}, '
     for batch_size in batch_sizes:    
-        accuracy = accuracy_record.lookup( combined_class=False, 
+        accuracy = accuracy_record.lookup( combined_class=True, 
                                 model_name = 'efficientnet', 
                                 model_train_mode = model_train_mode, 
                                 batch_size = batch_size, 
                                 dataset_name = dataset_name)
         
-        accuracy = accuracy_record.lookup( combined_class=False, model_name = 'efficientnet', model_train_mode = 10, batch_size = 'single', dataset_name = dataset_name)
+        # accuracy = accuracy_record.lookup( combined_class=True, model_name = 'efficientnet', model_train_mode = 10, batch_size = 'single', dataset_name = dataset_name)
         lines += f'{accuracy}, '
-    if model_train_mode == 5:
-        pdb.set_trace()
+    # if model_train_mode == 5:
+    #     pdb.set_trace()
 
 
 print (lines)

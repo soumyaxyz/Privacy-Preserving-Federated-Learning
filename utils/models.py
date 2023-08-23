@@ -175,7 +175,7 @@ def load_googlenet(entrypoint: str = "googlenet", classes:int = None):# type: ig
     return googlenet
 
 
-def load_resnext(entrypoint: str = "resnext50_32x4d", classes:int = None):
+def load_resnext(entrypoint: str = "resnext50_32x4d", classes:int = None): # type: ignore
     resnext = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
 
     return resnext
