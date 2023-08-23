@@ -357,12 +357,12 @@ class Membership_inference_attack_instance:
             loss_dataset = load_loss_dataset(file_path)
             self.build_attack_loaders(loss_dataset)
         except FileNotFoundError as e:
-            # traceback.print_exc()
+            traceback.print_exc()
             print(f'{file_path} not found') # type: ignore
             # pdb.set_trace()
             # print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
             # self.build_attack_dataset()      
-            raise e  
+            # raise e  
    
     def train_shadow_model(self):
         target_dataloader=  DataLoader(self.target_dataset.testset, self.batch_size) 
@@ -420,14 +420,14 @@ class Membership_inference_attack_instance:
         else:
             self.load_attack_dataset()
 
-        # self.train_attack_model()
+        self.train_attack_model()
 
         # plot_roc = self.load_saved_attack_dataset
         
         # pdb.set_trace()
             
-        # loss, accuracy, predictions = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=False)
-        loss, accuracy, predictions = 0,0, []
+        loss, accuracy, predictions = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=False)
+        # loss, accuracy, predictions = 0,0, [[0,1],[0,1]]
 
 
         if self.wandb_logging:

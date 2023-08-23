@@ -11,3 +11,4 @@ temp*
 *.out
 *.json
 *.csv
+accuracy_record.json

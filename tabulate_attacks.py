@@ -83,7 +83,7 @@ def main():
                     args.target_model_weights = 'Federated'+str(model_train_mode)+'efficientnet'+dataset_name
 
                 # acc_classWise = [0,0]
-                combined_class = True
+                combined_class = False
                 # for combined_class in [True, False]:
                 args.combined_class = combined_class
                 try:
@@ -98,7 +98,7 @@ def main():
                                 batch_size = batch_size, 
                                 dataset_name = dataset_name)
                     
-                    if accuracy == 0.0:   # vallue exists so skip computing
+                    if accuracy == 0.0:   # dummy vallue exists so overwrite
                         loss, accuracy, predictions = execute_attack(args, device,  target_dataset)
                         accuracy_record.record(accuracy, 
                                             combined_class=combined_class, 

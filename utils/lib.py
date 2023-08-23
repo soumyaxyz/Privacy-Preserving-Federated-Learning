@@ -106,7 +106,7 @@ class record_JSON():
             (self.record_pd['dataset_name'] == dataset_name)
             )
         try:
-            accuracy = self.record_pd[match]['accuracy'].values[0]
+            accuracy = self.record_pd[match]['accuracy'].values[-1]
         except:
             # pdb.set_trace()
             accuracy = 0
