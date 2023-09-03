@@ -1,5 +1,5 @@
 import argparse, os
-# import pdb, 
+import pdb 
 import traceback
 import torch
 import wandb
@@ -87,12 +87,13 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset, self.target_model_name)
         loss, accuracy, predictions = self.attack_instance.run_membership_inference_attack()
         
-        del self.attack_instance
+        # del self.attack_instance
         
         # loss     /= self.num_classes
         # accuracy /= self.num_classes
 
         print(f"\nOverall Loss: {loss}, and Overall Accuracy: {accuracy}")
+        pdb.set_trace()
         
         # if self.wandb_logging:
         #     # input("Press Enter to Log run with wandb...")
