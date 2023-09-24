@@ -1,5 +1,5 @@
 import argparse, os
-# import pdb, 
+import pdb 
 import traceback
 import torch
 import wandb
@@ -87,12 +87,13 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset, self.target_model_name)
         loss, accuracy, predictions = self.attack_instance.run_membership_inference_attack()
         
-        del self.attack_instance
+        # del self.attack_instance
         
         # loss     /= self.num_classes
         # accuracy /= self.num_classes
 
         print(f"\nOverall Loss: {loss}, and Overall Accuracy: {accuracy}")
+        pdb.set_trace()
         
         # if self.wandb_logging:
         #     # input("Press Enter to Log run with wandb...")
@@ -118,6 +119,7 @@ class Membership_inference_attack_instance:
                  attack_model_name, 
                  batchwise_loss,
                  device, 
+                 shadow_distilled=False,
                  shadow_epochs=50, 
                  attack_epochs=50, 
                  wandb_logging=False
@@ -146,6 +148,7 @@ class Membership_inference_attack_instance:
         self.shadow_epochs              = shadow_epochs
         self.attack_epochs              = attack_epochs
         self.shadow_models_trained      = False
+        self.shadow_distilled           = shadow_distilled
         self.attack_dataset_built       = False
         self.target_defined             = False 
         self.shadow_count               = shadow_count        
@@ -371,14 +374,23 @@ class Membership_inference_attack_instance:
 
         for i in range(self.shadow_count):
             print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
-            train_shadow_model(self.target_model, 
-                               self.shadow_models[i], 
-                               self.shadow_train_dataloader[i], 
-                               self.shadow_test_dataloader[i], 
-                               self.shadow_epochs, 
-                               verbose=False, 
-                               wandb_logging=self.wandb_logging
-                               )
+            if self.shadow_distilled:    # distillation the knoledge from the target model to the shadow model
+                train_shadow_model(self.target_model, 
+                                self.shadow_models[i], 
+                                self.shadow_train_dataloader[i], 
+                                self.shadow_test_dataloader[i], 
+                                self.shadow_epochs, 
+                                verbose=False, 
+                                wandb_logging=self.wandb_logging
+                                )
+            else:  # Train the shadow model outright on the corresponding shadow dataset
+                train(self.shadow_models[i], 
+                    self.shadow_train_dataloader[i], 
+                    self.shadow_test_dataloader[i], 
+                    self.shadow_epochs, 
+                    verbose=False, 
+                    wandb_logging=self.wandb_logging
+                    )
             loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
             print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
         self.shadow_models_trained = True
@@ -459,6 +471,7 @@ def main():
     parser.add_argument('-mw', '--target_model_weights', type=str, default='centralizedbasicCNN', help='Weights for the model to be attacked')
     parser.add_argument('-s', '--shadow_model_name', type=str, default='basicCNN', help='Model name for the shadow model')
     parser.add_argument('-a', '--attack_model_name', type=str, default= 'attack_classifier', help='Classifier for the attack model')
+    parser.add_argument('-ds', '--distil_shadow_model', action='store_true', help='For shadow model training, The shadow models are is distilled from the target model, otherwise the shadow models are trained from scratch')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-ld', '--load_attack_dataset', action='store_true', help='Instead of building attack dataset, load pre-existing attack dataset from disc')
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
@@ -487,6 +500,7 @@ def main():
                                                             attack_model_name   = args.attack_model_name,
                                                             batchwise_loss      = args.batchwise_loss,
                                                             device              = device,
+                                                            shadow_distilled    = args.distil_shadow_model,
                                                             shadow_epochs       = args.num_shadow_epochs,
                                                             attack_epochs       = args.num_attack_epochs,
                                                             wandb_logging       = args.wandb_logging
