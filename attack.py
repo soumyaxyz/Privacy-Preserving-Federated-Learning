@@ -373,8 +373,8 @@ class Membership_inference_attack_instance:
         print(f'\n\tFor the target model on the target test set, Loss: {loss}, Accuracy: {accuracy}')
 
         for i in range(self.shadow_count):
-            print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
             if self.shadow_distilled:    # distillation the knoledge from the target model to the shadow model
+                print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
                 train_shadow_model(self.target_model, 
                                 self.shadow_models[i], 
                                 self.shadow_train_dataloader[i], 
@@ -384,6 +384,7 @@ class Membership_inference_attack_instance:
                                 wandb_logging=self.wandb_logging
                                 )
             else:  # Train the shadow model outright on the corresponding shadow dataset
+                print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}')
                 train(self.shadow_models[i], 
                     self.shadow_train_dataloader[i], 
                     self.shadow_test_dataloader[i], 
