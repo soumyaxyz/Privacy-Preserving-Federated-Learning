@@ -58,16 +58,14 @@ def tabulate_single_attack(args, device):
     print(f'\tAccuracy: {accuracy} for combined_class ={args.combined_class} with {args.target_model_weights} and batch_size {args.batchwise_loss}.')
    
 
+
 def tabulate_all_attack(args, device, dataset_names):
     accuracy_record = record_JSON()
     accuracy_record.load()
 
-    for dataset_name in dataset_names
-
-        args.dataset_name = dataset_name 
-        target_dataset = DatasetWrapper(args.dataset_name)
+    for dataset_name in dataset_names:
         
-
+        args.dataset_name = dataset_name 
         for batch_size in ['single', 'batch_8', 'batch_16', 'batch', 'batch_64', 'batch_128', 'batch_256']:
 
             args.batchwise_loss = batch_size
@@ -115,11 +113,7 @@ def tabulate_all_attack(args, device, dataset_names):
                     print(traceback.print_exc())
                     print('\t\tThis run failed')
                     pdb.set_trace()
-                    
 
-                # acc_client_wise.extend(acc_classWise)  
-
-                # print(args.dataset_name, acc_classWise[0])
 
     accuracy_record.save()
 
