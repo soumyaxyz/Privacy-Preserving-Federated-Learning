@@ -234,8 +234,8 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
 
         loss /= len(testloader.dataset)
         accuracy = correct / total
-        if plot_ROC:
-            predictions = [pred, gold]  # type: ignore   
+        predictions = [pred, gold]  # type: ignore   
+        if plot_ROC:            
             plot_ROC_curve(gold, pred)  # type: ignore          
             # pdb.set_trace()
             

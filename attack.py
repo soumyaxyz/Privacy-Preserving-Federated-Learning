@@ -441,6 +441,7 @@ class Membership_inference_attack_instance:
             
         loss, accuracy, predictions = test(self.attack_model, self.attack_testloder, device=self.device, is_binary=True, plot_ROC=False)
         # loss, accuracy, predictions = 0,0, [[0,1],[0,1]]
+        # pdb.set_trace()
 
 
         if self.wandb_logging:
@@ -454,10 +455,7 @@ class Membership_inference_attack_instance:
         return loss, accuracy, predictions
         
 
-        
-    
-   
-def main():
+def argument_parser():
     parser = argparse.ArgumentParser(description='A description of your program')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     
@@ -478,9 +476,11 @@ def main():
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
 
     parser.set_defaults(load_attack_dataset=True)
-    args = parser.parse_args()
-
-
+    args = parser.parse_args()   
+    return args    
+    
+   
+def main(args): 
     device = get_device()
     # pdb.set_trace()
 
@@ -521,4 +521,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = argument_parser()
+    main(args)

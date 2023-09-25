@@ -9,7 +9,7 @@ def write_to(filename, lines):
 accuracy_record = record_JSON()
 accuracy_record.load()
 
-dataset_name = 'FashionMNIST'
+dataset_name = 'CIFAR10'
 model_name = 'efficientnet'
 combined_class=True
 batch_sizes = ['single', 'batch_8', 'batch_16', 'batch', 'batch_64', 'batch_128', 'batch_256']

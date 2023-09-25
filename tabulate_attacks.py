@@ -8,7 +8,7 @@ from utils.models import load_model_defination
 from utils.plot_utils import plot_ROC_curve
 from utils.training_utils import get_device, load_model as load_saved_weights
 from utils.datasets import DatasetWrapper
-from utils.lib import record_JSON
+from utils.old_lib import record_JSON
 
 
 
@@ -38,15 +38,17 @@ def execute_attack(args, device,  target_dataset):
     
     return attack.start()
 
-def tabulate_single_attack(args, device):
-    args.batchwise_loss = 'batch_64'
-    args.dataset_name = 'MNIST'
+def tabulate_single_attack(args, device, batch_sizes, dataset_name, model_train_mode, model_name='efficientnet'):
+    args.batchwise_loss = batch_sizes
+    args.dataset_name = dataset_name
     target_dataset = DatasetWrapper(args.dataset_name)
-    model_name='efficientnet'
-    model_train_mode = 2 #0 for centralized, <n> for federated
+    model_name=model_name
+    model_train_mode = model_train_mode #0 for centralized, <n> for federated
     args.combined_class = True
-    # args.target_model_weights = 'Centralizedefficientnet'+args.dataset_name
-    args.target_model_weights = 'Federated'+str(model_train_mode)+'efficientnet'+args.dataset_name
+    if model_train_mode == 0:
+        args.target_model_weights = 'Centralizedefficientnet'+dataset_name
+    else:
+        args.target_model_weights = 'Federated'+str(model_train_mode)+'efficientnet'+args.dataset_name
 
     try:
         loss, accuracy, predictions = execute_attack(args, device,  target_dataset)
@@ -99,12 +101,7 @@ def tabulate_all_attack(args, device, dataset_names, model_train_modes):
                     
                     if accuracy[0] == 0.0:   # dummy vallue exists so overwrite
                         loss, accuracy, predictions = execute_attack(args, device,  target_dataset)
-                        accuracy_record.record(accuracy, 
-                                            combined_class=combined_class, 
-                                            model_name = model_name, 
-                                            model_train_mode = model_train_mode, 
-                                            batch_size = batch_size, 
-                                            dataset_name = dataset_name)
+                        accuracy_record.record(accuracy, combined_class=combined_class,  model_name = model_name,  model_train_mode = model_train_mode,  batch_size = batch_size, dataset_name = dataset_name)
                         accuracy_record.save()
                         print(f'\tAccuracy: {accuracy} saved in record.')
                     else:
@@ -139,12 +136,12 @@ def main():
     device = get_device()
     # pdb.set_trace()
     if args.single:
-        tabulate_single_attack(args, device)
+        tabulate_single_attack(args, device, 'batch_64','CIFAR10',2)
     else:
         # dataset_names =[ 'CIFAR10', 'CIFAR100','FashionMNIST', 'MNIST']
-        # train_modes =[0,2,3,5,10]
+        train_modes =[0,2,3,5,10]
         dataset_names =[ 'CIFAR10']
-        train_modes =[0,2,10]
+        # train_modes =[2]
         tabulate_all_attack(args, device, dataset_names, train_modes)
 
 
