@@ -17,7 +17,7 @@ from utils.lib import record_JSON
 def execute_attack(args, device,  target_dataset):
 
     target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes).to(device)
-    load_saved_weights(target_model, filename =args.target_model_weights)
+    load_saved_weights(target_model, filename = args.target_model_weights)
     attack_instance = Membership_inference_attack_instance( shadow_model_name   = args.shadow_model_name, 
                                                             shadow_count        = args.shadow_count, 
                                                             load_attack_dataset = args.load_attack_dataset,
@@ -59,9 +59,9 @@ def tabulate_single_attack(args, device):
    
 
 
-def tabulate_all_attack(args, device, dataset_names):
+def tabulate_all_attack(args, device, dataset_names, model_train_modes):
     accuracy_record = record_JSON()
-    accuracy_record.load()
+    # accuracy_record.load()
 
     for dataset_name in dataset_names:
         
@@ -74,7 +74,7 @@ def tabulate_all_attack(args, device, dataset_names):
 
             # acc_client_wise = []
 
-            for model_train_mode in [0,2,3,5,10]:
+            for model_train_mode in model_train_modes:
                 if model_train_mode == 0:
                     args.target_model_weights = 'Centralizedefficientnet'+dataset_name
                 else:
@@ -84,17 +84,18 @@ def tabulate_all_attack(args, device, dataset_names):
                 combined_class = True
                 # for combined_class in [True, False]:
                 args.combined_class = combined_class
+                target_dataset = DatasetWrapper(args.dataset_name)
                 try:
                     mode = 'Combined Class' if args.combined_class else 'Classwise'
                     print(f'Executing {mode} Membership Inference Attack on {args.target_model_weights}')
                     # 
                     accuracy = 0.0,0
 
-                    accuracy  = accuracy_record.lookup( combined_class=combined_class, 
-                                model_name = model_name, 
-                                model_train_mode = model_train_mode, 
-                                batch_size = batch_size, 
-                                dataset_name = dataset_name)
+                    # accuracy  = accuracy_record.lookup( combined_class=combined_class, 
+                    #             model_name = model_name, 
+                    #             model_train_mode = model_train_mode, 
+                    #             batch_size = batch_size, 
+                    #             dataset_name = dataset_name)
                     
                     if accuracy[0] == 0.0:   # dummy vallue exists so overwrite
                         loss, accuracy, predictions = execute_attack(args, device,  target_dataset)
@@ -110,6 +111,7 @@ def tabulate_all_attack(args, device, dataset_names):
                         print(f'\tAccuracy: {accuracy} exists in record, skipping')
                         # pdb.set_trace()
                 except:
+                    traceback.print_exc()
                     print(traceback.print_exc())
                     print('\t\tThis run failed')
                     pdb.set_trace()
@@ -139,8 +141,11 @@ def main():
     if args.single:
         tabulate_single_attack(args, device)
     else:
-        dataset_names =[ 'CIFAR10', 'CIFAR100','FashionMNIST', 'MNIST']
-        tabulate_all_attack(args, device, dataset_names)
+        # dataset_names =[ 'CIFAR10', 'CIFAR100','FashionMNIST', 'MNIST']
+        # train_modes =[0,2,3,5,10]
+        dataset_names =[ 'CIFAR10']
+        train_modes =[0,2,10]
+        tabulate_all_attack(args, device, dataset_names, train_modes)
 
 
     # 

@@ -93,7 +93,7 @@ class Combined_membership_inference_attack(Classwise_membership_inference_attack
         # accuracy /= self.num_classes
 
         print(f"\nOverall Loss: {loss}, and Overall Accuracy: {accuracy}")
-        pdb.set_trace()
+        # pdb.set_trace()
         
         # if self.wandb_logging:
         #     # input("Press Enter to Log run with wandb...")
