@@ -10,19 +10,29 @@ import wandb
 import pdb,traceback
 import os
 import csv
+import json
 
 from utils.datasets import Wrapper_Dataset
+from utils.plot_utils import plot_ROC_curve
+from utils.lib import blockPrintingIfServer
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
-    entity="saham001", 
+    entity='', 
     model_name="basicCNN", 
     dataset_name="CIFAR_10",
     comment= '',  
     lr ='', 
     optimizer = ''
-    ):    
-    wandb.login( key="3ca866cc00388bed3df77669aabc6a9e40fcd7c4" )
+    ):
+    config_path = os.path.join('wandb', 'config.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)  
+        api_key = config.get('api_key') 
+        if entity == '':
+            entity = config.get('entity')
+         
+    wandb.login( key=api_key )
     wandb.init(
       project=project, entity=entity,
       config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}
@@ -87,10 +97,13 @@ def delete_saved_model(filename ='filename', print_info=False):
         print(f"Deleted model from {path}")
 
 
-def save_loss_dataset(dataset, filename='datset'):
+def save_loss_dataset(dataset, filename='datset'):    
+    print(f'\tSaving dataset of size {len(dataset)} to {filename}')
     save_path = './saved_models/'+filename+'.csv'
+    create_directories_if_not_exist(save_path)
     with open(save_path, mode='w', newline='') as file:
         writer = csv.writer(file)
+
         writer.writerow(['data', 'label'])  # Write the header row
 
         for data, label in dataset:
@@ -101,7 +114,15 @@ def save_loss_dataset(dataset, filename='datset'):
             writer.writerow([data, label])  # Write each data and label as a row
 
 
+
+def create_directories_if_not_exist(path):
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
 def load_loss_dataset(filename='dataset'):
+    print(f'\tLoading dataset from {filename}')
     load_path = './saved_models/' + filename + '.csv'
     dataset = []
 
@@ -153,7 +174,7 @@ def loss_fn_kd(outputs, labels, teacher_outputs, params):
     return KD_loss
 
 
-
+@blockPrintingIfServer
 def train_single_epoch(net, trainloader, optimizer = None, criterion = None, device = get_device(), is_binary=False):
     """Train the network on the training set."""
     if not criterion:
@@ -185,12 +206,16 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
     # print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return epoch_loss, epoch_acc
 
-def test(net, testloader, device = get_device(), is_binary=False):
+@blockPrintingIfServer
+def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     net.eval()
     try:
+        if plot_ROC:
+            gold = []
+            pred = []
         with torch.no_grad():
             for images, labels in testloader:
                 images, labels = images.to(device), labels.to(device)
@@ -201,14 +226,27 @@ def test(net, testloader, device = get_device(), is_binary=False):
                     correct += (torch.round(outputs.data) == labels).sum().item()
                 else:
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+
+                if plot_ROC:
+                    gold = np.append(gold, labels.cpu().numpy()) # type: ignore
+                    if is_binary:
+                        pred = np.append(pred, torch.round(outputs).cpu().numpy())# type: ignore
+                    else:
+                        pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
+
         loss /= len(testloader.dataset)
         accuracy = correct / total
+        if plot_ROC:
+            plot_ROC_curve(gold, pred)  # type: ignore          
+            # pdb.set_trace()
+            
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()
         
-    return loss, accuracy
+    return loss, accuracy # type: ignore
 
+@blockPrintingIfServer
 def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
     """Train the network on the training set."""
     if not criterion:
@@ -231,9 +269,9 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     for epoch in range(epochs):
         if record_mode:
             if wandb_logging:
-                wandb.log({"acc": accuracy,"loss": loss})
+                wandb.log({"acc": accuracy,"loss": loss}) # type: ignore
             if not verbose:
-                pbar.update(1)
+                pbar.update(1) # type: ignore
         elif patience<= 0:
             try:
                 load_model(net, optimizer, savefilename)
@@ -244,8 +282,8 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             if wandb_logging:
                 wandb.log({"acc": accuracy,"loss": loss}) 
             if not verbose:
-                pbar.update(1)  
-                pbar2.set_description(f"Early stopped at epoch {epoch+1}, train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}")
+                pbar.update(1)  # type: ignore
+                pbar2.set_description(f"Early stopped at epoch {epoch+1}, train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}") # type: ignore
             # break
             record_mode = True
         else:
@@ -265,15 +303,16 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
             if verbose:
                 print(f"Epoch {epoch+1}: train loss {train_loss}, val loss: {loss}, train acc {train_acc}, val acc: {accuracy}")
             else:
-                pbar.update(1)
-                pbar2.update(patience-pbar2.n) 
-                pbar.set_description(f"Epoch: {epoch+1}")
-                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}, Patience: ")
+                pbar.update(1)# type: ignore
+                pbar2.update(patience-pbar2.n) # type: ignore
+                pbar.set_description(f"Epoch: {epoch+1}") # type: ignore
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {loss:.4f}, train_acc {train_acc:.4f}, acc: {accuracy:.4f}, Patience: ") # type: ignore
     if not verbose:
-        pbar.close()
-        pbar2.close()
-    return net, optimizer, loss, accuracy 
+        pbar.close()# type: ignore
+        pbar2.close()# type: ignore
+    return net, optimizer, loss, accuracy # type: ignore
 
+@blockPrintingIfServer
 def train_shadow_model(target_model, 
                        shadow_model, 
                        trainloader, 
@@ -362,14 +401,14 @@ def train_shadow_model(target_model,
                 if verbose:
                     print(f"Patience reset")
                 else:
-                    pbar2.colour ="green"
+                    pbar2.colour ="green" # type: ignore
                 patience = initial_patience
                 loss_min = val_loss
                 save_model(shadow_model, optimizer)
             else:
                 patience -= 1
                 if not verbose:
-                    pbar2.colour ="red"
+                    pbar2.colour ="red" # type: ignore
 
             
 
@@ -377,23 +416,24 @@ def train_shadow_model(target_model,
         
         if wandb_logging:
             if accuracy_defined:
-                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": val_acc,"loss": val_loss})
+                wandb.log({"train_acc": train_acc, "train_loss": train_loss,"acc": val_acc,"loss": val_loss}) # type: ignore
             else:
                 wandb.log({"train_loss": train_loss, "val_loss": val_loss})
 
         if verbose:
-            print(f"Epoch {epoch+1}:train_loss: {train_loss:.4f}, Min loss: {loss_min:.4f}, Current loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: {patience}")
+            print(f"Epoch {epoch+1}:train_loss: {train_loss:.4f}, Min loss: {loss_min:.4f}, Current loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: {patience}") # type: ignore
         else:
-            pbar.update(1)
-            pbar2.update(patience-pbar2.n) 
-            pbar.set_description(f"Epoch: {epoch+1}")
+            pbar.update(1)# type: ignore
+            pbar2.update(patience-pbar2.n) # type: ignore
+            pbar.set_description(f"Epoch: {epoch+1}")# type: ignore
             if accuracy_defined:
-                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: ")
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, train_acc {train_acc:.4f}, val_acc: {val_acc:.4f}, Patience: ") # type: ignore
             else:
-                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, Patience: ")
+                pbar2.set_description(f"train_loss: {train_loss:.4f}, loss: {val_loss:.4f}, Patience: ") # type: ignore
     if not verbose:
-        pbar.close()
+        pbar.close() # type: ignore
 
+@blockPrintingIfServer
 def test_shadow_model(target_model, shadow_model, testloader, criterion = None, device = get_device(), accuracy_defined=False):
     """Evaluate the model similirity on the entire test set."""
     if not criterion:

@@ -43,8 +43,8 @@ class Server_details:
                     # min_evaluate_clients=min(2,self.num_clients),
                     # min_available_clients=self.num_clients,
                     initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
-                    on_fit_config_fn=lambda server_round :  self.fit_config(server_round),
-                    on_evaluate_config_fn=self.evaluate_config,
+                    on_fit_config_fn=lambda server_round :  self.fit_config(server_round), # type: ignore
+                    on_evaluate_config_fn=self.evaluate_config, # type: ignore
                     evaluate_fn=lambda server_round, parameters, config : self.get_evaluate_fn(
                                                                                             server_round, parameters, config, 
                                                                                             self.model, self.valloader, self.device, 
@@ -79,7 +79,7 @@ class Server_details:
         examples = [num_examples for num_examples, _ in metrics]
 
         # Aggregate and return custom metric (weighted average)
-        return {"accuracy": sum(accuracies) / sum(examples)}
+        return {"accuracy": sum(accuracies) / sum(examples)} # type: ignore
 
 
     def get_evaluate_fn(self, server_round: int,

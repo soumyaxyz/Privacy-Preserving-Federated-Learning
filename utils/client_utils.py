@@ -69,7 +69,8 @@ class FlowerClient(flwr.client.NumPyClient):
             if config["local_epochs"] == 1:
                 self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)
             else:
-                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, epochs=config.local_epochs,  wandb_logging=False, patience= 2)
+                # early_stopped behavior NotImplemented
+                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, epochs=config.local_epochs,  wandb_logging=False, patience= 2)  # type: ignore
                 if early_stopped:
                     self.patience = 0
 

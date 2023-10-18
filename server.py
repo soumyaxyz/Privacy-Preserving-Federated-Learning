@@ -49,7 +49,8 @@ def main():
     
 
     model = load_model_defination(args.model_name, num_channels=3, num_classes=100)     
-    _,_,test_loader , valloader_all = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    loaders, _,_ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    [_,_,test_loader , valloader_all] = loaders
 
     device = get_device()
     print_info(device, args.model_name, args.dataset_name)
@@ -89,7 +90,7 @@ def main():
 
     if args.wandb_logging:
         try:
-            wandb.log({"test_acc": accuracy, "test_loss": loss})
+            wandb.log({"test_acc": accuracy, "test_loss": loss}) # type: ignore
         except UnboundLocalError:
             pass
         wandb.finish()
