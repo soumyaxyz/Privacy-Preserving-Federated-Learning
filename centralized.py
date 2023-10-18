@@ -34,8 +34,20 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         wandb.watch(model, log_freq=100)
         
 
-    loss, accuracy = test(model, val_loader)
-    tst_loss, tst_accuracy = test(model, test_loader)
+    loss, accuracy, _ = test(model, val_loader)
+    tst_loss, tst_accuracy, _ = test(model, test_loader)
+
+
+
+
+    
+
+
+
+
+
+
+
 
     if wandb_logging:
         wandb.log({"acc": accuracy, "loss": loss}, step = 100)
@@ -75,7 +87,7 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
         
 
     model, optimizer, val_loss, val_accuracy  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
-    loss, accuracy = test(model, test_loader)
+    loss, accuracy, _ = test(model, test_loader)
 
     if wandb_logging:
         wandb.log({"test_acc": accuracy, "test_loss": loss})

@@ -91,7 +91,7 @@ class FlowerClient(flwr.client.NumPyClient):
         set_parameters(self.net, parameters)
         if self.patience > 0:                                    # if patience is 0, no point in evaluating
             if config["local_epochs"] == 1:                        # if training epoch > 1, use  validation results from last training epoch
-                self.loss, self.accuracy = test(self.net, self.valloader)
+                self.loss, self.accuracy, _ = test(self.net, self.valloader)
             if not self.ovefit_flag:
                 if self.loss_min > self.loss:                           # validation loss improved
                     self.patience = self.initial_patience               # reset patience
