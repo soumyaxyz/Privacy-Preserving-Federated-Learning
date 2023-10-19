@@ -35,7 +35,9 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         
 
     loss, accuracy, _ = test(model, val_loader)
-    tst_loss, tst_accuracy, _ = test(model, test_loader)
+    tst_loss, tst_accuracy, pred = test(model, test_loader)
+
+    pdb.set_trace()
 
 
 

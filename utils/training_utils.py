@@ -232,8 +232,22 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
                 else:
-                    pred = np.append(pred, torch.max(outputs, 1)[0]) #prediction comfidece
-                    gold = np.append(pred, labels)
+                    # pdb.set_trace()
+                    ( confidence, prediction) = torch.max(outputs, 1)
+                    confidence = confidence.cpu().numpy()
+                    prediction = prediction.cpu().numpy()
+                    truth =labels.cpu().numpy()
+                    result = (prediction == truth).astype(np.int64)
+                    pred = np.append(pred, confidence) #prediction comfidece
+                    # pdb.set_trace()
+
+                    gold = np.append(pred, result)
+
+                    # try:
+                    #     assert len(confidence) == len(gold)
+                    # except AssertionError:
+                    #     traceback.print_exc()
+                    #     pdb.set_trace()
                 
 
         loss /= len(testloader.dataset)

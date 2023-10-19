@@ -11,17 +11,33 @@ import pdb
 
 
 class Server_details:
-    def __init__(self, model, valloader, wandb_logging, num_clients, device, epochs_per_round =1):
+    def __init__(self, model, valloader, wandb_logging, num_clients, device, epochs_per_round =1, mode = 'correct_confident'):
         self.model = model
         self.valloader = valloader
         self.device = device
         self.wandb_logging = wandb_logging
         self.model.to(self.device)
         self.num_clients = num_clients
-        self.loss_min =  10000 # inf
+        self.loss_min =  10000 # inf        
+        self.aggregration_mode = self.mode_to_integer(mode)
         self.strategy = self.get_strategy()
         self.epochs_per_round = epochs_per_round
     
+
+    def mode_to_integer(self, mode_text):
+        mode_text = mode_text.lower()
+        if mode_text == "fedavg":
+            return 0
+        elif mode_text == "first":
+            return 1
+        elif mode_text == "first_correct":
+            return 2
+        elif mode_text == "confident":
+            return 3
+        elif mode_text == "correct_confident":
+            return 4
+        else:
+            return 0 # default
 
     def get_certificates(self):
         try:
@@ -38,6 +54,7 @@ class Server_details:
 
     def get_strategy(self):
         strategy =  AggregatePrivacyPreservingMetricStrategy(  # fl.server.strategy.FedAvg
+                    mode=self.aggregration_mode,
                     model=self.model,
                     valloader=self.valloader,
                     device=self.device,
@@ -57,6 +74,8 @@ class Server_details:
                     evaluate_metrics_aggregation_fn=self.weighted_average
                 )
         return strategy
+    
+    
 
     def fit_config(self, server_round: int):
         """Return training configuration dict for each round.
