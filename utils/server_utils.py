@@ -89,7 +89,7 @@ class Server_details:
     def evaluate_config(self, server_round: int):
         """Return evaluation configuration dict for each round.       
         """
-        print(f"[SERVER round {server_round}], Evaluate config \n\n")
+        # print(f"[SERVER round {server_round}], Evaluate config \n\n")
         config = {
             "server_round": server_round,
             "local_epochs": self.epochs_per_round ,
@@ -114,11 +114,11 @@ class Server_details:
             
             # pdb.set_trace()
             
-            print(f"[SERVER round {server_round}], get_evaluate_fn \n\n")
+            # print(f"[SERVER round {server_round}], get_evaluate_fn \n\n")
 
 
             set_parameters(model, parameters)  # Update model with the latest parameters
-            print(f"Server-side evaluation started\n\n\n")
+            # print(f"Server-side evaluation started\n\n\n")
             loss, accuracy, _ = test(model, valloader, device)
             print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
             if wandb_logging:

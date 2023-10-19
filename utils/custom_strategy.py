@@ -1,4 +1,4 @@
-from logging import WARNING
+from logging import WARNING, INFO
 from typing import Callable, Dict, List, Optional, Tuple, Union
 import flwr as fl 
 from utils.training_utils import test, set_parameters
@@ -43,76 +43,56 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         if self.mode == 0:
             return super().aggregate_fit(server_round, results, failures)
 
-        # parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures) 
-
-        print("\naggregating __\n\n")
-
         # MODE 0 = FEDAVG
         # MODE 1 = RETURN FIRST
         # MODE 3 = RETURN MOST CONFIDENT
         # MODE 4 = RETURN CORRECT AND MOST CONFIDENT
 
         
-        try:
-            # model = load_model_defination(model_name = "efficientnet", num_channels=3, num_classes=10)
-            # model = self.model
+        # try:
+            
+        weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
+
+        if self.mode == 1:
+            most_confident_model_index = 0
+        else:
+            client_prediction = []
+            for weights , num_examples in weights_results:
+                set_parameters(self.model, weights)
+                _, _, prediction = test(self.model, self.valloader, self.device)
+
+                (confidence, eval_results) = prediction # type: ignore
+
+                if self.mode == 2:                    
+                    client_prediction.append(np.mean(confidence ))
+                if self.mode == 4:
+                    filtered_confidence = confidence[eval_results == 1]
+                    client_prediction.append(np.mean(filtered_confidence ))
+
+            most_confident_model_index  =  np.argmax(client_prediction) 
+
+        _, client_result = results[most_confident_model_index]
+        selected_weights_results = [(parameters_to_ndarrays(client_result.parameters), client_result.num_examples)]
+
+        parameters_selected = ndarrays_to_parameters(aggregate(selected_weights_results))
+
+        metrics_aggregated = {}
+        if self.fit_metrics_aggregation_fn:
+            fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+        elif server_round == 1:  # Only log this warning once
+            log(WARNING, "No fit_metrics_aggregation_fn provided")
         
-            # Convert results
-            weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
-
-            if self.mode == 1:
-                most_confident_model_index = 0
-            else:
-                client_prediction = []
-                for weights , num_examples in weights_results:
-                    set_parameters(self.model, weights)
-                    loss, accuracy, prediction = test(self.model, self.valloader, self.device)
-                    #print(f"number of examples {num_examples}")
-
-                    (confidence, eval_results) = prediction # type: ignore
-
-                    if self.mode == 2:                    
-                        client_prediction.append(np.mean(confidence ))
-                        print(f'\n{np.mean(confidence)}\n')
-                    if self.mode == 4:
-                        filtered_confidence = confidence[eval_results == 1]
-                        client_prediction.append(np.mean(filtered_confidence ))
-                        print(f'\n{np.mean(filtered_confidence)}\n')
-
-                most_confident_model_index  =  np.argmax(client_prediction) 
-
-            # select_client_weights = [weights_results [most_confident_model_index]]
-
-            # weights_results = [(parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples) for _, fit_res in results]  
-
-            _, fit_res = results[most_confident_model_index]
-
-            weights_results_1 = [(parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)]
+        
+        # print(f"Selected client index: {most_confident_model_index}")
+        log(INFO, f"Selected client index: {most_confident_model_index}")
 
             
 
 
 
-            parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results_1))
-            # parameters_aggregated = weights_results
+        # except Exception as e:
+        #     traceback.print_exc()
+        #     pdb.set_trace()
 
-
-            metrics_aggregated = {}
-            if self.fit_metrics_aggregation_fn:
-                fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
-                metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
-            elif server_round == 1:  # Only log this warning once
-                log(WARNING, "No fit_metrics_aggregation_fn provided")
-            
-            
-            print(f"Selected client index: {most_confident_model_index}")
-
-            
-
-
-
-        except Exception as e:
-            traceback.print_exc()
-            pdb.set_trace()
-
-        return parameters_aggregated, metrics_aggregated
+        return parameters_selected, metrics_aggregated
