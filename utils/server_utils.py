@@ -3,6 +3,7 @@ from flwr.common import Metrics
 import wandb
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from utils.custom_strategy import AggregatePrivacyPreservingMetricStrategy
 from utils.training_utils import test, set_parameters, get_parameters
 import pdb
 #from utils.fedcustom import FedCusTest
@@ -36,7 +37,10 @@ class Server_details:
         
 
     def get_strategy(self):
-        strategy =  fl.server.strategy.FedAvg(
+        strategy =  AggregatePrivacyPreservingMetricStrategy(  # fl.server.strategy.FedAvg
+                    model=self.model,
+                    valloader=self.valloader,
+                    device=self.device,
                     fraction_fit=0.3,
                     fraction_evaluate=0.3,
                     # min_fit_clients= min(2,self.num_clients),
@@ -66,6 +70,7 @@ class Server_details:
     def evaluate_config(self, server_round: int):
         """Return evaluation configuration dict for each round.       
         """
+        print(f"[SERVER round {server_round}], Evaluate config \n\n")
         config = {
             "server_round": server_round,
             "local_epochs": self.epochs_per_round ,
@@ -90,10 +95,11 @@ class Server_details:
             
             # pdb.set_trace()
             
-            # print(f"[SERVER round {server_round}], config: {config}")
+            print(f"[SERVER round {server_round}], get_evaluate_fn \n\n")
 
 
             set_parameters(model, parameters)  # Update model with the latest parameters
+            print(f"Server-side evaluation started\n\n\n")
             loss, accuracy, _ = test(model, valloader, device)
             print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
             if wandb_logging:

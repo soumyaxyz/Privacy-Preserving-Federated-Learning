@@ -231,6 +231,10 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                         pred = np.append(pred, torch.round(outputs).cpu().numpy())# type: ignore
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
+                else:
+                    pred = np.append(pred, torch.max(outputs, 1))
+                    gold = np.append(pred, labels)
+                
 
         loss /= len(testloader.dataset)
         accuracy = correct / total
