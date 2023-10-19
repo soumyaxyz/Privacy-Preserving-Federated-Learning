@@ -45,8 +45,8 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
         # MODE 0 = FEDAVG
         # MODE 1 = RETURN FIRST
-        # MODE 3 = RETURN MOST CONFIDENT
-        # MODE 4 = RETURN CORRECT AND MOST CONFIDENT
+        # MODE 2 = RETURN MOST CONFIDENT
+        # MODE 3 = RETURN CORRECT AND MOST CONFIDENT
 
         
         # try:
@@ -65,7 +65,7 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
                 if self.mode == 2:                    
                     client_prediction.append(np.mean(confidence ))
-                if self.mode == 4:
+                if self.mode == 3:
                     filtered_confidence = confidence[eval_results == 1]
                     client_prediction.append(np.mean(filtered_confidence ))
 

@@ -37,7 +37,7 @@ def main():
     parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
     parser.add_argument('-p', '--server_port', type=str, default="8080", help='Server port')    
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
-    parser.add_argument('-fl', '--federated_learning_mode', type=str, default='correct_confident', help='How to combine the clients weights:fedavg, first, first_correct, confident, correct_confident')
+    parser.add_argument('-fl', '--federated_learning_mode', type=str, default='correct_confident', help='How to combine the clients weights:fedavg, first,  confident, correct_confident')
     parser.add_argument('-c', '--comment', type=str, default='Federated_', help='Comment for this run')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
@@ -59,9 +59,9 @@ def main():
     print_info(device, args.model_name, args.dataset_name)
 
 
-    server_details = Server_details(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device, args.epochs_per_round)
+    server_details = Server_details(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device, args.epochs_per_round, mode=args.federated_learning_mode)
 
-    comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+    comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.federated_learning_mode+'_'+args.model_name+'_'+args.dataset_name
 
     if args.wandb_logging:        
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
