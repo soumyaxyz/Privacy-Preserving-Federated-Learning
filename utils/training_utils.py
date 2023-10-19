@@ -232,7 +232,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
                 else:
-                    pred = np.append(pred, torch.max(outputs, 1))
+                    pred = np.append(pred, torch.max(outputs, 1)[0]) #prediction comfidece
                     gold = np.append(pred, labels)
                 
 
