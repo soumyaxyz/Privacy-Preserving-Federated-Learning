@@ -49,7 +49,6 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
         # MODE 0 = FEDAVG
         # MODE 1 = RETURN FIRST
-        # MODE 2 = RETURN FIRST CORRECT
         # MODE 3 = RETURN MOST CONFIDENT
         # MODE 4 = RETURN CORRECT AND MOST CONFIDENT
 
@@ -61,27 +60,26 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
             # Convert results
             weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
-            #confidence = [0] * len(weights_results)
-            max_agreed_confidence = 0.0
-            best_client_index = -1
-            client_prediction = []
-            for weights , num_examples in weights_results:
-                set_parameters(self.model, weights)
-                loss, accuracy, prediction = test(self.model, self.valloader, self.device)
-                #print(f"number of examples {num_examples}")
+            if self.mode == 1:
+                most_confident_model_index = 0
+            else:
+                client_prediction = []
+                for weights , num_examples in weights_results:
+                    set_parameters(self.model, weights)
+                    loss, accuracy, prediction = test(self.model, self.valloader, self.device)
+                    #print(f"number of examples {num_examples}")
 
-                (confidence, eval_results) = prediction # type: ignore
+                    (confidence, eval_results) = prediction # type: ignore
 
-                if self.mode == 1 or self.mode == 4:                    
-                    client_prediction.append(np.mean(confidence ))
-                    print(f'\n{np.mean(confidence)}\n')
-                if self.mode == 2 or self.mode == 3:
-                    filtered_confidence = confidence[eval_results == 1]
-                    client_prediction.append(np.mean(filtered_confidence ))
-                    print(f'\n{np.mean(filtered_confidence)}\n')
+                    if self.mode == 2:                    
+                        client_prediction.append(np.mean(confidence ))
+                        print(f'\n{np.mean(confidence)}\n')
+                    if self.mode == 4:
+                        filtered_confidence = confidence[eval_results == 1]
+                        client_prediction.append(np.mean(filtered_confidence ))
+                        print(f'\n{np.mean(filtered_confidence)}\n')
 
-
-            most_confident_model_index  =  np.argmax(client_prediction) 
+                most_confident_model_index  =  np.argmax(client_prediction) 
 
             # select_client_weights = [weights_results [most_confident_model_index]]
 
@@ -108,7 +106,6 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
             
             
             print(f"Selected client index: {most_confident_model_index}")
-            print(f"Maximun Aggreed Confidence (MAC) score: {max_agreed_confidence}")
 
             
 

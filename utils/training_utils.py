@@ -241,13 +241,13 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                     pred = np.append(pred, confidence) #prediction comfidece
                     # pdb.set_trace()
 
-                    gold = np.append(pred, result)
+                    gold = np.append(gold, result)
 
-                    # try:
-                    #     assert len(confidence) == len(gold)
-                    # except AssertionError:
-                    #     traceback.print_exc()
-                    #     pdb.set_trace()
+                    try:
+                        assert len(pred) == len(gold)
+                    except AssertionError:
+                        traceback.print_exc()
+                        pdb.set_trace()
                 
 
         loss /= len(testloader.dataset)
