@@ -211,9 +211,9 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     net.eval()
     predictions = None
     try:
-        if plot_ROC:
-            gold = []
-            pred = []
+        # if plot_ROC:
+        gold = []
+        pred = []
         with torch.no_grad():
             for images, labels in testloader:
                 images, labels = images.to(device), labels.to(device)
