@@ -45,7 +45,8 @@ class Simulator(object):
         self.model_name     = model_name
         self.dataset_name   = dataset_name
         self.comment        = comment
-        self.trainloaders, self.valloaders, self.testloader , self.valloader_all = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name) # type: ignore
+        self.trainloaders, self.valloaders, self.testloader , self.valloader_all = None, None, None, None
+        [self.trainloaders, self.valloaders, self.testloader , self.valloader_all], self.num_channel , self.num_classes = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name) # type: ignore
         if self.device.type == "cuda":
             self.client_resources = {"num_gpus": 1}
         else:
@@ -124,7 +125,7 @@ def main():
 
 
 if __name__ == "__main__":
-    print("Simulator mode deprecated, use server client mode instead.")
-    # main()
+    # print("Simulator mode deprecated, use server client mode instead.")
+    main()
          
     

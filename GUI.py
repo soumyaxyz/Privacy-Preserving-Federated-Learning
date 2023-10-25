@@ -69,51 +69,109 @@ def group_variables_by_type(default_arguments):
 
 # Create a function to update the combobox values based on selected values
 
-def create_argument_widget(root, variable, widget_type, values=None, on_select=None):
-    ttk.Label(root, text=variable).pack()
-    if widget_type == "checkbox":
-        ttk.Checkbutton(root, variable=variable).pack() #.set(initial_state)
-    elif widget_type == "entry":
-        ttk.Entry(root, textvariable=variable).pack()
-    elif widget_type == "combobox":
-        combobox = ttk.Combobox(root, textvariable=variable, values=values)
-        combobox.pack()
-        if on_select:
-            combobox.bind("<<ComboboxSelected>>", on_select)
+# def create_argument_widget(root, variable, widget_type, values=None, on_select=None):
+#     ttk.Label(root, text=variable).pack()
+#     if widget_type == "checkbox":
+#         ttk.Checkbutton(root, variable=variable).pack() #.set(initial_state)
+#     elif widget_type == "entry":
+#         ttk.Entry(root, textvariable=variable).pack()
+#     elif widget_type == "combobox":
+#         combobox = ttk.Combobox(root, textvariable=variable, values=values)
+#         combobox.pack()
+#         if on_select:
+#             combobox.bind("<<ComboboxSelected>>", on_select)
 
 
 def run_program():
     # Implement your program logic here
     pass
 
-def browse_for_file(initial_dir, file_types=None):
-    if not file_types:
-        file_types = [("All Files", "*.*")]
-    else:
-        file_types.append(("All Files", "*.*"))
+# def browse_for_file(initial_dir, file_types=None):
+#     if not file_types:
+#         file_types = [("All Files", "*.*")]
+#     else:
+#         file_types.append(("All Files", "*.*"))
 
-    filename = tkinter.filedialog.askopenfilename(initialdir=initial_dir, filetypes=file_types)
-    return filename
+#     filename = tkinter.filedialog.askopenfilename(initialdir=initial_dir, filetypes=file_types)
+#     return filename
+
+# def create_gui():
+#     root = tk.Tk()
+#     root.title("Argument GUI")
+#     boolean_variables, integer_variables, list_variables, string_variables = group_variables_by_type(default_arguments)
+#     # Create Boolean arguments widgets
+#     for argument_name in boolean_variables:
+#         create_argument_widget(root, argument_name,"checkbox")
+
+#     # Create String arguments widgets
+#     for argument_name in integer_variables + string_variables:
+#         create_argument_widget(root, argument_name,  "entry")
+
+#     # Create Combobox arguments widgets
+#     for argument_name in string_variables:
+#         create_argument_widget(root, argument_name,  "combobox", combobox_config["values"], combobox_config["on_select"])
+
+#     ttk.Button(root, text="Run Program", command=run_program).pack()
+
+#     root.mainloop()
+
+
+
+
+def create_argument_widget(root, variable, widget_type, values=None, on_select=None, row=None, column=None):
+    if widget_type == "checkbox":
+        ttk.Checkbutton(root, variable=variable, text=variable).grid(row=row, column=column, sticky="w")
+    elif widget_type == "entry":
+        ttk.Label(root, text=variable).grid(row=row, column=column, sticky="w")
+        ttk.Entry(root, textvariable=variable).grid(row=row, column=column + 1, sticky="w")
+    elif widget_type == "combobox":
+        ttk.Label(root, text=variable).grid(row=row, column=column, sticky="w")
+        combobox = ttk.Combobox(root, textvariable=variable, values=values)
+        combobox.grid(row=row, column=column + 1, sticky="w")
+        if on_select:
+            combobox.bind("<<ComboboxSelected>>", on_select)
 
 def create_gui():
     root = tk.Tk()
     root.title("Argument GUI")
     boolean_variables, integer_variables, list_variables, string_variables = group_variables_by_type(default_arguments)
+
+    row = 0  # Initialize the row index
+
     # Create Boolean arguments widgets
     for argument_name in boolean_variables:
-        create_argument_widget(root, argument_name,"checkbox")
+        create_argument_widget(root, argument_name, "checkbox", row=row, column=0)
+        row += 1  # Increment row
 
     # Create String arguments widgets
     for argument_name in integer_variables + string_variables:
-        create_argument_widget(root, argument_name,  "entry")
+        create_argument_widget(root, argument_name, "entry", row=row, column=0)
+        row += 1  # Increment row
 
     # Create Combobox arguments widgets
     for argument_name in string_variables:
-        create_argument_widget(root, argument_name,  "combobox", combobox_config["values"], combobox_config["on_select"])
+        create_argument_widget(root, argument_name, "combobox", row=row, column=0, values=combobox_arguments[argument_name]["values"], on_select=combobox_arguments[argument_name]["on_select"])
+        row += 1  # Increment row
 
-    ttk.Button(root, text="Run Program", command=run_program).pack()
+    ttk.Button(root, text="Run Program", command=run_program).grid(row=row, column=0, columnspan=2, sticky="w")
 
     root.mainloop()
+
+if __name__ == "__main__":
+    create_gui()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     create_gui()

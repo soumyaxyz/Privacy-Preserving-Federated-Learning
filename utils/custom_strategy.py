@@ -6,6 +6,7 @@ from utils.models import load_model_defination
 from .aggregate import aggregate, weighted_loss_avg
 import numpy as np
 import traceback,pdb
+import csv
 
 from flwr.common import (
     EvaluateIns,
@@ -33,6 +34,17 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         self.valloader = valloader
         self.device = device
 
+    def save_confidence_to_file(self, confidences, round):
+        csv_file_name = f"confidences_{round}.csv"
+
+        # Write the confidences list to the CSV file
+        with open(csv_file_name, mode='w', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            for confidence in confidences:
+                for c in confidence:
+                    csv_file.write(str(c) + ',')
+                csv_file.write('\n')
+
 
     def aggregate_fit(
         self,
@@ -53,6 +65,8 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
             
         weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
+        confidences = []
+
         if self.mode == 1:
             most_confident_model_index = 0
         else:
@@ -62,6 +76,12 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
                 _, _, prediction = test(self.model, self.valloader, self.device)
 
                 (confidence, eval_results) = prediction # type: ignore
+                confidences.append(confidence)
+
+
+
+                
+
 
                 if self.mode == 2:                    
                     client_prediction.append(np.mean(confidence ))
@@ -70,7 +90,11 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
                     client_prediction.append(np.mean(filtered_confidence ))
 
             most_confident_model_index  =  np.argmax(client_prediction) 
-
+        try:
+            self.save_confidence_to_file(confidences, server_round)
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
         _, client_result = results[most_confident_model_index]
         selected_weights_results = [(parameters_to_ndarrays(client_result.parameters), client_result.num_examples)]
 

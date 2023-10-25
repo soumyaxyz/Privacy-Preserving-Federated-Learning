@@ -30,12 +30,10 @@ class Server_details:
             return 0
         elif mode_text == "first":
             return 1
-        elif mode_text == "first_correct":
-            return 2
         elif mode_text == "confident":
-            return 3
+            return 2
         elif mode_text == "correct_confident":
-            return 4
+            return 3
         else:
             return 0 # default
 
