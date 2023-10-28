@@ -64,6 +64,16 @@ def blockPrinting(function):
         return modify_output(mode, target, function, *args, **kwargs)
     return function_wrapper
 
+def try_catch(function):
+    def function_wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
+    return function_wrapper
+
+
 def blockPrintingIfServer(function):
     mode, target = load_from_config(serveMode=True)
     def function_wrapper(*args, **kwargs):

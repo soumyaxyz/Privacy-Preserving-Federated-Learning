@@ -1,5 +1,7 @@
+from logging import INFO
 import flwr as fl
 from flwr.common import Metrics
+from flwr.common.logger import log
 import wandb
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -20,6 +22,8 @@ class Server_details:
         self.num_clients = num_clients
         self.loss_min =  10000 # inf        
         self.aggregration_mode = self.mode_to_integer(mode)
+        
+        log(INFO, f"Strategy for combining the weights: {mode}")
         self.strategy = self.get_strategy()
         self.epochs_per_round = epochs_per_round
     
@@ -58,9 +62,9 @@ class Server_details:
                     device=self.device,
                     fraction_fit=0.3,
                     fraction_evaluate=0.3,
-                    # min_fit_clients= min(2,self.num_clients),
-                    # min_evaluate_clients=min(2,self.num_clients),
-                    # min_available_clients=self.num_clients,
+                    min_fit_clients= self.num_clients,
+                    min_evaluate_clients=self.num_clients,
+                    min_available_clients=self.num_clients,
                     initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
                     on_fit_config_fn=lambda server_round :  self.fit_config(server_round), # type: ignore
                     on_evaluate_config_fn=self.evaluate_config, # type: ignore

@@ -1,6 +1,7 @@
 from logging import WARNING, INFO
 from typing import Callable, Dict, List, Optional, Tuple, Union
-import flwr as fl 
+import flwr as fl
+from utils.lib import try_catch 
 from utils.training_utils import test, set_parameters
 from utils.models import load_model_defination
 from .aggregate import aggregate, weighted_loss_avg
@@ -33,19 +34,23 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         self.model = model
         self.valloader = valloader
         self.device = device
+        self.save_confidence = True
 
-    def save_confidence_to_file(self, confidences, round):
-        csv_file_name = f"confidences_{round}.csv"
+    @try_catch
+    def save_to_file(self, vallues, round, file_name="confidences"):
+        csv_file_name = f"./results/{file_name}_{round}.csv"
 
         # Write the confidences list to the CSV file
         with open(csv_file_name, mode='w', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            for confidence in confidences:
-                for c in confidence:
-                    csv_file.write(str(c) + ',')
-                csv_file.write('\n')
+            if file_name == "confidences":
+                for confidence in vallues:
+                    csv_file.write(','.join(map(str, confidence)) + '\n')
+            else:
+                csv_file.write(','.join(map(str, vallues)) + '\n')
+        log(INFO, f"{file_name} saved to {csv_file_name}")
 
 
+    @try_catch
     def aggregate_fit(
         self,
         server_round: int,
@@ -66,22 +71,25 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
         confidences = []
+        eval_results_sum = None
 
         if self.mode == 1:
             most_confident_model_index = 0
         else:
             client_prediction = []
+            
             for weights , num_examples in weights_results:
                 set_parameters(self.model, weights)
                 _, _, prediction = test(self.model, self.valloader, self.device)
 
                 (confidence, eval_results) = prediction # type: ignore
-                confidences.append(confidence)
+                if eval_results_sum is None:
+                    eval_results_sum = eval_results
+                else:
+                    eval_results_sum += eval_results
 
-
-
-                
-
+                if self.save_confidence:
+                    confidences.append(confidence)
 
                 if self.mode == 2:                    
                     client_prediction.append(np.mean(confidence ))
@@ -90,11 +98,11 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
                     client_prediction.append(np.mean(filtered_confidence ))
 
             most_confident_model_index  =  np.argmax(client_prediction) 
-        try:
-            self.save_confidence_to_file(confidences, server_round)
-        except Exception as e:
-            traceback.print_exc()
-            pdb.set_trace()
+            # log(INFO, f'\n\n number of clients {len(weights_results)} ,  Maximum aggeed correct = {max(eval_results_sum)}\n\n') # type: ignore
+        if self.save_confidence:
+            self.save_to_file(confidences, server_round)
+            self.save_to_file(eval_results_sum, server_round, file_name = "eval_results")
+        
         _, client_result = results[most_confident_model_index]
         selected_weights_results = [(parameters_to_ndarrays(client_result.parameters), client_result.num_examples)]
 
@@ -111,7 +119,7 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         # print(f"Selected client index: {most_confident_model_index}")
         log(INFO, f"Selected client index: {most_confident_model_index}")
 
-            
+                
 
 
 
