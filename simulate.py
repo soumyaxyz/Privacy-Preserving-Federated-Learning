@@ -51,10 +51,10 @@ class Simulator(object):
         [self.trainloaders, self.valloaders, self.testloader , self.valloader_all], self.num_channel , self.num_classes = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name) # type: ignore
         self.trainloader_all = merge_dataloaders(self.trainloaders) 
         if self.device.type == "cuda":
-            self.client_resources = { "num_cpus": 1}            
+            self.client_resources = { "num_gpus": 1, "num_cpus": 1}            
         else:
             # self.client_resources = None
-            self.client_resources = {"num_gpus": 1, "num_cpus": 1}
+            self.client_resources = { "num_cpus": 1}
         
         self.net = load_model_defination(self.model_name).to(self.device)
         

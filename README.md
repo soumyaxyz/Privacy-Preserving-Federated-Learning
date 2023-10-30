@@ -4,7 +4,7 @@
     
  - Run '**server.py**' and one or more '**client.py**' with appropriate arguments to run federated learning, non-simulated, and save a federally trained ML model.  The server and clients can  be on any    machine.   
    
- - **Deprecated**: Run '**simulate.py**' to simulate federated learning, and save a federally trained ML model.
+ - Run '**simulate.py**' to simulate federated learning, and save a federally trained ML model.
  
 - [ ]  Run '**attack.py**' with appropriate arguments to execute membership inference attack on a saved ML model
 
