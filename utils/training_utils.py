@@ -79,14 +79,18 @@ def save_model(net, optim = None, filename ='filename', print_info=False):
         print(f"\nSaved model to {path}")
 
 def load_model(net, optim=None, filename ='filename', print_info=False):
-    sanatized_filename = "".join(x for x in filename if x.isalnum())
-    path = './saved_models/'+sanatized_filename+'.pt'
-    checkpoint = torch.load(path)
-    net.load_state_dict(checkpoint['model_state_dict'])
-    if optim:
-        optim.load_state_dict(checkpoint['optimizer_state_dict'])
-    if print_info:
-        print(f"Loaded model from {path}")
+    try:
+        sanatized_filename = "".join(x for x in filename if x.isalnum())
+        path = './saved_models/'+sanatized_filename+'.pt'
+        checkpoint = torch.load(path)
+        net.load_state_dict(checkpoint['model_state_dict'])
+        if optim:
+            optim.load_state_dict(checkpoint['optimizer_state_dict'])
+        if print_info:
+            print(f"Loaded model from {path}")
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
 
 def delete_saved_model(filename ='filename', print_info=False):
     sanatized_filename = "".join(x for x in filename if x.isalnum())
@@ -271,14 +275,28 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     return loss, accuracy, predictions # type: ignore
 
 @blockPrintingIfServer
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
+def train(net, 
+          trainloader, 
+          valloader, 
+          epochs: int, 
+          optimizer = None, 
+          criterion = None, 
+          device=get_device(), 
+          verbose=False, 
+          wandb_logging=True, 
+          patience= 5, 
+          loss_min = 100000, 
+          is_binary=False,
+          savefilename=None,
+          ):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
     if not optimizer:
         optimizer = torch.optim.Adam(net.parameters())
 
-    savefilename = net.__class__.__name__
+    if savefilename is None:
+        savefilename = net.__class__.__name__
 
     record_mode = False
 
@@ -334,7 +352,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     if not verbose:
         pbar.close()# type: ignore
         pbar2.close()# type: ignore
-    return net, optimizer, loss, accuracy # type: ignore
+    return net, optimizer, loss, accuracy, record_mode # type: ignore
 
 @blockPrintingIfServer
 def train_shadow_model(target_model, 

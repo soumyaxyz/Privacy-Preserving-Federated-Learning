@@ -80,8 +80,8 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
     # pdb.set_trace()
 
     plt.figure()
-    plt.hist(trn_conf, bins=20, alpha=0.5, label='train', edgecolor='black')
-    plt.hist(tst_conf, bins=20, alpha=0.5, label='test', edgecolor='black')
+    plt.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
+    plt.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
     # plt.bar(range(len(trn_conf)), trn_conf, alpha=0.5, label='train')
     # plt.bar(range(len(tst_conf)), tst_conf, alpha=0.5, label='test')
     plt.xlabel('X-axis')

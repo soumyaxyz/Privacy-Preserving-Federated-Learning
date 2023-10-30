@@ -102,7 +102,11 @@ def main():
     parser.add_argument('-c', '--comment', type=str, default='Simulated_', help='Comment for this run')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
-
+    parser.add_argument('-db', '--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
+    parser.add_argument('-e', '--epochs_per_round', type=int, default=1, help='Epochs of training in client per round')
+    parser.add_argument('-o', '--overfit_patience', type=int, default=-1, help='Patience after which to stop training, to prevent overfitting')
+    parser.add_argument('-hl', '--headless', action='store_true', help='Enable headless mode')
     args = parser.parse_args()
 
     comment = args.comment+'_'+str(args.num_clients)+'_'+args.model_name+'_'+args.dataset_name

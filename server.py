@@ -1,7 +1,7 @@
 import flwr as fl
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
-from utils.datasets import load_partitioned_datasets
+from utils.datasets import load_partitioned_datasets, merge_dataloaders
 from utils.models import load_model_defination
 from utils.server_utils import Server_details
 import pdb, traceback
@@ -53,13 +53,22 @@ def main():
 
     model = load_model_defination(args.model_name, num_channels=3, num_classes=100)     
     loaders, _,_ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
-    [_,_,test_loader , valloader_all] = loaders
+    [trainloaders,_,test_loader , valloader_all] = loaders
+
+    trainloader_all = merge_dataloaders(trainloaders) 
 
     device = get_device()
     print_info(device, args.model_name, args.dataset_name)
 
 
-    server_details = Server_details(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device, args.epochs_per_round, mode=args.federated_learning_mode)
+    server_details = Server_details(model = model, 
+                                    trainloader = trainloader_all, 
+                                    valloader = valloader_all, 
+                                    wandb_logging = args.wandb_logging, 
+                                    num_clients = args.number_of_total_clients, 
+                                    device = device, 
+                                    epochs_per_round = args.epochs_per_round, 
+                                    mode = args.federated_learning_mode)
 
     comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.federated_learning_mode+'_'+args.model_name+'_'+args.dataset_name
 

@@ -259,6 +259,13 @@ def get_dataloaders_subset(dataloader, random_subset_size):
     truncated_dataset = random_split(dataset, lengths, torch.Generator().manual_seed(42))
     return DataLoader(truncated_dataset[0], dataloader.batch_size, shuffle=True)
 
+def merge_dataloaders(trainloaders):    
+    trn_datasets = []
+    for loader in trainloaders:
+        trn_datasets.append(loader.dataset)
+    return DataLoader(ConcatDataset(trn_datasets), trainloaders[0].batch_size)
+
+
 def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
 
     dataset = DatasetWrapper(dataset_name)

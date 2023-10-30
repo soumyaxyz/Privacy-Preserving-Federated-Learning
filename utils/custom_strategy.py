@@ -1,6 +1,7 @@
 from logging import WARNING, INFO
 from typing import Callable, Dict, List, Optional, Tuple, Union
 import flwr as fl
+from utils.datasets import get_dataloaders_subset
 from utils.lib import try_catch 
 from utils.training_utils import test, set_parameters
 from utils.models import load_model_defination
@@ -28,13 +29,16 @@ from flwr.server.client_proxy import ClientProxy
 class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
     
     
-    def __init__(self, mode, model, valloader, device,  *args, **kwargs):
+    def __init__(self, mode, model, trainloader, valloader, device,  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mode = mode
         self.model = model
         self.valloader = valloader
         self.device = device
         self.save_confidence = True
+        if self.save_confidence:
+            valloader_size = len(valloader.dataset)
+            self.trainloader = get_dataloaders_subset(trainloader, valloader_size)
 
     @try_catch
     def save_to_file(self, vallues, round, file_name="confidences"):
@@ -42,11 +46,11 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
         # Write the confidences list to the CSV file
         with open(csv_file_name, mode='w', newline='') as csv_file:
-            if file_name == "confidences":
-                for confidence in vallues:
-                    csv_file.write(','.join(map(str, confidence)) + '\n')
-            else:
-                csv_file.write(','.join(map(str, vallues)) + '\n')
+            # if file_name == "confidences":
+            for confidence in vallues:
+                csv_file.write(','.join(map(str, confidence)) + '\n')
+            # else:
+            #     csv_file.write(','.join(map(str, vallues)) + '\n')
         log(INFO, f"{file_name} saved to {csv_file_name}")
 
 
@@ -67,11 +71,12 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
         
         # try:
-            
+        
         weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
         confidences = []
-        eval_results_sum = None
+        eval_results_sum = []
+        confidencesTrn = []
 
         if self.mode == 1:
             most_confident_model_index = 0
@@ -81,23 +86,45 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
             for weights , num_examples in weights_results:
                 set_parameters(self.model, weights)
                 _, _, prediction = test(self.model, self.valloader, self.device)
+                    
 
                 (confidence, eval_results) = prediction # type: ignore
-                if eval_results_sum is None:
-                    eval_results_sum = eval_results
-                else:
-                    eval_results_sum += eval_results
+
+                
+                   
+                
 
                 if self.save_confidence:
                     confidences.append(confidence)
+                    try:
+                        eval_results_sum[0] += eval_results 
+                    except IndexError:                    
+                        eval_results_sum.append(eval_results)  # type: ignore
+
+
+                    _, _, predictionTrain = test(self.model, self.trainloader, self.device)
+                    (confidenceTrn, eval_resultsTrn) = predictionTrain # type: ignore
+                    confidencesTrn.append(confidenceTrn)
+
+                    try:
+                        eval_results_sum[1] += eval_resultsTrn 
+                    except IndexError:                    
+                        eval_results_sum.append(eval_resultsTrn)  # type: ignore
 
                 if self.mode == 2:                    
                     client_prediction.append(np.mean(confidence ))
-                if self.mode == 3:
+                elif self.mode == 3:
                     filtered_confidence = confidence[eval_results == 1]
                     client_prediction.append(np.mean(filtered_confidence ))
-
+                # else:
+                #     print('Error in unexpected mode')
+                #     pdb.set_trace()
+            # try:
             most_confident_model_index  =  np.argmax(client_prediction) 
+            # except ValueError:
+            #     traceback.print_exc()
+            #     pdb.set_trace()
+            # most_confident_model_index  =  np.argmax(client_prediction) 
             # log(INFO, f'\n\n number of clients {len(weights_results)} ,  Maximum aggeed correct = {max(eval_results_sum)}\n\n') # type: ignore
         if self.save_confidence:
             self.save_to_file(confidences, server_round)

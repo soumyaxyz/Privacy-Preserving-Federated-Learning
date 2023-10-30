@@ -13,8 +13,9 @@ import pdb
 
 
 class Server_details:
-    def __init__(self, model, valloader, wandb_logging, num_clients, device, epochs_per_round =1, mode = 'correct_confident'):
+    def __init__(self, model, trainloader, valloader, wandb_logging, num_clients, device, epochs_per_round =1, mode = 'correct_confident'):
         self.model = model
+        self.trainloader=trainloader
         self.valloader = valloader
         self.device = device
         self.wandb_logging = wandb_logging
@@ -58,6 +59,7 @@ class Server_details:
         strategy =  AggregatePrivacyPreservingMetricStrategy(  # fl.server.strategy.FedAvg
                     mode=self.aggregration_mode,
                     model=self.model,
+                    trainloader=self.trainloader,
                     valloader=self.valloader,
                     device=self.device,
                     fraction_fit=0.3,

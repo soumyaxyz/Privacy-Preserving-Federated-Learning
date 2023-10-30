@@ -19,7 +19,7 @@ for i, row in df.iterrows():
     row = row[:100]
     print(len(row))
     pdb.set_trace()
-    plt.bar(range(len(row)), row, alpha=0.5, label=f'Bar Plot {i + 1}')
+    plt.bar(range(len(row)), row, alpha=0.5, label=f'Bar Plot {i}')
 
 plt.title('Superimposed Bar Plots')
 plt.xlabel('X-axis')

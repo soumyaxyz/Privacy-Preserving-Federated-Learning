@@ -1,6 +1,7 @@
 
 import flwr
 from tqdm import tqdm
+from utils.lib import try_catch 
 from utils.training_utils import  get_parameters, save_model, load_model, delete_saved_model, set_parameters, test, train, train_single_epoch, wandb_init
 import pdb,traceback, wandb
 from pathlib import Path
@@ -62,6 +63,7 @@ class FlowerClient(flwr.client.NumPyClient):
         # print(f"[Client {self.cid}] get_parameters")
         return get_parameters(self.net)
 
+    @try_catch
     def fit(self, parameters, config):
         # print(f"[Client {self.cid}] fit, config: {config}")
         set_parameters(self.net, parameters)
@@ -70,11 +72,12 @@ class FlowerClient(flwr.client.NumPyClient):
                 self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)
             else:
                 # early_stopped behavior NotImplemented
-                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, epochs=config.local_epochs,  wandb_logging=False, patience= 2)  # type: ignore
+                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, epochs=config["local_epochs"], wandb_logging=False, patience= 2, savefilename =self.comment )  # type: ignore
                 if early_stopped:
                     self.patience = 0
 
         else:
+            print(f"\n[Client {self.cid}] Early stopped, LOADING MODEL : {self.comment}\n")
             load_model(self.net, filename = self.comment)
         if self.wandb_logging:
             wandb.log({"train_acc": self.accuracy,"train_loss": self.loss})
