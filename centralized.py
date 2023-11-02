@@ -108,7 +108,8 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         wandb.log({"acc": val_accuracy, "loss": val_loss}, step = 100)
         wandb.log({"test_acc": tst_accuracy, "test_loss": tst_loss})
         wandb.finish()
-    print(f"Final test set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
+    print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
+    print(f"Final test set performance:\n\tloss {tst_loss}\n\taccuracy {tst_accuracy}")
           
     if wandb_logging:
         wandb.finish()

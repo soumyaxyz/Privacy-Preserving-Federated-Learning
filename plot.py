@@ -43,7 +43,7 @@ def read_data(file_path):
 
 
 
-min_val = 1
+min_val = 5
 max_val = 5
 
 for i in range(min_val,max_val+1):
@@ -51,7 +51,7 @@ for i in range(min_val,max_val+1):
     try:
         values, counts = read_data(file_path)   
         plt.bar(np.array(values[0]) + i * 0.02, counts[0], width=0.02, align='center', alpha=0.5, label=f'round {i} test')
-        # plt.bar(np.array(values[1]) + i * 0.02, counts[1], width=0.02, align='center', alpha=0.5, label=f'round {i} train')
+        plt.bar(np.array(values[1]) + i * 0.02, counts[1], width=0.02, align='center', alpha=0.5, label=f'round {i} train')
     except FileNotFoundError:
         continue
 

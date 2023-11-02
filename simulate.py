@@ -40,6 +40,7 @@ class Simulator(object):
 
     def __init__(self, args, comment = "Simulation"):
         super(Simulator, self).__init__()
+        import torch
         self.wandb_logging  = args.wandb_logging
         self.device         = get_device()
         self.num_clients    = args.num_clients
@@ -51,7 +52,7 @@ class Simulator(object):
         [self.trainloaders, self.valloaders, self.testloader , self.valloader_all], self.num_channel , self.num_classes = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name) # type: ignore
         self.trainloader_all = merge_dataloaders(self.trainloaders) 
         if self.device.type == "cuda":
-            self.client_resources = { "num_gpus": 1, "num_cpus": 1}            
+            self.client_resources = { "num_gpus": 1, "num_cpus": 4}            
         else:
             # self.client_resources = None
             self.client_resources = { "num_cpus": 1}
@@ -110,7 +111,7 @@ def main():
     # Add arguments here
     parser.add_argument('-n', '--num_clients', type=int, default=5, help='Number of clients')
     parser.add_argument('-r', '--num_rounds', type=int, default=5, help='Number of rounds')   
-    parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
+    parser.add_argument('-m', '--model_name', type=str, default = "efficientnet", help='Model name')
     parser.add_argument('-c', '--comment', type=str, default='Simulated_', help='Comment for this run')
     parser.add_argument('-fl', '--federated_learning_mode', type=str, default='correct_confident', help='How to combine the clients weights:fedavg, first,  confident, correct_confident')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
