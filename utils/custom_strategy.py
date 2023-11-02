@@ -36,13 +36,14 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         self.valloader = valloader
         self.device = device
         self.save_confidence = True
+        self.identity = model
         if self.save_confidence:
             valloader_size = len(valloader.dataset)
             self.trainloader = get_dataloaders_subset(trainloader, valloader_size)
 
     @try_catch
     def save_to_file(self, vallues, round, file_name="confidences"):
-        csv_file_name = f"./results/{file_name}_{round}.csv"
+        csv_file_name = f"./results/strategy/{file_name}_{round}.csv"
 
         # Write the confidences list to the CSV file
         with open(csv_file_name, mode='w', newline='') as csv_file:
@@ -68,18 +69,24 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         # MODE 1 = RETURN FIRST
         # MODE 2 = RETURN MOST CONFIDENT
         # MODE 3 = RETURN CORRECT AND MOST CONFIDENT
+        # MODE 4 = RETURN ROUND ROBIN
 
         
         # try:
         
         weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
+        num_clients = len(weights_results)
+
         confidences = []
         eval_results_sum = []
         confidencesTrn = []
 
-        if self.mode == 1:
-            most_confident_model_index = 0
+        if self.mode == 1 or self.mode == 4:
+            if self.mode == 1:
+                most_confident_model_index = 0
+            else:
+                most_confident_model_index = server_round%num_clients
         else:
             client_prediction = []
             

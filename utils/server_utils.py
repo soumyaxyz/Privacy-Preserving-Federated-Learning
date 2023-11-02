@@ -39,6 +39,8 @@ class Server_details:
             return 2
         elif mode_text == "correct_confident":
             return 3
+        elif mode_text == "round_robin":
+            return 4
         else:
             return 0 # default
 

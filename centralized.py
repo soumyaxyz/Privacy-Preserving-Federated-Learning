@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 import pdb,traceback
 
 
-def get_confidence(prediction, only_correct = False):
+def get_confidence(prediction, filtered = False, value=1):
     (confidence, eval_results) = prediction # type: ignore   
-    if only_correct:
-        filtered_confidence = confidence[eval_results == 1]
+    if filtered:
+        filtered_confidence = confidence[eval_results == value]
         confidence = filtered_confidence 
 
     # confidence = torch.nn.functional.softmax(confidence, dim=1)
@@ -24,6 +24,49 @@ def get_confidence(prediction, only_correct = False):
 
     confidence = sorted(confidence)
     return confidence
+
+# def plot_histogram(predTrain, predTest, filtered = False, value=1):
+#     trn_conf = get_confidence(predTrain, filtered=filtered, value=value)
+#     tst_conf = get_confidence(predTest, filtered=filtered, value=value)
+
+#     # tst_conf = tst_conf[::-1]
+
+#     # pdb.set_trace()
+
+#     plt.figure()
+#     plt.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
+#     plt.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
+#     # plt.bar(range(len(trn_conf)), trn_conf, alpha=0.5, label='train')
+#     # plt.bar(range(len(tst_conf)), tst_conf, alpha=0.5, label='test')
+#     plt.xlabel('X-axis')
+#     plt.ylabel('Y-axis')
+#     plt.legend()
+#     plt.show()
+
+def plot_histogram(predTrain, predTest):
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))  # 1 row, 3 columns
+    title = ['All', 'Correctly Classified', 'Incorrectly Classified']
+    for i, ax in enumerate(axs):
+        if i == 0:
+            trn_conf = get_confidence(predTrain, filtered=False, value=1)
+            tst_conf = get_confidence(predTest, filtered=False, value=1)
+        elif i == 1:
+            trn_conf = get_confidence(predTrain, filtered=True, value=1)
+            tst_conf = get_confidence(predTest, filtered=True, value=1)
+        else:
+            trn_conf = get_confidence(predTrain, filtered=True, value=0)
+            tst_conf = get_confidence(predTest, filtered=True, value=0)
+        
+        ax.title.set_text(title[i])
+
+        ax.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
+        ax.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
+        ax.set_xlabel('X-axis')
+        ax.set_ylabel('Y-axis')
+        ax.legend()
+    plt.tight_layout()
+    plt.show()
+
 
 
 
@@ -72,23 +115,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
     tst_loss, tst_accuracy, predB = test(model, test_loader)
 
 
-    trn_conf = get_confidence(predA, only_correct=False)
-    tst_conf = get_confidence(predB, only_correct=False)
-
-    # tst_conf = tst_conf[::-1]
-
-    # pdb.set_trace()
-
-    plt.figure()
-    plt.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
-    plt.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
-    # plt.bar(range(len(trn_conf)), trn_conf, alpha=0.5, label='train')
-    # plt.bar(range(len(tst_conf)), tst_conf, alpha=0.5, label='test')
-    plt.xlabel('X-axis')
-    plt.ylabel('Y-axis')
-    plt.legend()
-    plt.show()
-
+    
     # pdb.set_trace()
 
     
@@ -110,6 +137,8 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         wandb.finish()
     print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
     print(f"Final test set performance:\n\tloss {tst_loss}\n\taccuracy {tst_accuracy}")
+
+    plot_histogram(predA, predB)
           
     if wandb_logging:
         wandb.finish()
