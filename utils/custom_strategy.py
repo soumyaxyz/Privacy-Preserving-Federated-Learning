@@ -3,9 +3,9 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import flwr as fl
 from utils.datasets import get_dataloaders_subset
 from utils.lib import try_catch 
-from utils.training_utils import test, set_parameters
+from utils.training_utils import test, set_parameters, verify_folder_exist
 from utils.models import load_model_defination
-from .aggregate import aggregate, weighted_loss_avg
+from flwr.server.strategy.aggregate import aggregate, weighted_loss_avg
 import numpy as np
 import traceback,pdb
 import csv
@@ -43,7 +43,7 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
 
     @try_catch
     def save_to_file(self, vallues, round, file_name="confidences"):
-        csv_file_name = f"./results/strategy/{file_name}_{round}.csv"
+        csv_file_name = verify_folder_exist("./results/strategy/")+f"{file_name}_{round}.csv"
 
         # Write the confidences list to the CSV file
         with open(csv_file_name, mode='w', newline='') as csv_file:
@@ -62,8 +62,8 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-        if self.mode == 0:
-            return super().aggregate_fit(server_round, results, failures)
+        
+        
 
         # MODE 0 = FEDAVG
         # MODE 1 = RETURN FIRST
@@ -71,6 +71,17 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         # MODE 3 = RETURN CORRECT AND MOST CONFIDENT
         # MODE 4 = RETURN ROUND ROBIN
 
+
+        #fallback to FedAvg
+        if self.mode == 0:
+            return super().aggregate_fit(server_round, results, failures)
+
+        # Do not aggregate if there are no results
+        if not results:
+            return None, {}
+        # Do not aggregate if there are failures and failures are not accepted
+        if not self.accept_failures and failures:
+            return None, {}
         
         # try:
         

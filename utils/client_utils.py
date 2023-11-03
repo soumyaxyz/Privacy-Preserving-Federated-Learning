@@ -2,7 +2,7 @@
 import flwr
 from tqdm import tqdm
 from utils.lib import try_catch 
-from utils.training_utils import  get_parameters, save_model, load_model, delete_saved_model, set_parameters, test, train, train_single_epoch, wandb_init
+from utils.training_utils import  get_parameters, mix_parameters, save_model, load_model, delete_saved_model, set_parameters, test, train, train_single_epoch, wandb_init
 import pdb,traceback, wandb
 from pathlib import Path
 
@@ -66,7 +66,8 @@ class FlowerClient(flwr.client.NumPyClient):
     @try_catch
     def fit(self, parameters, config):
         # print(f"[Client {self.cid}] fit, config: {config}")
-        set_parameters(self.net, parameters)
+        # set_parameters(self.net, parameters)
+        mix_parameters(self.net, parameters)
         if self.patience > 0:                                        # if patience is 0, stop further training
             if config["local_epochs"] == 1:
                 self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)

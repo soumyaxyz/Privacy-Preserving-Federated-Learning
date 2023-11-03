@@ -45,8 +45,14 @@ correct_confident = [
     [81.00, 78.55, 72.41, 70.8],
 
 ]
+round_robin = [
+    [90.57, 89.13, 84.97, 82.79], # train acc
+    [83.66, 82.01, 80.67, 78.04],    
+    [81.00, 78.55, 76.53, 74.15],
 
-cifar10 = [ fedAvg, first, confident, correct_confident]
+]
+
+cifar10 = [ fedAvg, first, confident, correct_confident, round_robin]
 #####################################################################
 # cifar100
 # [centralized, 2, 5, 10]
@@ -149,11 +155,11 @@ fmnist = [ fedAvg, first, confident, correct_confident]
 
 dataset = [cifar10, cifar100, mnist, fmnist]
 datasetname = ['CIFAR 10', 'CIFAR 100', 'MNIST', 'Fashion MNIST']
-labels = ['FedAvg', 'First', 'Confident', 'Correct Confident']
+labels = ['FedAvg', 'First', 'Confident', 'Correct Confident', 'Round Robin']
 
-# for i,data in enumerate(dataset):
-#     plot_lists(data, datasetname[i], labels)
+for i,data in enumerate(dataset):
+    plot_lists(data, datasetname[i], labels)
 
 
-dataset = [cifar10[0], cifar100[0], mnist[0], fmnist[0]]
-plot_lists(dataset, 'Overall trends', datasetname)
+# dataset = [cifar10[0], cifar100[0], mnist[0], fmnist[0]]
+# plot_lists(dataset, 'Overall trends', datasetname)

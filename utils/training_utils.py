@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import copy
 from typing import Dict, List
 import numpy as np
 import flwr as fl
@@ -11,6 +12,9 @@ import pdb,traceback
 import os
 import csv
 import json
+
+from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
+from flwr.server.strategy.aggregate import aggregate
 
 from utils.datasets import Wrapper_Dataset
 from utils.plot_utils import plot_ROC_curve
@@ -157,6 +161,15 @@ def set_parameters(net, parameters: List[np.ndarray]):
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
+
+def mix_parameters(net, parameters: List[np.ndarray]):
+    # net_copy = copy.deepcopy(net)
+    old_parameters = get_parameters(net)
+    weights_results = [(old_parameters, 1), (parameters, 2) ] 
+    parameters_aggregated = parameters_to_ndarrays(ndarrays_to_parameters(aggregate(weights_results)))
+    set_parameters(net, parameters_aggregated)
+
+   
 
 def loss_fn_kd(outputs, labels, teacher_outputs, params):
     """
