@@ -89,7 +89,7 @@ def main():
                             )
         
         loss, accuracy, _ = test(model, test_loader)
-        save_model(model,filename =comment, print_info=True)
+        (model,filename =comment, print_save_modelinfo=True)
     except KeyboardInterrupt:
         print("Stopped with by user. Exiting.")
     except Exception as e:

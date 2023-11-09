@@ -14,7 +14,7 @@ def plot_lists(data, datasetname, labels):
     
     
     # plt.legend(loc='lower right')
-    plt.suptitle(datasetname)
+    # plt.suptitle(datasetname)
     plt.legend()
     plt.show()
 # Example usage
@@ -249,7 +249,7 @@ datasetname = ['CIFAR 10', 'CIFAR 100', 'MNIST', 'Fashion MNIST']
 labels = ['fedAvg', 'first',  'confident', 'correct_confident',  'round_robin']
 
 # for i,data in enumerate(dataset):
-    # plot_lists(data, datasetname[i], labels)
+#     plot_lists(data, datasetname[i], labels)
 
 
 dataset = [cifar10[0], cifar100[0], mnist[0], fmnist[0]]
