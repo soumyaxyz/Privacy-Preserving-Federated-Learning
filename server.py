@@ -37,7 +37,7 @@ def main():
     parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
     parser.add_argument('-p', '--server_port', type=str, default="8080", help='Server port')    
     parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
-    parser.add_argument('-fl', '--federated_learning_mode', type=str, default='round_robin', help='How to combine the clients weights:fedavg, first,  confident, correct_confident')
+    parser.add_argument('-fl', '--federated_learning_mode', type=str, default='confident', help='How to combine the clients weights:fedavg, first,  confident, correct_confident')
     parser.add_argument('-c', '--comment', type=str, default='Federated_', help='Comment for this run')
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
@@ -89,7 +89,7 @@ def main():
                             )
         
         loss, accuracy, _ = test(model, test_loader)
-        (model,filename =comment, print_save_modelinfo=True)
+        save_model(model,filename =comment, print_info=True)
     except KeyboardInterrupt:
         print("Stopped with by user. Exiting.")
     except Exception as e:

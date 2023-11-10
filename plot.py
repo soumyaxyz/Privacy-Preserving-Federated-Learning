@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 from collections import Counter
 import numpy as np
+import pdb
 
 # Specify the file path
-file_prefix = "results/eval_results_"
+file_prefix = "results/strategy_cifar10/eval_results_"
 
 
 
@@ -37,21 +38,22 @@ def read_data(file_path):
         values_i, counts_i = count_occurrences(data_i)
         values.extend(values_i)
         counts.extend(counts_i) 
+        pdb.set_trace()
     return values, counts
 
 
 
 
 
-min_val = 5
-max_val = 5
+min_val = 100
+max_val = 100
 
 for i in range(min_val,max_val+1):
     file_path = file_prefix+ f"{i}.csv"
     try:
         values, counts = read_data(file_path)   
-        plt.bar(np.array(values[0]) + i * 0.02, counts[0], width=0.02, align='center', alpha=0.5, label=f'round {i} test')
-        plt.bar(np.array(values[1]) + i * 0.02, counts[1], width=0.02, align='center', alpha=0.5, label=f'round {i} train')
+        plt.bar(np.array(values[0]) + i * 0.02, counts[0], width=0.02, align='center', alpha=0.5, label=f'round {i} test', color="tab:red")
+        plt.bar(np.array(values[1]) + i * 0.02, counts[1], width=0.02, align='center', alpha=0.5, label=f'round {i} train', color="tab:blue")
     except FileNotFoundError:
         continue
 
