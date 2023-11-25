@@ -13,26 +13,19 @@ import csv
 import json
 
 from utils.datasets import Wrapper_Dataset
-from utils.plot_utils import plot_ROC_curve
+#from utils.plot_utils import plot_ROC_curve
 from utils.lib import blockPrintingIfServer, create_directories_if_not_exist
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
-    entity='', 
+    entity="saham001", 
     model_name="basicCNN", 
     dataset_name="CIFAR_10",
     comment= '',  
     lr ='', 
     optimizer = ''
-    ):
-    config_path = os.path.join('wandb', 'config.json')
-    with open(config_path) as config_file:
-        config = json.load(config_file)  
-        api_key = config.get('api_key') 
-        if entity == '':
-            entity = config.get('entity')
-         
-    wandb.login( key=api_key )
+    ):    
+    wandb.login( key="3ca866cc00388bed3df77669aabc6a9e40fcd7c4" )
     wandb.init(
       project=project, entity=entity,
       config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}
@@ -151,7 +144,8 @@ def get_parameters(net) -> List[np.ndarray]:
 
 def set_parameters(net, parameters: List[np.ndarray]):
     params_dict = zip(net.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+    state_dict = OrderedDict({k: torch.from_numpy(v) for k, v in params_dict}) # for resnet
+    #state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict}) #for efficientnet
     net.load_state_dict(state_dict, strict=True)
 
 def loss_fn_kd(outputs, labels, teacher_outputs, params):
@@ -222,8 +216,12 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                 total += labels.size(0)
                 if is_binary:
                     correct += (torch.round(outputs.data) == labels).sum().item()
+                    confidence = torch.sigmoid(outputs).cpu().numpy()
+                    prediction = (confidence >= 0.5).astype(np.int64)
+
                 else:
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+<<<<<<< Updated upstream
 
                 if plot_ROC:
                     gold = np.append(gold, labels.cpu().numpy()) # type: ignore
@@ -231,6 +229,26 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                         pred = np.append(pred, torch.round(outputs).cpu().numpy())# type: ignore
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
+=======
+                    # pdb.set_trace()
+                    ( confidence, prediction) = torch.max(outputs, 1)
+                    confidence = confidence.cpu().numpy()
+                    prediction = prediction.cpu().numpy()
+
+                truth =labels.cpu().numpy()
+                result = (prediction == truth).astype(np.int64)
+                pred = np.append(pred, confidence) #prediction comfidece
+                # pdb.set_trace()
+
+                gold = np.append(gold, result)
+
+                try:
+                    assert len(pred) == len(gold)
+                except AssertionError:
+                    traceback.print_exc()
+                    pdb.set_trace()
+                
+>>>>>>> Stashed changes
 
         loss /= len(testloader.dataset)
         accuracy = correct / total
@@ -242,6 +260,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()
+    
         
     return loss, accuracy, predictions # type: ignore
 
