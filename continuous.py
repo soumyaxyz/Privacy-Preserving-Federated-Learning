@@ -48,8 +48,8 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
     #optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001)
     
-    if num_classes_source != num_classes_target:
-        replace_classifying_layer(model, classes)
+    # if num_classes_source != num_classes_target:
+    #     replace_classifying_layer(model, classes)
 
     loss, accuracy, _ = test(model, test_loader_target)
 
@@ -59,7 +59,7 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
     optimizer = torch.optim.Adam(model.parameters())
     epoch = 5
 
-    model, optimizer, val_loss, val_accuracy  = train(model, train_loader_target, val_loader_target, epoch, optimizer, verbose=False, wandb_logging=wandb_logging)
+    model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader_target, val_loader_target, epoch, optimizer, verbose=False, wandb_logging=wandb_logging)
     
     loss, accuracy, _ = test(model, test_loader_target)
 

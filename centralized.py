@@ -170,7 +170,7 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
         wandb.watch(model, log_freq=100)
         
 
-    model, optimizer, val_loss, val_accuracy  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
+    model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
     loss, accuracy, _ = test(model, test_loader)
 
     if wandb_logging:
