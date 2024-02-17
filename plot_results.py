@@ -1,22 +1,136 @@
 import matplotlib.pyplot as plt
+import numpy as np
+import pdb
 
-def plot_lists(data, datasetname, labels):
-    fig, axs = plt.subplots(1, len(data), figsize=(12, 4), sharey=True)
+def get_mean_std(list, j, extra_data, sublist_extra):
+    data_list = [list]
+    for extra in range(extra_data):
+        data_list.append(sublist_extra[extra][j])
+    y_mean = np.mean(data_list, axis=0)
+    y_std = np.std(data_list, axis=0)
+
+    print(f'i=? , {j=}, {list=}, {data_list=}, {y_mean=}')
+
+    return y_mean, y_std
+
+def plot_lists(data, datasetname, labels, placement='1x4', mean_flag=False):
+    # print(labels)
+    print(datasetname)
+
+    extra_data = 0
+    data_all = data
+    if mean_flag:              
+        extra_data = len(data)-1
+        
+        data = data[0]
+
+
+
+    rows, cols = 1, len(data)  # Default is 1xN placement
+
+    if placement == '2x2':
+        rows, cols = 2, 2
+
+    fig, axs = plt.subplots(rows, cols, figsize=(12, 4), sharey=True)
+
+       
+
+       
+    
+
+    sublist_extra = []
+
+    # pdb.set_trace()
     
     for i, sublist in enumerate(data):
+        if mean_flag:
+            for extra in range(extra_data):
+                sublist_extra.append(data_all[extra+1][i]) 
+
+        pdb.set_trace()
+        
+        
+
         local_labels = ["train acc","test acc", "MIA acc"]
         colours = ["tab:green", "tab:blue", "tab:red","tab:purple"]
-        for j, list in enumerate(sublist):
-            axs[i].plot(list, label=local_labels[j], color=colours[j])
-        axs[i].set_title(labels[i])
-        axs[i].set_xticks([0, 1, 2, 3])
-        axs[i].set_xticklabels([0, 2, 5, 10])
+
+        # mean_flag = False
+        # print(len(sublist))
+        # print(f'{i=} , {sublist=}') 
+
+        if placement == '1x4':
+            # pdb.set_trace()
+            for j, ax in enumerate(axs):  
+                             
+                if j == i:
+                   for k, list in enumerate(sublist):
+                        if mean_flag:                            
+                            try:
+                                y_mean, y_std = get_mean_std(list, j, extra_data, sublist_extra)
+
+                                
+                                # print(f'{i=} , {k=}, {list=}, {data_list=}, {y_mean=}')
+
+
+                                ax.plot(y_mean, label=local_labels[k], color=colours[k], marker='o', markersize=10)
+                                ax.fill_between(range(len(y_mean)), y_mean - y_std, y_mean + y_std, alpha=0.2, color=colours[k])
+                            except Exception as e:
+                                ax.plot(list, label=local_labels[k], color=colours[k])   # fallback to mean_flag = False
+                        else:
+                            ax.plot(list, label=local_labels[k], color=colours[k])
+                        
+                    
+                ax.set_title(labels[j],fontsize=18)
+                ax.set_yticks([60, 80, 100])               
+                ax.tick_params(axis='y', labelsize=18)
+                ax.set_xticks([0, 1, 2, 3])
+                ax.set_xticklabels([0, 2, 5, 10],fontsize=18)
+        elif placement == '2x2':
+            
+                
+                # for k, list in enumerate(sublist_1):
+                #     try:
+                #         axs[i // 2, i % 2].plot(list, label=local_labels[k], color=colours[k], marker='x', markersize=10)
+                #     except:
+                #         pdb.set_trace()
+            
+
+            for j, list in enumerate(sublist):
+                print(f'{i=} , {j=}, {list=}')
+                
+                if mean_flag:
+                    # print(list, sublist_1[j])
+                    try:
+                        y_mean, y_std = get_mean_std(list, j, extra_data, sublist_extra)
+
+                        
+                        axs[i // 2, i % 2].plot(y_mean, label=local_labels[j], color=colours[j], marker='o', markersize=10) 
+                        axs[i // 2, i % 2].fill_between(range(len(y_mean)), y_mean - y_std, y_mean + y_std, alpha=0.2, color=colours[j])
+                    except Exception as e:
+                        print(j)
+                        axs[i // 2, i % 2].plot(list, label=local_labels[j], color=colours[j], marker='o', markersize=10) # fallback to mean_flag = False
+                else:
+                    axs[i // 2, i % 2].plot(list, label=local_labels[j], color=colours[j], marker='o', markersize=10) 
+                    # print('plotting')
+                
+                axs[i // 2, i % 2].set_yticks([60, 80, 100])               
+                axs[i // 2, i % 2].tick_params(axis='y', labelsize=18)
+                axs[i // 2, i % 2].set_title(labels[i],fontsize=18)
+                axs[i // 2, i % 2].set_xticks([0, 1, 2, 3])
+                axs[i // 2, i % 2].set_xticklabels([0, 2, 5, 10],fontsize=18)
+    # if placement == '2x2':
+    plt.legend(fontsize=15)
     
+    # else:
+    #     plt.legend(fontsize=18, loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3)
     
-    # plt.legend(loc='lower right')
-    # plt.suptitle(datasetname)
-    plt.legend()
+    plt.tight_layout()
     plt.show()
+
+
+
+
+
 # Example usage
 
 #cifar10
@@ -77,6 +191,48 @@ round_robin_1 = [
 ]
 
 cifar10 = [ fedAvg, first,  confident, correct_confident, round_robin]
+
+#####################################################################
+
+#cifar10_ResNet
+    # [centralized, 2, 5, 10]
+
+fedAvg = [
+    [93.9, 97.92, 94.46, 98.43], # train acc
+    [80.35,80.35, 80.99, 83.07], # test acc
+    [82.37, 84.68, 82.03, 84.64], # MIA acc
+
+]
+first = [
+    [93.9, 96.99, 89.49 , 93.19], # train acc
+    [80.35, 79.37, 76.34, 79.87],
+    [82.37, 84.37, 79.65, 83.06],
+
+]
+
+confident = [
+    [93.9, 86.59, 79.86, 68.25], # train acc
+    [80.35, 74.96, 70.69, 63.95],    # tst acc
+    [82.37, 77.73, 72.04, 64.39],   # MIA acc
+
+]
+
+correct_confident = [
+    [93.9, 86.46, 74.98, 67.82], # train acc
+    [80.35, 76.04, 69.86, 63.62],
+    [82.37, 77.51, 68.78, 63.82],
+
+]
+
+round_robin = [
+    [93.9, 97.14, 95.41, 89.68], # train acc
+    [80.35, 79.14, 78.81, 77.41],
+    [82.37, 84.46, 83.66, 80.86],
+
+]
+
+
+cifar10_ResNet = [ fedAvg, first,  confident, correct_confident, round_robin]
 #####################################################################
 # cifar100
 # [centralized, 2, 5, 10]
@@ -245,12 +401,21 @@ fmnist = [ fedAvg, first,  confident, correct_confident,  round_robin ]
 
 
 dataset = [cifar10, cifar100, mnist, fmnist]
+dataset_1 = [cifar10_ResNet, cifar100, mnist, fmnist]
 datasetname = ['CIFAR 10', 'CIFAR 100', 'MNIST', 'Fashion MNIST']
 labels = ['fedAvg', 'first',  'confident', 'correct_confident',  'round_robin']
 
+
+
+
 # for i,data in enumerate(dataset):
-#     plot_lists(data, datasetname[i], labels)
+#     # print(dataset[i])
+#     # pdb.set_trace()
+#     plot_lists([dataset[i], dataset_1[i]], datasetname[i], labels, mean_flag=True)
+#     # plot_lists(dataset[i], datasetname[i], labels, mean_flag=False)
+#     # break
 
-
-dataset = [cifar10[0], cifar100[0], mnist[0], fmnist[0]]
-plot_lists(dataset, 'Overall trends', datasetname)
+dataset = [cifar10[0], cifar100[0] , mnist[0], fmnist[0]] 
+dataset_1 = [cifar10_ResNet[0], cifar100[0] , mnist[0], fmnist[0]] 
+plot_lists([dataset, dataset_1], 'Overall trends', datasetname, placement='2x2', mean_flag=True)
+# plot_lists(dataset, 'Overall trends', datasetname, placement='2x2', mean_flag=False)

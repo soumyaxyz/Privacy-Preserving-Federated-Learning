@@ -25,27 +25,17 @@ def get_confidence(prediction, filtered = False, value=1):
     confidence = sorted(confidence)
     return confidence
 
-# def plot_histogram(predTrain, predTest, filtered = False, value=1):
-#     trn_conf = get_confidence(predTrain, filtered=filtered, value=value)
-#     tst_conf = get_confidence(predTest, filtered=filtered, value=value)
-
-#     # tst_conf = tst_conf[::-1]
-
-#     # pdb.set_trace()
-
-#     plt.figure()
-#     plt.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
-#     plt.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
-#     # plt.bar(range(len(trn_conf)), trn_conf, alpha=0.5, label='train')
-#     # plt.bar(range(len(tst_conf)), tst_conf, alpha=0.5, label='test')
-#     plt.xlabel('X-axis')
-#     plt.ylabel('Y-axis')
-#     plt.legend()
-#     plt.show()
-
 def plot_histogram(predTrain, predTest):
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))  # 1 row, 3 columns
+    dpi_value = 100
+    fig, axs = plt.subplots(1, 3, figsize=(15, 3), dpi=dpi_value)  # 1 row, 3 columns
     title = ['All', 'Correctly Classified', 'Incorrectly Classified']
+
+    # Set a common range for the x-axis
+    x_axis_range = (0, 1)
+
+    # Initialize variables to track the maximum y-axis limit
+    max_y_limit = 0
+
     for i, ax in enumerate(axs):
         if i == 0:
             trn_conf = get_confidence(predTrain, filtered=False, value=1)
@@ -56,14 +46,22 @@ def plot_histogram(predTrain, predTest):
         else:
             trn_conf = get_confidence(predTrain, filtered=True, value=0)
             tst_conf = get_confidence(predTest, filtered=True, value=0)
-        
-        ax.title.set_text(title[i])
 
-        ax.hist(trn_conf, bins=20, range=(0, 1), alpha=0.5, label='train', edgecolor='black')
-        ax.hist(tst_conf, bins=20, range=(0, 1), alpha=0.5, label='test', edgecolor='black')
-        ax.set_xlabel('X-axis')
-        ax.set_ylabel('Y-axis')
-        ax.legend()
+        # ax.title.set_text(title[i])
+
+        # Update the maximum y-axis limit
+        max_y_limit = max(max_y_limit, max(ax.hist(trn_conf, bins=20, range=x_axis_range, alpha=0.5, label='train', edgecolor='black')[0]))
+
+        max_y_limit = max(max_y_limit, max(ax.hist(tst_conf, bins=20, range=x_axis_range, alpha=0.5, label='test', edgecolor='black')[0]))
+        
+        ax.set_xlabel(title[i], fontsize=18)
+        ax.set_ylabel('Sample count', fontsize=18)
+        ax.legend(fontsize=18)
+
+    # Set the same y-axis limits for all subplots
+    for ax in axs:
+        ax.set_ylim(0, max_y_limit*1.05)
+
     plt.tight_layout()
     plt.show()
 
@@ -74,75 +72,76 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
     
 
 
-    print_info(device, model_name, dataset_name)    
+    print_info(device, model_name, dataset_name, eval=True)    
+    try:
 
-    [train_loaders, val_loaders, test_loader, _], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name)
-
-    
-    val_loader = val_loaders[0]   
-    train_loader = train_loaders[0]
-
-    test_loader_size = len(test_loader.dataset)
-
-
-    train_loader = get_dataloaders_subset(train_loader, test_loader_size)
-
-    
-
-    # subset_train_loader = []
-    # for batch in train_loader:
-    #     subset_train_loader.append(batch)        
-    #     if len(subset_train_loader) == test_loader_size:
-    #         break
-    
-    # train_loader = subset_train_loader#DataLoader(list(islice(train_loader, len(test_loader))))  # type: ignore
-
-
-    # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model_defination(model_name, num_channels, num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters())
-    load_saved_weights(model, filename =evaluation_model)
+        [train_loaders, val_loaders, test_loader, _], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name)
         
-    
+        val_loader = val_loaders[0]   
+        train_loader = train_loaders[0]
 
-    comment = 'Test_Centralized_('+evaluation_model+')_'+model_name+'_'+dataset_name
-    if wandb_logging:
-        wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
-        wandb.watch(model, log_freq=100)
+        test_loader_size = len(test_loader.dataset)
+
+
+        train_loader = get_dataloaders_subset(train_loader, test_loader_size)
+
         
-    trn_loss, trn_accuracy, predA = test(model, train_loader)
-    val_loss, val_accuracy, _ = test(model, val_loader)
-    tst_loss, tst_accuracy, predB = test(model, test_loader)
+
+        # subset_train_loader = []
+        # for batch in train_loader:
+        #     subset_train_loader.append(batch)        
+        #     if len(subset_train_loader) == test_loader_size:
+        #         break
+        
+        # train_loader = subset_train_loader#DataLoader(list(islice(train_loader, len(test_loader))))  # type: ignore
 
 
-    
-    # pdb.set_trace()
-
-    
-
-
-    
+        # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        model = load_model_defination(model_name, num_channels, num_classes).to(device)
+        optimizer = torch.optim.Adam(model.parameters())
+        load_saved_weights(model, filename =evaluation_model)
 
 
+        comment = 'Test_Centralized_('+evaluation_model+')_'+model_name+'_'+dataset_name
+        if wandb_logging:
+            wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
+            wandb.watch(model, log_freq=100)
+            
+        trn_loss, trn_accuracy, predA = test(model, train_loader)
+        val_loss, val_accuracy, _ = test(model, val_loader)
+        tst_loss, tst_accuracy, predB = test(model, test_loader)
+
+
+        
+        # pdb.set_trace()
+
+
+
+
+        print(f"Final training set performance:\n\tloss {trn_loss}\n\taccuracy {trn_accuracy}")
 
 
 
 
 
 
-    if wandb_logging:
-        wandb.log({"train_acc": trn_accuracy, "train_loss": trn_loss})
-        wandb.log({"acc": val_accuracy, "loss": val_loss}, step = 100)
-        wandb.log({"test_acc": tst_accuracy, "test_loss": tst_loss})
-        wandb.finish()
-    print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
-    print(f"Final test set performance:\n\tloss {tst_loss}\n\taccuracy {tst_accuracy}")
 
-    plot_histogram(predA, predB)
-          
-    if wandb_logging:
-        wandb.finish()
-    # pdb.set_trace()
+
+        if wandb_logging:
+            wandb.log({"train_acc": trn_accuracy, "train_loss": trn_loss})
+            wandb.log({"acc": val_accuracy, "loss": val_loss}, step = 100)
+            wandb.log({"test_acc": tst_accuracy, "test_loss": tst_loss})
+            wandb.finish()
+        print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
+        print(f"Final test set performance:\n\tloss {tst_loss}\n\taccuracy {tst_accuracy}")
+
+        plot_histogram(predA, predB)
+            
+        if wandb_logging:
+            wandb.finish()
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
 
 
 def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN'):

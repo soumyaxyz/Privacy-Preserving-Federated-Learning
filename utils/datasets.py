@@ -1,3 +1,6 @@
+import os
+import cv2
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
@@ -5,6 +8,21 @@ from torch.utils.data import  Dataset, DataLoader, ConcatDataset, random_split
 from utils.lib import blockPrinting
 import pdb,traceback
 from typing import List
+
+class ContinuousDatasetWraper():
+    def __init__(self, dataset_name = 'continous_SVHN'):
+        self.name = dataset_name
+        self.splits = self._load_datasets(dataset_name)
+
+
+    @blockPrinting  
+    def _load_datasets(self, dataset_name):
+        if dataset_name == 'continous_SVHN':
+            return load_continuous_SVHN()
+        else:
+            print(f'Unknown dataset name: {dataset_name}')
+            raise NotImplementedError
+        
 
 
 class DatasetWrapper():
@@ -25,12 +43,65 @@ class DatasetWrapper():
             return load_FashionMNIST()
         elif dataset_name == "SVHN":
             return load_SVHN()
+        elif dataset_name == 'continous_SVHN':
+            raise Exception('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
         else:
             # import pdb; pdb.set_trace()
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
     
+def load_continuous_SVHN():
+    splits_paths=[
+        '/kaggle/input/svhn-cropped/extra_A_cropped_images',
+        '/kaggle/input/svhn-cropped/extra_B_cropped_images',
+        '/kaggle/input/svhn-cropped/extra_C_cropped_images',
+        '/kaggle/input/svhn-cropped/test_cropped_images',
+        '/kaggle/input/svhn-cropped/train_cropped_images'
+    ]
+
+    return load_continuous_custom_dataset(splits_paths)
+
+def load_continuous_custom_dataset(splits_paths):
+    data_splits = []
+    for directory in splits_paths:
+        train_dataset, test_dataset, num_channels, num_classes = load_custom_dataset(directory, test_size=0.4)
+        data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
+    return data_splits
+
+
+def load_custom_dataset(directory, test_size=0.4):
+    images = []
+    labels = []
+    for label in os.listdir(directory):
+        label_dir = os.path.join(directory, label)
+        for img_file in os.listdir(label_dir):
+            img_path = os.path.join(label_dir, img_file)
+            img = cv2.imread(img_path)
+            img = cv2.resize(img, (32, 32))  # Resize image to a fixed size
+            images.append(img)
+            labels.append(int(label))
    
+    # Transform the dataset
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+
+    dataset = [(transform(img), label) for img, label in zip(images, labels)]
+   
+    # Calculate the sizes of the train and test sets based on the test_size ratio
+    test_size = int(len(dataset) * test_size)
+    train_size = len(dataset) - test_size
+   
+    # Split the dataset into training and test sets
+    torch.manual_seed(42)
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size]) # type: ignore
+   
+    num_channels = 3
+    num_classes = len(np.unique(labels))
+   
+    return train_dataset, test_dataset, num_channels, num_classes
+
 
 
 def load_CIFAR10():
@@ -215,14 +286,14 @@ class Error_Label_Dataset(Loss_Label_Dataset):
 
 
 
-def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
+def split_dataset(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
 
 
     # Split training set into `num_clients` partitions to simulate different local datasets
     total_size = len(trainset)
-    partition_size = total_size // num_clients
-    lengths = [partition_size] * num_clients
-    lengths[-1] += total_size% num_clients          # adding the reminder to the last partition
+    partition_size = total_size // num_splits
+    lengths = [partition_size] * num_splits
+    lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
 
     datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
 
@@ -244,9 +315,22 @@ def split_dataset(trainset, testset, num_clients: int, val_percent = 10, batch_s
 
         
         val_datasets.append(ds_val)
-    testloader = DataLoader(testset, batch_size)
-    unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size) #type:ignore
-    return trainloaders, valloaders, testloader, unsplit_valloader
+    if split_test:
+        total_size = len(testset)
+        partition_size = total_size // num_splits
+        lengths = [partition_size] * num_splits
+        lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
+
+        datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
+        testloaders = []
+        for ds in datasets:
+            testloaders.append(DataLoader(ds, batch_size))
+        unsplit_valloader = None
+    else: 
+        testloader = DataLoader(testset, batch_size)
+        unsplit_valloader = DataLoader(torch.utils.data.ConcatDataset(val_datasets), batch_size) #type:ignore
+
+    return trainloaders, valloaders, testloader, unsplit_valloader #type:ignore
 
 def load_dataloaders(trainset, testset, batch_size=32):
     trainloader    = DataLoader(trainset, batch_size, shuffle=True)
@@ -266,7 +350,13 @@ def merge_dataloaders(trainloaders):
     return DataLoader(ConcatDataset(trn_datasets), trainloaders[0].batch_size)
 
 
+def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
+    [train_dataset, test_dataset, num_channels, num_classes] = dataset_split   
+
+    return split_dataset(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
+
 def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
+    
 
     dataset = DatasetWrapper(dataset_name)
-    return split_dataset(dataset.trainset, dataset.testset, num_clients, val_percent, batch_size), dataset.num_channels, dataset.num_classes
+    return split_dataset(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes

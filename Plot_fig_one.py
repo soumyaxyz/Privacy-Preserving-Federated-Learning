@@ -110,19 +110,28 @@ plot(ax, acc_five, priv_five, epochs_five, 'b', 'FL 5 clients')
 plot(ax, acc_ten, priv_ten, epochs_ten, 'g', 'FL 10 clients')
 
 # Set labels and title for the flipped axes
-ax.set_xlabel('Accuracy (%)')
-ax.set_ylabel('Privacy (%)')
-ax.set_zlabel('Rounds')
+ax.set_xlabel('Accuracy (%)', fontsize=18)
+ax.set_ylabel('Privacy (%)', fontsize=18)
+ax.set_zlabel('Rounds', fontsize=18)
 # ax.invert_yaxis()
+
+# Customize the background color to be transparent
+ax.w_xaxis.pane.fill = False
+ax.w_yaxis.pane.fill = False
+ax.w_zaxis.pane.fill = False
+
+# Set grid lines to True for each axis
+ax.grid(True)
 
 # Set integer ticks for Accuracy and Privacy axes
 ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-plt.title('Privacy vs. Accuracy vs. Epochs')
+# plt.title('Privacy vs. Accuracy vs. Epochs')
 
 # Add a legend
-ax.legend()
+ax.legend(fontsize=18)
 
 # Show the plot
+plt.tight_layout()
 plt.show()

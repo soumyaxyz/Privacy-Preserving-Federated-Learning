@@ -83,93 +83,95 @@ class AggregatePrivacyPreservingMetricStrategy(fl.server.strategy.FedAvg):
         if not self.accept_failures and failures:
             return None, {}
         
-        # try:
+        # log(INFO, f"here")
         
-        weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
+        try:
+        
+            weights_results = [ (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)  for _, fit_res in results ]
 
-        num_clients = len(weights_results)
+            num_clients = len(weights_results)
 
-        confidences = []
-        eval_results_sum = []
-        confidencesTrn = []
+            confidences = []
+            eval_results_sum = []
+            confidencesTrn = []
 
-        if self.mode == 1 or self.mode == 4:
-            if self.mode == 1:
-                most_confident_model_index = 0
+            if self.mode == 1 or self.mode == 4:
+                if self.mode == 1:
+                    most_confident_model_index = 0
+                else:
+                    most_confident_model_index = server_round%num_clients
             else:
-                most_confident_model_index = server_round%num_clients
-        else:
-            client_prediction = []
-            
-            for weights , num_examples in weights_results:
-                set_parameters(self.model, weights)
-                _, _, prediction = test(self.model, self.valloader, self.device)
+                client_prediction = []
+                
+                for weights , num_examples in weights_results:
+                    set_parameters(self.model, weights)
+                    _, _, prediction = test(self.model, self.valloader, self.device)
+                        
+
+                    (confidence, eval_results) = prediction # type: ignore
+
+                    
+                    
                     
 
-                (confidence, eval_results) = prediction # type: ignore
-
-                
-                   
-                
-
-                if self.save_confidence:
-                    confidences.append(confidence)
-                    try:
-                        eval_results_sum[0] += eval_results 
-                    except IndexError:                    
-                        eval_results_sum.append(eval_results)  # type: ignore
+                    if self.save_confidence:
+                        confidences.append(confidence)
+                        try:
+                            eval_results_sum[0] += eval_results 
+                        except IndexError:                    
+                            eval_results_sum.append(eval_results)  # type: ignore
 
 
-                    _, _, predictionTrain = test(self.model, self.trainloader, self.device)
-                    (confidenceTrn, eval_resultsTrn) = predictionTrain # type: ignore
-                    confidencesTrn.append(confidenceTrn)
+                        _, _, predictionTrain = test(self.model, self.trainloader, self.device)
+                        (confidenceTrn, eval_resultsTrn) = predictionTrain # type: ignore
+                        confidencesTrn.append(confidenceTrn)
 
-                    try:
-                        eval_results_sum[1] += eval_resultsTrn 
-                    except IndexError:                    
-                        eval_results_sum.append(eval_resultsTrn)  # type: ignore
+                        try:
+                            eval_results_sum[1] += eval_resultsTrn 
+                        except IndexError:                    
+                            eval_results_sum.append(eval_resultsTrn)  # type: ignore
 
-                if self.mode == 2:                    
-                    client_prediction.append(np.mean(confidence ))
-                elif self.mode == 3:
-                    filtered_confidence = confidence[eval_results == 1]
-                    client_prediction.append(np.mean(filtered_confidence ))
-                # else:
-                #     print('Error in unexpected mode')
+                    if self.mode == 2:                    
+                        client_prediction.append(np.mean(confidence ))
+                    elif self.mode == 3:
+                        filtered_confidence = confidence[eval_results == 1]
+                        client_prediction.append(np.mean(filtered_confidence ))
+                    # else:
+                    #     print('Error in unexpected mode')
+                    #     pdb.set_trace()
+                # try:
+                most_confident_model_index  =  np.argmax(client_prediction) 
+                # except ValueError:
+                #     traceback.print_exc()
                 #     pdb.set_trace()
-            # try:
-            most_confident_model_index  =  np.argmax(client_prediction) 
-            # except ValueError:
-            #     traceback.print_exc()
-            #     pdb.set_trace()
-            # most_confident_model_index  =  np.argmax(client_prediction) 
-            # log(INFO, f'\n\n number of clients {len(weights_results)} ,  Maximum aggeed correct = {max(eval_results_sum)}\n\n') # type: ignore
-        if self.save_confidence:
-            self.save_to_file(confidences, server_round)
-            self.save_to_file(eval_results_sum, server_round, file_name = "eval_results")
-        
-        _, client_result = results[most_confident_model_index]
-        selected_weights_results = [(parameters_to_ndarrays(client_result.parameters), client_result.num_examples)]
+                # most_confident_model_index  =  np.argmax(client_prediction) 
+                # log(INFO, f'\n\n number of clients {len(weights_results)} ,  Maximum aggeed correct = {max(eval_results_sum)}\n\n') # type: ignore
+            if self.save_confidence:
+                self.save_to_file(confidences, server_round)
+                self.save_to_file(eval_results_sum, server_round, file_name = "eval_results")
+            
+            _, client_result = results[most_confident_model_index]
+            selected_weights_results = [(parameters_to_ndarrays(client_result.parameters), client_result.num_examples)]
 
-        parameters_selected = ndarrays_to_parameters(aggregate(selected_weights_results))
+            parameters_selected = ndarrays_to_parameters(aggregate(selected_weights_results))
 
-        metrics_aggregated = {}
-        if self.fit_metrics_aggregation_fn:
-            fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
-            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
-        elif server_round == 1:  # Only log this warning once
-            log(WARNING, "No fit_metrics_aggregation_fn provided")
-        
-        
-        # print(f"Selected client index: {most_confident_model_index}")
-        log(INFO, f"Selected client index: {most_confident_model_index}")
+            metrics_aggregated = {}
+            if self.fit_metrics_aggregation_fn:
+                fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+                metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+            elif server_round == 1:  # Only log this warning once
+                log(WARNING, "No fit_metrics_aggregation_fn provided")
+            
+            
+            # print(f"Selected client index: {most_confident_model_index}")
+            log(INFO, f"Selected client index: {most_confident_model_index}")
 
                 
 
 
 
-        # except Exception as e:
-        #     traceback.print_exc()
-        #     pdb.set_trace()
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
 
         return parameters_selected, metrics_aggregated

@@ -49,18 +49,23 @@ def get_device():
     else:
       return torch.device("cpu")
 
-def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None, no_FL = False):
+def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None, no_FL = False, eval=False):
     if device.type=="cuda":
         device_type = torch.cuda.get_device_name(0)  
     else:
         device_type = device.type
+
+    if eval:
+        training_val = 'Evaluating'
+    else:
+        training_val = 'Training'
         
     if teacher_name:
         print(f"\nDistiling {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     elif no_FL:
-        print(f"\n\tTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
+        print(f"\n\t{training_val} {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     else:
-        print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        print(f"\n{training_val} {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def verify_folder_exist(path):
     if not os.path.exists(path):

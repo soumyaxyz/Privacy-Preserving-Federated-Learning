@@ -23,7 +23,8 @@ def main():
     parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
     parser.add_argument('-hl','--headless', action='store_true', help='Enable headless mode')
     args = parser.parse_args()
-    model = load_model_defination(args.model_name, num_channels=3, num_classes=100)
+    [trainloaders, valloaders, _, _], num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    model = load_model_defination(args.model_name, num_channels=num_channels, num_classes=num_classes)
 
     device = get_device()
 
@@ -42,7 +43,7 @@ def main():
     
     print_info(device, args.model_name, args.dataset_name)
 
-    [trainloaders, valloaders, _, _], _, _ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+    
     client_defination = client_fn(args.client_number, model, trainloaders, valloaders, 
                                   args.number_of_total_clients, args.wandb_logging, args.dataset_name, 
                                   args.overfit_patience, simulation=args.headless

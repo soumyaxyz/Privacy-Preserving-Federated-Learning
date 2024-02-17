@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pdb
 
 # Specify the CSV file containing the data for the bar plots
-csv_file_name = "confidences_1.csv"
+csv_file_name = "results/strategy_cifar10/confidences_10.csv"
 
 # Read the data from the CSV file into a Pandas DataFrame
 df = pd.read_csv(csv_file_name, header=None)
@@ -18,7 +18,7 @@ plt.figure()
 for i, row in df.iterrows():
     row = row[:100]
     print(len(row))
-    pdb.set_trace()
+    # pdb.set_trace()
     plt.bar(range(len(row)), row, alpha=0.5, label=f'Bar Plot {i}')
 
 plt.title('Superimposed Bar Plots')

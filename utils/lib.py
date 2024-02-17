@@ -34,7 +34,12 @@ def modify_output(mode, target, function, *args, **kwargs):
         raise NotImplementedError
     
     # call the method in question
-    value = function(*args, **kwargs)
+    try:
+        value = function(*args, **kwargs)
+    except Exception as e:
+        value = None
+        traceback.print_exc()
+        pdb.set_trace()
     # enable all printing to the console
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
