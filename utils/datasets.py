@@ -85,6 +85,16 @@ def load_continuous_custom_dataset(splits_paths, combined_extra=False):
             else:
                 new_data_splits.append(split)
         data_splits = new_data_splits
+
+    new_data_splits = []
+    expanding_test_dataset = []
+    for i, split in tqdm(enumerate(data_splits), leave=False):
+        train_dataset_i, test_dataset_i, num_channels, num_classes = split
+        expanding_test_dataset.append(test_dataset_i)
+        split = (train_dataset_i, ConcatDataset(expanding_test_dataset), num_channels, num_classes)
+        new_data_splits.append(split)
+    data_splits = new_data_splits
+
     return data_splits
 
 
