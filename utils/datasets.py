@@ -1,6 +1,8 @@
 import os
 import cv2
 import numpy as np
+from tqdm import tqdm
+import pickle
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
@@ -15,7 +17,7 @@ class ContinuousDatasetWraper():
         self.splits = self._load_datasets(dataset_name)
 
 
-    @blockPrinting  
+    # @blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'continous_SVHN':
             return load_continuous_SVHN()
@@ -52,57 +54,98 @@ class DatasetWrapper():
     
 def load_continuous_SVHN():
     splits_paths=[
-        '/kaggle/input/svhn-cropped/extra_A_cropped_images',
-        '/kaggle/input/svhn-cropped/extra_B_cropped_images',
-        '/kaggle/input/svhn-cropped/extra_C_cropped_images',
-        '/kaggle/input/svhn-cropped/test_cropped_images',
-        '/kaggle/input/svhn-cropped/train_cropped_images'
+        './dataset/SVHN/extra_A',
+        './dataset/SVHN/extra_B',
+        './dataset/SVHN/extra_C',
+        './dataset/SVHN/train_cropped_images',
+        './dataset/SVHN/test_cropped_images'
     ]
 
     return load_continuous_custom_dataset(splits_paths)
 
-def load_continuous_custom_dataset(splits_paths):
+def load_continuous_custom_dataset(splits_paths, combined_extra=False):
     data_splits = []
-    for directory in splits_paths:
+    print('Loading custom continuous dataset...')
+    for directory in tqdm(splits_paths, leave=False):
         train_dataset, test_dataset, num_channels, num_classes = load_custom_dataset(directory, test_size=0.4)
         data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
+
+    if combined_extra:
+        new_data_splits = []
+        train_datasets = []
+        test_datasets = []
+        for i, split in tqdm(enumerate(data_splits), leave=False):
+            train_dataset_i, test_dataset_i, num_channels, num_classes = split
+            if i<3:
+                train_datasets.append(train_dataset_i)
+                test_datasets.append(test_dataset_i)
+                if i==2:
+                    split = (ConcatDataset(train_datasets), ConcatDataset(test_datasets), num_channels, num_classes)
+                    new_data_splits.append(split)
+            else:
+                new_data_splits.append(split)
+        data_splits = new_data_splits
     return data_splits
 
+
+
+
+
+
+def save_dataset(dataset, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(dataset, f)
+
+def load_dataset(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 def load_custom_dataset(directory, test_size=0.4):
     images = []
     labels = []
-    for label in os.listdir(directory):
-        label_dir = os.path.join(directory, label)
-        for img_file in os.listdir(label_dir):
-            img_path = os.path.join(label_dir, img_file)
-            img = cv2.imread(img_path)
-            img = cv2.resize(img, (32, 32))  # Resize image to a fixed size
-            images.append(img)
-            labels.append(int(label))
-   
-    # Transform the dataset
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
+    try:
+        train_dataset, test_dataset, num_channels, num_classes =  load_dataset(directory+'.pkl')
+    except:
+        print(f'\nPresaved dataset not found, Loading custom dataset from {directory}')
+        for label in tqdm(os.listdir(directory), leave=False):
+            label_dir = os.path.join(directory, label)
+            for img_file in tqdm(os.listdir(label_dir), leave=False):
+                img_path = os.path.join(label_dir, img_file)
+                img = cv2.imread(img_path)
+                img = cv2.resize(img, (32, 32))  # Resize image to a fixed size
+                images.append(img)
+                labels.append(int(label))
+    
+        # Transform the dataset
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
 
-    dataset = [(transform(img), label) for img, label in zip(images, labels)]
-   
-    # Calculate the sizes of the train and test sets based on the test_size ratio
-    test_size = int(len(dataset) * test_size)
-    train_size = len(dataset) - test_size
-   
-    # Split the dataset into training and test sets
-    torch.manual_seed(42)
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size]) # type: ignore
-   
-    num_channels = 3
-    num_classes = len(np.unique(labels))
+        dataset = [(transform(img), label) for img, label in zip(images, labels)]
+    
+        # Calculate the sizes of the train and test sets based on the test_size ratio
+        test_size = int(len(dataset) * test_size)
+        train_size = len(dataset) - test_size
+    
+        # Split the dataset into training and test sets
+        torch.manual_seed(42)
+        train_dataset, test_dataset = random_split(dataset, [train_size, test_size]) # type: ignore
+    
+        num_channels = 3
+        num_classes = len(np.unique(labels))
+
+        try:
+            save_dataset( (train_dataset, test_dataset, num_channels, num_classes), directory+'.pkl')
+        except Exception as e:
+            print('Error saving dataset:', e)
+
+
    
     return train_dataset, test_dataset, num_channels, num_classes
 
-
+def load_continuous_CIFAR100():
+    pass
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)
@@ -302,7 +345,10 @@ def split_dataset(trainset, testset, num_splits: int, split_test = False, val_pe
     valloaders = []
     val_datasets = []
     for ds in datasets:
-        len_val = len(ds) // val_percent  # 10 % validation set
+        if val_percent == 0:
+            len_val = 0
+        else:
+            len_val = len(ds) // val_percent  # 10 % validation set
         len_train = len(ds) - len_val
         lengths = [len_train, len_val]
         ds_train, ds_val = random_split(ds, lengths, torch.Generator().manual_seed(42))

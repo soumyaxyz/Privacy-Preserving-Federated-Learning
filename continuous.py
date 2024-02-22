@@ -8,6 +8,8 @@ from utils.training_utils import save_model, wandb_init,  print_info, get_device
 from utils.models import load_model_defination 
 import argparse
 import pdb,traceback
+import cProfile
+
 
 
 def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dataset_name='SVHN', target_dataset_name='MNIST', model_name = 'basicCNN'):
@@ -78,8 +80,6 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
 
     print_info(device, model_name, dataset_name)  
 
-
-
     continous_datasets = ContinuousDatasetWraper(dataset_name)
     saved_model_names = []
 
@@ -105,8 +105,7 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
         print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
             
         
-        if not savefilename:
-            savefilename = comment
+        savefilename = comment
 
         save_model(model, optimizer, savefilename)
 
@@ -142,5 +141,5 @@ def main():
             print(f'{saved_model_names=}')
         
 
-if __name__ == "__main__":       
-    main()
+if __name__ == "__main__":  
+    cProfile.run('main()', 'output.prof')  

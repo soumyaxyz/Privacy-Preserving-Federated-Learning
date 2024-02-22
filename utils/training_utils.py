@@ -202,7 +202,7 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
         optimizer = torch.optim.Adam(net.parameters())
     net.train()
     correct, total, epoch_loss = 0, 0, 0.0
-    for images, labels in trainloader:
+    for images, labels in tqdm(trainloader, leave=False):
         try:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -237,7 +237,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
         gold = []
         pred = []
         with torch.no_grad():
-            for images, labels in testloader:
+            for images, labels in tqdm(testloader, leave=False):
                 images, labels = images.to(device), labels.to(device)
                 outputs = net(images)
                 loss += criterion(outputs, labels).item()                
