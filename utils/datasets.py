@@ -6,10 +6,11 @@ import pickle
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
-from torch.utils.data import  Dataset, DataLoader, ConcatDataset, random_split
+from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, random_split
 from utils.lib import blockPrinting
 import pdb,traceback
 from typing import List
+import pprint
 
 class ContinuousDatasetWraper():
     def __init__(self, dataset_name = 'continous_SVHN'):
@@ -21,6 +22,8 @@ class ContinuousDatasetWraper():
     def _load_datasets(self, dataset_name):
         if dataset_name == 'continous_SVHN':
             return load_continuous_SVHN()
+        elif dataset_name == 'continous_CIFAR100':
+            return load_continuous_CIFAR100(remapping=[[0,1,2], [3,4], [5,6,7,8,9]]) #[[0,1,2],[3,4],[5,6,7], [8,9]]
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
@@ -71,21 +74,33 @@ def load_continuous_custom_dataset(splits_paths, combined_extra=False):
         data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
 
     if combined_extra:
-        new_data_splits = []
-        train_datasets = []
-        test_datasets = []
-        for i, split in tqdm(enumerate(data_splits), leave=False):
-            train_dataset_i, test_dataset_i, num_channels, num_classes = split
-            if i<3:
-                train_datasets.append(train_dataset_i)
-                test_datasets.append(test_dataset_i)
-                if i==2:
-                    split = (ConcatDataset(train_datasets), ConcatDataset(test_datasets), num_channels, num_classes)
-                    new_data_splits.append(split)
-            else:
-                new_data_splits.append(split)
-        data_splits = new_data_splits
+        data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
 
+    data_splits = implement_addetive_testset(data_splits)
+
+    return data_splits
+
+
+def combine_subsets(data_splits, subsets_groups):
+    new_data_splits = []
+    for group in subsets_groups:
+        if isinstance(group, list):  # Group is a list of indices to combine
+            train_datasets = [data_splits[i][0] for i in group]
+            test_datasets = [data_splits[i][1] for i in group]
+            # Assume num_channels and num_classes are consistent within the group
+            num_channels = data_splits[group[-1]][2]
+            num_classes = data_splits[group[-1]][3]
+            combined_train_dataset = ConcatDataset(train_datasets)
+            combined_test_dataset = ConcatDataset(test_datasets)
+            new_data_splits.append((combined_train_dataset, combined_test_dataset, num_channels, num_classes))
+        else:
+            # Group is a single index, include as is
+            new_data_splits.append(data_splits[group])
+    return new_data_splits
+
+
+
+def implement_addetive_testset(data_splits):
     new_data_splits = []
     expanding_test_dataset = []
     for i, split in tqdm(enumerate(data_splits), leave=False):
@@ -93,13 +108,7 @@ def load_continuous_custom_dataset(splits_paths, combined_extra=False):
         expanding_test_dataset.append(test_dataset_i)
         split = (train_dataset_i, ConcatDataset(expanding_test_dataset), num_channels, num_classes)
         new_data_splits.append(split)
-    data_splits = new_data_splits
-
-    return data_splits
-
-
-
-
+    return new_data_splits
 
 
 def save_dataset(dataset, filename):
@@ -154,8 +163,61 @@ def load_custom_dataset(directory, test_size=0.4):
    
     return train_dataset, test_dataset, num_channels, num_classes
 
-def load_continuous_CIFAR100():
-    pass
+def split_dataset_into_subsets(dataset, num_subsets=10):
+    # Assuming CIFAR-100 has 100 classes, grouped into 10 subsets
+    class_groups = {k: [] for k in range(num_subsets)}  # Dict to hold subsets
+
+    # Iterate through the dataset to group indices by class
+    for idx, (_, label) in enumerate(dataset):
+        # group_key = label // (100 // num_subsets)  # Determine the subset group
+        group_key = label % num_subsets  # Group by modulo 10 of the label
+        class_groups[group_key].append(idx)
+
+    # Create a subset for each group
+    subsets = [Subset(dataset, indices) for indices in class_groups.values()]
+    return subsets
+
+
+
+
+class Modulo10Dataset(Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        img, label = self.dataset[idx]
+        # Modify the label to be the new label based on modulo 10
+        mod_label = label % 10
+        return img, mod_label
+
+
+
+
+def load_continuous_CIFAR100(remapping= None):
+    trainset, testset, num_channels, _ = load_CIFAR100()
+    num_classes = 10
+    # Split both train and test sets into 10 subsets
+    train_subsets = split_dataset_into_subsets(trainset)
+    test_subsets = split_dataset_into_subsets(testset)
+
+    train_subsets = [Modulo10Dataset(subset) for subset in train_subsets]
+    test_subsets = [Modulo10Dataset(subset) for subset in test_subsets]
+
+
+    # Combine the train and test subsets along with num_channels and num_classes into a list of tuples
+    data_splits = [(train_subsets[i], test_subsets[i], num_channels, num_classes) for i in range(len(train_subsets))]
+
+    data_splits = mix_subsets(data_splits)
+
+    data_splits = implement_addetive_testset(data_splits)
+
+    if remapping is not None:
+        data_splits = combine_subsets(data_splits, remapping)
+
+    return data_splits
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)
@@ -240,7 +302,89 @@ def load_FashionMNIST():
 
     return trainset, testset, num_channels, num_classes
 
+def get_mixing_proportions(num_classes = 10, seed_value=42):
 
+    # Set the seed for reproducibility
+    np.random.seed(seed_value)
+
+    # Generate a random 10x10 matrix
+    matrix = np.random.rand(num_classes, num_classes)
+
+    # Normalize each row to sum up to 1
+    matrix_normalized = matrix / matrix.sum(axis=1)[:, np.newaxis] 
+
+    # Round the normalized matrix to 2 decimal places
+    matrix_rounded = np.around(matrix_normalized, decimals=2)
+
+    # Set the last column to 1 - the sum of the other columns, adjusting for rounding errors
+    for row in matrix_rounded:
+        row[-1] = 1 - row[:-1].sum()
+
+
+    return matrix_rounded
+
+def mix_subsets(subsets, proportions=None, seed_value=42):
+    """
+    Mix subsets according to user-defined proportions.
+
+    Args:
+    - subsets: A list of dataset subsets to mix.
+    - proportions: A list of proportions for each subset.
+    
+    Returns:
+    - A new dataset consisting of mixed subsets.
+    """
+    num_splits = len(subsets)
+    if proportions is None:
+        proportions = get_mixing_proportions(num_splits, seed_value)
+    else:
+        assert num_splits == len(proportions)
+        
+    
+    pprint.pprint(proportions)
+
+    # Initialize empty lists for the new subsets
+    new_train_datasets = [[] for _ in range(num_splits)]
+    new_test_datasets = [[] for _ in range(num_splits)]
+    new_data_splits = []
+
+    generator = torch.Generator().manual_seed(seed_value)
+
+
+    try:
+
+        # Loop through each original subset
+        for i, subset in enumerate(subsets):
+            trainset_i, testset_i, num_channels, num_classes = subset
+            
+            # Calculate lengths for the new subsets
+            lengths_train = [int(p * len(trainset_i)) for p in proportions[i]]
+            lengths_test = [int(p * len(testset_i)) for p in proportions[i]]
+
+            #fix for rounding errors
+            lengths_train[-1] = len(trainset_i)-sum(lengths_train[:-1]) 
+            lengths_test[-1] = len(testset_i)-sum(lengths_test[:-1])
+
+            # Split the original subsets into new subsets based on the calculated lengths
+            train_splits = random_split(trainset_i, lengths_train, generator=generator)
+            test_splits = random_split(testset_i, lengths_test, generator=generator)
+
+            # Accumulate the splits into the corresponding new datasets arrays
+            for i, split in enumerate(train_splits):
+                new_train_datasets[i].append(split)  
+            
+            for i, split in enumerate(test_splits):
+                new_test_datasets[i].append(split)  
+
+        # Now, concatenate the accumulated subsets
+        for i, (trn_datasets, tst_datasets) in enumerate(zip(new_train_datasets, new_test_datasets)):
+            split = (ConcatDataset(trn_datasets), ConcatDataset(tst_datasets), num_channels, num_classes)
+            new_data_splits.append(split)
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
+
+    return new_data_splits
 
 
 

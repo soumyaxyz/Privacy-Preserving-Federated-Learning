@@ -204,6 +204,8 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
     correct, total, epoch_loss = 0, 0, 0.0
     for images, labels in tqdm(trainloader, leave=False):
         try:
+            if  len(labels) <= 1: #ignore single sample batches
+                break
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = net(images)

@@ -72,7 +72,7 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
 
 
-def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet'):
+def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2):
 
     # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
     model = load_model_defination(model_name, num_channels=3, num_classes=10).to(device)
@@ -95,7 +95,7 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
             wandb.watch(model, log_freq=100)
             
 
-        model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
+        model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging, patience=patience)
         loss, accuracy, _ = test(model, test_loader)
 
         if wandb_logging:
@@ -103,6 +103,10 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
             wandb.finish()
         print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
         print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
+        print('\n')
+        # Print a line of dashes
+        print('-' * 20)
+        print('\n')
             
         
         savefilename = comment
@@ -126,6 +130,7 @@ def main():
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
     parser.add_argument('-d', '--dataset_name', type=str, default='continous_SVHN', help='Dataset name')
     parser.add_argument('-sd', '--source_dataset_name', type=str, default='SVHN', help='Source_dataset name')
+    parser.add_argument('-p', '--patience', type=int, default=5, help='Patience')
     parser.add_argument('-td', '--target_dataset_name', type=str, default='MNIST', help='Target_dataset name')
     parser.add_argument('-m', '--model_name', type=str, default='efficientnet', help='Model name')
     parser.add_argument('-pm', '--pretrained_model', type=str, default= None, help='if provided, evaluate transfer learning on this saved model')
@@ -137,7 +142,7 @@ def main():
         transfer_learning(args.pretrained_model, device, args.wandb_logging,  args.source_dataset_name, args.target_dataset_name, args.model_name)
     else:
         for _ in range(args.num_experiments):
-            saved_model_names = continous_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name)
+            saved_model_names = continous_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name, args.patience)
             print(f'{saved_model_names=}')
         
 
