@@ -244,10 +244,8 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                 outputs = net(images)
                 loss += criterion(outputs, labels).item()                
                 total += labels.size(0)
-                if is_binary:
-                    correct += (torch.round(outputs.data) == labels).sum().item()
-                else:
-                    correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+                
+                   
 
 
                 if plot_ROC:
@@ -257,13 +255,14 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
                 else:
-                    outputs = torch.nn.functional.softmax(outputs, dim=1)
+                    # outputs = torch.nn.functional.softmax(outputs, dim=1)
                     # pdb.set_trace()
                     if is_binary:
                         correct += (torch.round(outputs.data) == labels).sum().item()
                         confidence = torch.sigmoid(outputs).cpu().numpy()
                         prediction = (confidence >= 0.5).astype(np.int64)
                     else:
+                        correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
                         ( confidence, prediction) = torch.max(outputs, 1)
                         confidence = confidence.cpu().numpy()
                         prediction = prediction.cpu().numpy()
