@@ -1,3 +1,0 @@
-[submodule "utils/CIFAR100_remapping"]
-	path = utils/CIFAR100_remapping
-	url = https://gist.github.com/soumyaxyz/0858c35f9eefd0bf5fab02731a541201
