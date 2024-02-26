@@ -7,11 +7,11 @@ from copy import deepcopy
 from torch.utils.data import  DataLoader, ConcatDataset, Subset, random_split 
 from utils.models import load_model_defination
 from utils.training_utils import get_device, save_loss_dataset, load_loss_dataset, train_shadow_model, wandb_init, print_info, save_model,train, test, load_model as load_saved_weights
-from utils.datasets import DatasetWrapper, Loss_Label_Dataset, load_dataloaders
+from utils.datasets import DatasetWrapper, ContinuousDatasetWraper, Loss_Label_Dataset, load_dataloaders
 
 
 class Classwise_membership_inference_attack:
-    def __init__(self, target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging=False):
+    def __init__(self, target_model, target_dataset, attack_instance, target_model_name, wandb_logging=False):
         
         # self.shadow_count = shadow_count
 
@@ -19,7 +19,7 @@ class Classwise_membership_inference_attack:
         self.target_model_name      = target_model_name
         # self.target_dataset_name    = target_dataset_name
         # _, self.num_classes         = get_datasets_details(self.target_dataset_name)
-        self.target_dataset         = DatasetWrapper(target_dataset_name)
+        self.target_dataset         = target_dataset
         # self.datasets_details       = get_datasets_details(target_dataset_name)
         self.attack_instance        = attack_instance
         self.wandb_logging          = wandb_logging    
@@ -75,13 +75,15 @@ class Classwise_membership_inference_attack:
         
 
 class Combined_membership_inference_attack(Classwise_membership_inference_attack):
-    def __init__(self, target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging=False):
-        super().__init__(target_model, target_dataset_name, attack_instance, target_model_name, wandb_logging)
+    def __init__(self, target_model, target_dataset, attack_instance, target_model_name, wandb_logging=False):
+        super().__init__(target_model, target_dataset, attack_instance, target_model_name, wandb_logging)
 
     def start(self):
         loss, accuracy = 0.0, 0.0
         
         print(f'\nMembership Inference Attack Instance on all classes at once initialized')
+
+        
         class_wise_datasets = [self.target_dataset.trainset, self.target_dataset.testset]
 
         self.attack_instance.define_target_model_and_datasets(-1, self.target_model, class_wise_datasets, self.target_dataset, self.target_model_name)
@@ -483,8 +485,14 @@ def argument_parser():
 def main(args): 
     device = get_device()
     # pdb.set_trace()
-
-    target_dataset = DatasetWrapper(args.dataset_name)
+    try:
+        target_dataset = DatasetWrapper(args.dataset_name)
+    except NotImplementedError as e:
+        # dataset_name_and_index = 
+        dataset_name, index = args.dataset_name.split('-')
+        print(f'Loading {dataset_name} with index {index}')
+        target_dataset = ContinuousDatasetWraper(dataset_name)
+        target_dataset.select_split(int(index))
     
     mode    = 'Combined Class' if args.combined_class else 'Classwise'
     suffix  = 'batchwise' if args.batchwise_loss else 'samplewise'
@@ -508,9 +516,9 @@ def main(args):
                                                         )
 
     if args.combined_class:
-        attack = Combined_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.target_model_weights, args.wandb_logging)
+        attack = Combined_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
     else:
-        attack = Classwise_membership_inference_attack(target_model, args.dataset_name, attack_instance, args.target_model_weights, args.wandb_logging)
+        attack = Classwise_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
     
     
 

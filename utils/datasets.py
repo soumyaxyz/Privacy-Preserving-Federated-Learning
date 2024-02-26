@@ -29,6 +29,10 @@ class ContinuousDatasetWraper():
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
         
+    def select_split(self, split):
+        self.trainset, self.testset, self.num_channels, self.num_classes = self.splits[split]
+
+        
 
 
 class DatasetWrapper():
@@ -37,7 +41,7 @@ class DatasetWrapper():
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
 
 
-    @blockPrinting  
+    #@blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'CIFAR10':
             return load_CIFAR10()
