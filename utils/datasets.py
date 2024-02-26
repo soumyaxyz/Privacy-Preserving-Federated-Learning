@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
 from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, random_split
 from utils.lib import blockPrinting
+from utils.CIFAR100_remapping.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
 import pprint
@@ -23,7 +24,7 @@ class ContinuousDatasetWraper():
         if dataset_name == 'continous_SVHN':
             return load_continuous_SVHN()
         elif dataset_name == 'continous_CIFAR100':
-            return load_continuous_CIFAR100(remapping=[[0,1,2], [3,4], [5,6,7,8,9]]) #[[0,1,2],[3,4],[5,6,7], [8,9]]
+            return load_continuous_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]]) #[[0,1,2],[3,4],[5,6,7], [8,9]]
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
@@ -180,31 +181,33 @@ def split_dataset_into_subsets(dataset, num_subsets=10):
 
 
 
-class Modulo10Dataset(Dataset):
+class CIFAR_20_Dataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
+        self.remap = remapping()
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
         img, label = self.dataset[idx]
-        # Modify the label to be the new label based on modulo 10
-        mod_label = label % 10
-        return img, mod_label
+        # # Modify the label to be the new label based on modulo 10
+        # mod_label = label % 10
+        coarse_label = self.remap.fine_id_coarse_id[label]
+        return img, coarse_label
 
 
 
 
 def load_continuous_CIFAR100(remapping= None):
     trainset, testset, num_channels, _ = load_CIFAR100()
-    num_classes = 10
-    # Split both train and test sets into 10 subsets
-    train_subsets = split_dataset_into_subsets(trainset)
-    test_subsets = split_dataset_into_subsets(testset)
+    num_classes = 20
+    # Split both train and test sets into 20 subsets
+    train_subsets = split_dataset_into_subsets(trainset, num_classes)
+    test_subsets = split_dataset_into_subsets(testset, num_classes)
 
-    train_subsets = [Modulo10Dataset(subset) for subset in train_subsets]
-    test_subsets = [Modulo10Dataset(subset) for subset in test_subsets]
+    train_subsets = [CIFAR_20_Dataset(subset) for subset in train_subsets]
+    test_subsets = [CIFAR_20_Dataset(subset) for subset in test_subsets]
 
 
     # Combine the train and test subsets along with num_channels and num_classes into a list of tuples
@@ -213,6 +216,8 @@ def load_continuous_CIFAR100(remapping= None):
     data_splits = mix_subsets(data_splits)
 
     data_splits = implement_addetive_testset(data_splits)
+
+    # pdb.set_trace()
 
     if remapping is not None:
         data_splits = combine_subsets(data_splits, remapping)
@@ -302,7 +307,7 @@ def load_FashionMNIST():
 
     return trainset, testset, num_channels, num_classes
 
-def get_mixing_proportions(num_classes = 10, seed_value=42):
+def get_mixing_proportions(num_classes = 20, seed_value=42):
 
     # Set the seed for reproducibility
     np.random.seed(seed_value)
@@ -319,6 +324,7 @@ def get_mixing_proportions(num_classes = 10, seed_value=42):
     # Set the last column to 1 - the sum of the other columns, adjusting for rounding errors
     for row in matrix_rounded:
         row[-1] = 1 - row[:-1].sum()
+        assert row.sum() == 1
 
 
     return matrix_rounded
@@ -341,7 +347,7 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
         assert num_splits == len(proportions)
         
     
-    pprint.pprint(proportions)
+    # pprint.pprint(proportions)
 
     # Initialize empty lists for the new subsets
     new_train_datasets = [[] for _ in range(num_splits)]
@@ -360,6 +366,7 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
             # Calculate lengths for the new subsets
             lengths_train = [int(p * len(trainset_i)) for p in proportions[i]]
             lengths_test = [int(p * len(testset_i)) for p in proportions[i]]
+            
 
             #fix for rounding errors
             lengths_train[-1] = len(trainset_i)-sum(lengths_train[:-1]) 

@@ -73,18 +73,23 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
 
 def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2):
-
-    # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model_defination(model_name, num_channels=3, num_classes=10).to(device)
-    optimizer = torch.optim.Adam(model.parameters())
+    
 
     print_info(device, model_name, dataset_name)  
 
     continous_datasets = ContinuousDatasetWraper(dataset_name)
     saved_model_names = []
 
+    _, _, num_channels, num_classes = continous_datasets.splits[0]
+
+    model = load_model_defination(model_name, num_channels, num_classes).to(device)
+    optimizer = torch.optim.Adam(model.parameters())
+
     for i,dataset_split in enumerate(continous_datasets.splits):
-        [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_continous_datasets(num_clients=1, dataset_split=dataset_split)
+        [train_loaders, val_loaders, test_loader, _ ], num_channels_i, num_classes_i = load_partitioned_continous_datasets(num_clients=1, dataset_split=dataset_split)
+        assert num_channels_i == num_channels
+        assert num_classes_i == num_classes
+
         train_loader = train_loaders[0]
         val_loader = val_loaders[0]        
         
