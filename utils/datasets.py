@@ -8,15 +8,19 @@ import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
 from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, random_split
 from utils.lib import blockPrinting
-from utils.CIFAR100_remapping.cifar100_fine_coarse_labels import remapping
+from utils.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
 import pprint
 
 class ContinuousDatasetWraper():
-    def __init__(self, dataset_name = 'continous_SVHN'):
+    def __init__(self, dataset_name = 'continous_SVHN', attack_mode = False):
         self.name = dataset_name
         self.splits = self._load_datasets(dataset_name)
+        if attack_mode:
+            self.splits = implement_addetive_dataset(self.splits, additive_train =True)
+
+
 
 
     # @blockPrinting  
@@ -28,6 +32,7 @@ class ContinuousDatasetWraper():
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
+        
         
     def select_split(self, split):
         self.trainset, self.testset, self.num_channels, self.num_classes = self.splits[split]
@@ -53,7 +58,7 @@ class DatasetWrapper():
             return load_FashionMNIST()
         elif dataset_name == "SVHN":
             return load_SVHN()
-        elif dataset_name == 'continous_SVHN':
+        elif dataset_name.contains('continous'):
             raise Exception('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
         else:
             # import pdb; pdb.set_trace()
@@ -69,9 +74,9 @@ def load_continuous_SVHN():
         './dataset/SVHN/test_cropped_images'
     ]
 
-    return load_continuous_custom_dataset(splits_paths)
+    return load_continuous_local_dataset(splits_paths)
 
-def load_continuous_custom_dataset(splits_paths, combined_extra=False):
+def load_continuous_local_dataset(splits_paths, combined_extra=False):
     data_splits = []
     print('Loading custom continuous dataset...')
     for directory in tqdm(splits_paths, leave=False):
@@ -81,7 +86,7 @@ def load_continuous_custom_dataset(splits_paths, combined_extra=False):
     if combined_extra:
         data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
 
-    data_splits = implement_addetive_testset(data_splits)
+    data_splits = implement_addetive_dataset(data_splits)
 
     return data_splits
 
@@ -105,13 +110,17 @@ def combine_subsets(data_splits, subsets_groups):
 
 
 
-def implement_addetive_testset(data_splits):
+def implement_addetive_dataset(data_splits, additive_train =False):
     new_data_splits = []
-    expanding_test_dataset = []
+    expanding_dataset = []
     for i, split in tqdm(enumerate(data_splits), leave=False):
         train_dataset_i, test_dataset_i, num_channels, num_classes = split
-        expanding_test_dataset.append(test_dataset_i)
-        split = (train_dataset_i, ConcatDataset(expanding_test_dataset), num_channels, num_classes)
+        if additive_train:
+            expanding_dataset.append(train_dataset_i)
+            split = (ConcatDataset(expanding_dataset), test_dataset_i, num_channels, num_classes)
+        else:
+            expanding_dataset.append(test_dataset_i)
+            split = (train_dataset_i, ConcatDataset(expanding_dataset), num_channels, num_classes)
         new_data_splits.append(split)
     return new_data_splits
 
@@ -219,7 +228,7 @@ def load_continuous_CIFAR100(remapping= None):
 
     data_splits = mix_subsets(data_splits)
 
-    data_splits = implement_addetive_testset(data_splits)
+    data_splits = implement_addetive_dataset(data_splits)
 
     # pdb.set_trace()
 

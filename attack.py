@@ -476,6 +476,7 @@ def argument_parser():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-ld', '--load_attack_dataset', action='store_true', help='Instead of building attack dataset, load pre-existing attack dataset from disc')
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
+    parser.add_argument('-a', '--addtive_train', action='store_true', help='Train the attack model with additve trainset')
 
     parser.set_defaults(load_attack_dataset=True)
     args = parser.parse_args()   
@@ -491,7 +492,7 @@ def main(args):
         # dataset_name_and_index = 
         dataset_name, index = args.dataset_name.split('-')
         print(f'Loading {dataset_name} with index {index}')
-        target_dataset = ContinuousDatasetWraper(dataset_name)
+        target_dataset = ContinuousDatasetWraper(dataset_name, attack_mode=args.addtive_train)
         target_dataset.select_split(int(index))
     
     mode    = 'Combined Class' if args.combined_class else 'Classwise'
