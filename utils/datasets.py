@@ -25,10 +25,10 @@ class ContinuousDatasetWraper():
 
     # @blockPrinting  
     def _load_datasets(self, dataset_name):
-        if dataset_name == 'continous_SVHN':
+        if dataset_name == 'continuous_SVHN':
             return load_continuous_SVHN()
-        elif dataset_name == 'continous_CIFAR100':
-            return load_continuous_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]]) #[[0,1,2],[3,4],[5,6,7], [8,9]]
+        elif dataset_name == 'continuous_CIFAR100':
+            return load_continuous_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]])
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
@@ -58,8 +58,8 @@ class DatasetWrapper():
             return load_FashionMNIST()
         elif dataset_name == "SVHN":
             return load_SVHN()
-        elif dataset_name.contains('continous'):
-            raise Exception('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
+        elif 'continuous' in dataset_name:
+            raise NotImplementedError('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
         else:
             # import pdb; pdb.set_trace()
             print(f'Unknown dataset name: {dataset_name}')
