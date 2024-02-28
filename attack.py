@@ -476,7 +476,7 @@ def argument_parser():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-ld', '--load_attack_dataset', action='store_true', help='Instead of building attack dataset, load pre-existing attack dataset from disc')
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
-    parser.add_argument('-a', '--addtive_train', action='store_true', help='Train the attack model with additve trainset')
+    parser.add_argument('-at', '--addtive_train', action='store_true', help='Train the attack model with additve trainset')
 
     parser.set_defaults(load_attack_dataset=True)
     args = parser.parse_args()   

@@ -12,6 +12,37 @@ from utils.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
 import pprint
+import matplotlib.pyplot as plt
+
+def unnormalize(image, transform):
+    # Assuming the last step in the transform is Normalize
+    # Extract the mean and std directly from the transform
+    for t in transform.transforms:
+        if isinstance(t, transforms.Normalize):
+            mean = torch.tensor(t.mean).view(3, 1, 1)
+            std = torch.tensor(t.std).view(3, 1, 1)
+            break
+    
+    image = image * std + mean  # Unnormalize
+    image = image.clamp(0, 1)  # Ensure values are within [0, 1]
+    return image
+
+
+def show_img(data_point, transform):
+
+    image, label = data_point
+
+    image = unnormalize(image, transform)
+    
+    image = image.numpy()
+    plt.imshow(np.transpose(image, (1, 2, 0)))
+
+    # Display the plot
+    plt.title(f'Label: {label}')
+    plt.show()
+
+# show_img(trainset[i], transform)
+
 
 class ContinuousDatasetWraper():
     def __init__(self, dataset_name = 'continous_SVHN', attack_mode = False):
@@ -281,6 +312,14 @@ def load_SVHN():
     )
     trainset = SVHN("./dataset", split="train", download=True, transform=transform)
     testset = SVHN("./dataset", split="test", download=True, transform=transform)
+
+    
+    
+
+
+    # Convert tensor to numpy array and change channel order for displaying
+    
+
 
     num_channels=3
     num_classes = 10
