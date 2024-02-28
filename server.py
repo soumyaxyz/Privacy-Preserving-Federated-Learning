@@ -1,3 +1,4 @@
+from time import sleep
 import flwr as fl
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
@@ -124,13 +125,19 @@ def main():
             
             comments = run_server_once(args, model, loaders) 
             saved_model_names.append(comments)
-            
+            print(f'\n\nDone with data split {i}\n\n')
+            sleep(5)
+        
+        print(f'Saved model names: {saved_model_names}')
+
         
     else:    
         
         loaders, num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
         model = load_model_defination(args.model_name, num_channels, num_classes) 
         comments = run_server_once(args, model, loaders)
+
+    
         
         
         

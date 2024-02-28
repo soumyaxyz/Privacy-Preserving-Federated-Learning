@@ -1,3 +1,4 @@
+from time import sleep
 import flwr as fl
 import argparse
 from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets
@@ -5,6 +6,34 @@ from utils.training_utils import print_info, get_device
 from utils.client_utils import client_fn, get_certificate
 from utils.models import load_model_defination
 import pdb, traceback
+
+def wait_and_retry(server_address, client_definition,certificate, debug=False, tries=10):
+    print('Server unavailable. Retrying in 5 seconds...')
+    sleep(5)
+    attempts = 1   
+    while attempts<=tries:
+        try:
+            fl.client.start_numpy_client(server_address=server_address, 
+                                         client=client_definition,
+                                         root_certificates=certificate)
+            attempts = tries+1  # Exit loop after successful connection
+        except KeyboardInterrupt:
+            break  # Exit loop on CTRL+C
+        except Exception as e:
+            if 'UNAVAILABLE' in str(e):
+                print('Server unavailable. Retrying in 5 seconds...')
+                sleep(5)  # Wait before retrying
+                attempts += 1
+            else:
+                if debug:
+                    traceback.print_exc()
+                    pdb.set_trace()
+                else:
+                    print("Stopped with errors. Exiting.")
+                attempts = tries+1  # Do not retry for non-UNAVAILABLE errors
+
+
+
 
 def run_client_once(args, model, trainloaders, valloaders):
     device = get_device()
@@ -25,20 +54,27 @@ def run_client_once(args, model, trainloaders, valloaders):
     print_info(device, args.model_name, args.dataset_name)
 
     
-    client_defination = client_fn(args.client_number, model, trainloaders, valloaders, 
+    client_definition = client_fn(args.client_number, model, trainloaders, valloaders, 
                                   args.number_of_total_clients, args.wandb_logging, args.dataset_name, 
                                   args.overfit_patience, simulation=args.headless
                                   )
+    
+    server_address=args.server_address+':'+ args.server_port 
+
     try:
         fl.client.start_numpy_client(
-                                    server_address=args.server_address+':'+ args.server_port, 
-                                    client=client_defination,
+                                    server_address=server_address, 
+                                    client=client_definition,
                                     root_certificates=certificate
                                     )
+    # except WSA Error
     except KeyboardInterrupt:
         print("Stopped with by user. Exiting.")
     except Exception as e:
-        if args.debug:
+        error_message = str(e)
+        if 'UNAVAILABLE' in error_message: # 'UNAVAILABLE'
+            wait_and_retry(server_address, client_definition,certificate, args.debug)  
+        elif args.debug:
             traceback.print_exc()
             pdb.set_trace()
         else:
@@ -73,6 +109,8 @@ def main():
             assert num_classes_i == num_classes
             
             run_client_once(args, model, trainloaders, valloaders) 
+
+            print(f'\n\nDone with data split {i}\n\n')
     else:
         [trainloaders, valloaders, _, _], num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
         model = load_model_defination(args.model_name, num_channels=num_channels, num_classes=num_classes)
