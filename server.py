@@ -1,5 +1,7 @@
 from time import sleep
 import flwr as fl
+from opacus import PrivacyEngine
+import torch
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
 from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, merge_dataloaders
@@ -8,10 +10,14 @@ from utils.server_utils import Server_details
 import pdb, traceback
 
 
-def run_server_once(args, model, loaders):
+def run_server_once(args, model, loaders, optimizer, differential_privacy=False):
     [trainloaders,_,test_loader , valloader_all] = loaders
 
     trainloader_all = merge_dataloaders(trainloaders) 
+
+    if  differential_privacy:
+        privacy_engine = PrivacyEngine()
+        model, optimizer, trainloader_all = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=trainloader_all, noise_multiplier=1.1, max_grad_norm=1.0)
 
     device = get_device()
     print_info(device, args.model_name, args.dataset_name)
@@ -106,6 +112,7 @@ def main():
     parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
     parser.add_argument('-e', '--epochs_per_round', type=int, default = 1, help='Epochs of training in client per round')
+    parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
     args = parser.parse_args()
     
     # 
@@ -116,14 +123,15 @@ def main():
         saved_model_names = []
 
         _, _, num_channels, num_classes = continous_datasets.splits[0]
-        model = load_model_defination(args.model_name, num_channels, num_classes)
+        model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy)
+        optimizer = torch.optim.Adam(model.parameters())
 
         for i,dataset_split in enumerate(continous_datasets.splits):
             loaders, num_channels_i, num_classes_i = load_partitioned_continous_datasets(num_clients=args.number_of_total_clients, dataset_split=dataset_split) 
             assert num_channels_i == num_channels
             assert num_classes_i == num_classes
             
-            comments = run_server_once(args, model, loaders) 
+            comments = run_server_once(args, model, loaders, optimizer) 
             saved_model_names.append(comments)
             print(f'\n\nDone with data split {i}\n\n')
             sleep(5)
@@ -134,8 +142,9 @@ def main():
     else:    
         
         loaders, num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
-        model = load_model_defination(args.model_name, num_channels, num_classes) 
-        comments = run_server_once(args, model, loaders)
+        model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy) 
+        optimizer = torch.optim.Adam(model.parameters())
+        comments = run_server_once(args, model, loaders, optimizer)
 
     
         

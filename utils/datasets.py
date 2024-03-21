@@ -72,29 +72,57 @@ class ContinuousDatasetWraper():
 
 
 class DatasetWrapper():
-    def __init__(self, dataset_name = 'CIFAR10'):
+    def __init__(self, dataset_name = 'CIFAR10', audit_mode = False):
         self.name = dataset_name
+        self.audit_mode = audit_mode
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
 
 
     #@blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'CIFAR10':
-            return load_CIFAR10()
+            trainset, testset, num_channels, num_classes = load_CIFAR10()
         elif dataset_name == 'CIFAR100':
-            return load_CIFAR100()
+            trainset, testset, num_channels, num_classes =  load_CIFAR100()
         elif dataset_name == 'MNIST':
-            return load_MNIST()
+            trainset, testset, num_channels, num_classes =  load_MNIST()
         elif dataset_name == 'FashionMNIST':
-            return load_FashionMNIST()
+            trainset, testset, num_channels, num_classes =  load_FashionMNIST()
         elif dataset_name == "SVHN":
-            return load_SVHN()
+            trainset, testset, num_channels, num_classes =  load_SVHN()
         elif 'continuous' in dataset_name:
             raise NotImplementedError('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
         else:
             # import pdb; pdb.set_trace()
-            print(f'Unknown dataset name: {dataset_name}')
-            raise NotImplementedError
+            print(f'Unknown dataset name: {dataset_name}')            
+            raise NotImplementedError   
+        trainset, testset = self.remap_dataset(trainset, testset)
+
+        return trainset, testset, num_channels, num_classes
+        
+
+    def remap_dataset(self, trainset, testset,  train_percent = 0.3, test_percent = 0.3 , validation_percent = 0.1, audit_percent = 0.3):
+    
+        # Concatenate train and test sets
+        full_dataset = ConcatDataset([trainset, testset])
+
+        # Determine sizes of subsets
+        num_samples = len(full_dataset)
+
+        audit_train_size = int(num_samples * audit_percent)
+        #audit_test_size = int(num_samples * validation_percent)
+
+        train_size = int(num_samples * (train_percent+validation_percent))
+        test_size = int(num_samples * test_percent)
+
+        audit_test_size = num_samples - (audit_train_size + train_size + test_size)        
+
+        # Split the concatenated dataset into subsets
+        train_set, test_set, audit_train_set, audit_test_set = random_split(full_dataset, [train_size, test_size, audit_train_size, audit_test_size], torch.Generator().manual_seed(42) )
+        if self.audit_mode:
+            train_set = audit_train_set
+            test_set = audit_test_set
+        return train_set, test_set
     
 def load_continuous_SVHN():
     splits_paths=[
@@ -106,6 +134,9 @@ def load_continuous_SVHN():
     ]
 
     return load_continuous_local_dataset(splits_paths)
+
+
+
 
 def load_continuous_local_dataset(splits_paths, combined_extra=False):
     data_splits = []
@@ -543,7 +574,7 @@ class Error_Label_Dataset(Loss_Label_Dataset):
 
 
 def split_dataset(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
-
+    
 
     # Split training set into `num_clients` partitions to simulate different local datasets
     total_size = len(trainset)

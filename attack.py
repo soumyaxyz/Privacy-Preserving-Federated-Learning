@@ -6,7 +6,7 @@ import wandb
 from copy import deepcopy
 from torch.utils.data import  DataLoader, ConcatDataset, Subset, random_split 
 from utils.models import load_model_defination
-from utils.training_utils import get_device, save_loss_dataset, load_loss_dataset, train_shadow_model, wandb_init, print_info, save_model,train, test, load_model as load_saved_weights
+from utils.training_utils import get_device, make_private, save_loss_dataset, load_loss_dataset, train_shadow_model, wandb_init, print_info, save_model,train, test, load_model as load_saved_weights
 from utils.datasets import DatasetWrapper, ContinuousDatasetWraper, Loss_Label_Dataset, load_dataloaders
 
 
@@ -17,12 +17,12 @@ class Classwise_membership_inference_attack:
 
         self.target_model           = target_model
         self.target_model_name      = target_model_name
-        # self.target_dataset_name    = target_dataset_name
+        # self.target_dataset_name    = target_dataset_name 
         # _, self.num_classes         = get_datasets_details(self.target_dataset_name)
         self.target_dataset         = target_dataset
         # self.datasets_details       = get_datasets_details(target_dataset_name)
         self.attack_instance        = attack_instance
-        self.wandb_logging          = wandb_logging    
+        self.wandb_logging          = wandb_logging   
 
     def split_dataset_by_label(self, dataset):   
         class_datasets = [[] for _ in range(self.target_dataset.num_classes)]      
@@ -124,7 +124,8 @@ class Membership_inference_attack_instance:
                  shadow_distilled=False,
                  shadow_epochs=50, 
                  attack_epochs=50, 
-                 wandb_logging=False
+                 wandb_logging=False,
+                 differential_privacy=False
                  ):
 
         
@@ -140,6 +141,7 @@ class Membership_inference_attack_instance:
         self.batchwise_loss             = batchwise_loss
         self.save_attack_dataset        = save_attack_dataset
         self.load_saved_attack_dataset  = load_attack_dataset
+        self.differential_privacy       = differential_privacy
         try:
             assert self.save_attack_dataset != self.load_saved_attack_dataset
         except AssertionError as e:
@@ -177,7 +179,7 @@ class Membership_inference_attack_instance:
 
 
         for _ in range(self.shadow_count):
-            self.shadow_models.append(load_model_defination(self.shadow_model_name, self.target_dataset.num_channels, self.target_dataset.num_classes).to(self.device))
+            self.shadow_models.append(load_model_defination(self.shadow_model_name, self.target_dataset.num_channels, self.target_dataset.num_classes, self.differential_privacy).to(self.device))
 
         self.shadow_train_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
         if self.wandb_logging:
@@ -374,7 +376,10 @@ class Membership_inference_attack_instance:
         loss, accuracy, _ = test(self.target_model, target_dataloader)
         print(f'\n\tFor the target model on the target test set, Loss: {loss}, Accuracy: {accuracy}')
 
-        for i in range(self.shadow_count):
+        for i in range(self.shadow_count):     
+            
+            optimizer = torch.optim.Adam(self.shadow_models[i].parameters()) 
+            self.shadow_models[i], optimizer, self.shadow_train_dataloader[i] = make_private(self.differential_privacy, self.shadow_models[i], optimizer, self.shadow_train_dataloader[i])
             if self.shadow_distilled:    # distillation the knoledge from the target model to the shadow model
                 print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
                 train_shadow_model(self.target_model, 
@@ -382,6 +387,7 @@ class Membership_inference_attack_instance:
                                 self.shadow_train_dataloader[i], 
                                 self.shadow_test_dataloader[i], 
                                 self.shadow_epochs, 
+                                optimizer=optimizer,
                                 verbose=False, 
                                 wandb_logging=self.wandb_logging
                                 )
@@ -391,6 +397,7 @@ class Membership_inference_attack_instance:
                     self.shadow_train_dataloader[i], 
                     self.shadow_test_dataloader[i], 
                     self.shadow_epochs, 
+                    optimizer=optimizer,
                     verbose=False, 
                     wandb_logging=self.wandb_logging
                     )
@@ -477,6 +484,7 @@ def argument_parser():
     group.add_argument('-ld', '--load_attack_dataset', action='store_true', help='Instead of building attack dataset, load pre-existing attack dataset from disc')
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
     parser.add_argument('-at', '--addtive_train', action='store_true', help='Train the attack model with additve trainset')
+    parser.add_argument('-dp', '--differcial_privacy', action='store_true', help='Enable differential privacy')
 
     parser.set_defaults(load_attack_dataset=True)
     args = parser.parse_args()   
@@ -487,7 +495,7 @@ def main(args):
     device = get_device()
     # pdb.set_trace()
     try:
-        target_dataset = DatasetWrapper(args.dataset_name)
+        target_dataset = DatasetWrapper(args.dataset_name, audit_mode=True)
     except NotImplementedError as e:
         # dataset_name_and_index = 
         dataset_name, index = args.dataset_name.split('-')
@@ -500,8 +508,11 @@ def main(args):
 
     print(f'\n\nExecuting {mode} Membership Inference Attack on {args.target_model_weights}, computing loss for training attack model {suffix}\n\n')
 
-    target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes).to(device)
+    target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes, args.differcial_privacy).to(device)
     load_saved_weights(target_model, filename =args.target_model_weights)
+
+    # model, optimizer, train_loader = make_private(args.differential_privacy, target_model, optimizer, train_loader)
+
     attack_instance = Membership_inference_attack_instance( shadow_model_name   = args.shadow_model_name, 
                                                             shadow_count        = args.shadow_count, 
                                                             load_attack_dataset = args.load_attack_dataset,
@@ -513,13 +524,14 @@ def main(args):
                                                             shadow_distilled    = args.distil_shadow_model,
                                                             shadow_epochs       = args.num_shadow_epochs,
                                                             attack_epochs       = args.num_attack_epochs,
-                                                            wandb_logging       = args.wandb_logging
+                                                            wandb_logging       = args.wandb_logging,
+                                                            differential_privacy= args.differcial_privacy                                                           
                                                         )
 
     if args.combined_class:
-        attack = Combined_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
+        attack = Combined_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.differcial_privacy, args.wandb_logging)
     else:
-        attack = Classwise_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
+        attack = Classwise_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.differcial_privacy, args.wandb_logging)
     
     
 

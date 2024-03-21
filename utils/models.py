@@ -2,47 +2,54 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pdb, traceback
+from opacus.validators import ModuleValidator
 from utils.lib import blockPrinting
 
 @blockPrinting
-def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10):
+def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10, differential_privacy=False):
     # print (f'Loading model: {model_name}')
     if model_name =="basic_CNN":
-        return basic_CNN(num_channels, num_classes)
+        model = basic_CNN(num_channels, num_classes)
     elif model_name == "basicCNN_CIFAR100":
-        return basicCNN_CIFAR100()
+        model = basicCNN_CIFAR100()
     elif model_name == "basicCNN_MNIST":
-        return  basicCNN_MNIST()
+        model =  basicCNN_MNIST()
     elif model_name == "basicCNN":
-        return  basicCNN()
+        model =  basicCNN()
     elif model_name == "efficientnet":
-        return  load_efficientnet(classes = num_classes)
+        model =  load_efficientnet(classes = num_classes)
     elif model_name == "resnet":
-        return load_resnet(classes= num_classes)
+        model = load_resnet(classes= num_classes)
     elif model_name == "googlenet":
-        return load_googlenet(classes= num_classes)
+        model = load_googlenet(classes= num_classes)
     elif model_name == "resnext":
-        return load_resnext(classes = num_classes) 
+        model = load_resnext(classes = num_classes) 
     elif model_name == "densenet":
-        return load_densenet(classes= num_classes)
+        model = load_densenet(classes= num_classes)
     elif model_name == "mobilenet":
-        return load_mobilenet(classes= num_classes)
+        model = load_mobilenet(classes= num_classes)
     elif model_name == "vgg":
-        return load_vgg(classes= num_classes)
+        model = load_vgg(classes= num_classes)
     elif model_name == "inception":
-        return load_inception(classes= num_classes)
+        model = load_inception(classes= num_classes)
     elif model_name == "squeezenet":
-        return load_squeezenet(classes= num_classes)
+        model = load_squeezenet(classes= num_classes)
     elif model_name == "shufflenet":
-        return load_shufflenet(classes= num_classes)
+        model = load_shufflenet(classes= num_classes)
     elif model_name == "alexnet":
-        return load_alexnet (classes = num_classes)
+        model = load_alexnet (classes = num_classes)
     
 
     elif model_name == "attack_classifier":
         return binary_classifier(num_channels)
     else:
         raise NotImplementedError(f" {model_name} not defined yet")
+
+    if differential_privacy:
+        if not ModuleValidator.is_valid(model):
+            model = ModuleValidator.fix(model)            # Convert BatchNorm layers to GroupNorm
+    
+    return model
 
 
 class basicCNN(nn.Module):

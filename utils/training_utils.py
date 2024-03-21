@@ -12,7 +12,7 @@ import pdb,traceback
 import os
 import csv
 import json
-
+from opacus import PrivacyEngine
 from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server.strategy.aggregate import aggregate
 
@@ -292,6 +292,14 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
         pdb.set_trace()
         
     return loss, accuracy, predictions # type: ignore
+
+
+def make_private(differential_privacy, model, optimizer, train_loader):
+    if  differential_privacy:
+        privacy_engine = PrivacyEngine()
+        model, optimizer, train_loader = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=train_loader, noise_multiplier=1.1, max_grad_norm=1.0)
+    return model,optimizer,train_loader
+
 
 @blockPrintingIfServer
 def train(net, 

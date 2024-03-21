@@ -4,13 +4,13 @@ import flwr as fl
 import wandb
 import torch
 from utils.datasets import load_partitioned_datasets, get_dataloaders_subset
-from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
+from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model_defination 
-from torch.utils.data import  DataLoader
-from itertools import islice
 import argparse
 import matplotlib.pyplot as plt
 import pdb,traceback
+
+
 
 
 def get_confidence(prediction, filtered = False, value=1):
@@ -68,7 +68,7 @@ def plot_histogram(predTrain, predTest):
 
 
 
-def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR10', model_name = 'efficientnet'):
+def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR10', model_name = 'efficientnet', differential_privacy=False):
     
 
 
@@ -86,7 +86,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         train_loader = get_dataloaders_subset(train_loader, test_loader_size)
 
         
-
+        
         # subset_train_loader = []
         # for batch in train_loader:
         #     subset_train_loader.append(batch)        
@@ -97,10 +97,16 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
 
         # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-        model = load_model_defination(model_name, num_channels, num_classes).to(device)
+        model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device)
         optimizer = torch.optim.Adam(model.parameters())
+
+
+        model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
+
+
         load_saved_weights(model, filename =evaluation_model)
 
+        
 
         comment = 'Test_Centralized_('+evaluation_model+')_'+model_name+'_'+dataset_name
         if wandb_logging:
@@ -144,14 +150,24 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         pdb.set_trace()
 
 
-def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN'):
+def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN', differential_privacy=False):
 
 
     [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name) 
 
 
     # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model_defination(model_name, num_channels, num_classes).to(device)
+    model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device)
+
+
+
+
+
+    
+
+    
+    
+
     optimizer = torch.optim.Adam(model.parameters())
 
 
@@ -161,6 +177,11 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
     train_loader = train_loaders[0]
     val_loader = val_loaders[0]   
+
+
+    
+
+    model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
         
     
 
@@ -184,6 +205,8 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
         savefilename = comment
 
     save_model(model, optimizer, savefilename)
+
+
      
 
 
@@ -196,14 +219,15 @@ def main():
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-m', '--model_name', type=str, default='basicCNN', help='Model name')
     parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
+    parser.add_argument('-dp', '--differcial_privacy', action='store_true', help='Enable differential privacy')
     args = parser.parse_args()
 
     device = get_device()
     if args.evaluation_model:
-        evaluate(args.evaluation_model, device, args.wandb_logging, args.dataset_name, args.model_name)
+        evaluate(args.evaluation_model, device, args.wandb_logging, args.dataset_name, args.model_name, args.differcial_privacy)
     else:
         for _ in range(args.num_experiments):
-            train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name)
+            train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name, args.differcial_privacy)
         
 
 

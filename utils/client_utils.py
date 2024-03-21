@@ -2,7 +2,7 @@
 import flwr
 from tqdm import tqdm
 from utils.lib import try_catch 
-from utils.training_utils import  get_parameters, mix_parameters, save_model, load_model, delete_saved_model, set_parameters, test, train, train_single_epoch, wandb_init
+from utils.training_utils import  get_parameters, make_private, mix_parameters, save_model, load_model, delete_saved_model, set_parameters, test, train, train_single_epoch, wandb_init
 import pdb,traceback, wandb
 from pathlib import Path
 
@@ -16,11 +16,12 @@ def get_certificate():
         return certificate
 
 class FlowerClient(flwr.client.NumPyClient):
-    def __init__(self, cid, net, trainloader, valloader, N , wandb_logging=False, dataset_name='CIFAR10', patience=5, simulation=False):
+    def __init__(self, cid, net, trainloader, valloader, N , optimizer, wandb_logging=False, dataset_name='CIFAR10', patience=5, simulation=False):
         self.cid = cid
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
+        self.optimizer = optimizer
         self.wandb_logging = wandb_logging
         self.simulation = simulation
         self.patience = patience
@@ -73,7 +74,7 @@ class FlowerClient(flwr.client.NumPyClient):
                 self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)
             else:
                 # early_stopped behavior NotImplemented
-                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, epochs=config["local_epochs"], wandb_logging=False, patience= 2, savefilename =self.comment )  # type: ignore
+                _, _, self.loss, self.accuracy, early_stopped = train(self.net, self.trainloader, self.valloader, optimizer= self.optimizer, epochs=config["local_epochs"], wandb_logging=False, patience= 2, savefilename =self.comment )  # type: ignore
                 if early_stopped:
                     self.patience = 0
 
@@ -119,7 +120,11 @@ class FlowerClient(flwr.client.NumPyClient):
         return float(self.loss), len(self.valloader), {"accuracy": float(self.accuracy)}
 
 
-def client_fn(cid, net, trainloaders, valloaders, N=2, wandb_logging=False, dataset_name='CIFAR10', patience=5, simulation=False) -> FlowerClient:    
+def client_fn(cid, net, trainloaders, valloaders, optimizer, N=2, wandb_logging=False, dataset_name='CIFAR10', differential_privacy = False, patience=5, simulation=False) -> FlowerClient:    
     trainloader = trainloaders[int(cid)]
     valloader = valloaders[int(cid)]
-    return FlowerClient(cid, net, trainloader, valloader, N, wandb_logging, dataset_name, patience, simulation)
+    
+    
+    net, optimizer, trainloader = make_private(differential_privacy, net, optimizer, trainloader)
+    
+    return FlowerClient(cid, net, trainloader, valloader, N, optimizer, wandb_logging, dataset_name, patience, simulation)
