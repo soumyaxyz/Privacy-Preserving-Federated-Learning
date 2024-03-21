@@ -219,15 +219,15 @@ def main():
     parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
     parser.add_argument('-m', '--model_name', type=str, default='basicCNN', help='Model name')
     parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
-    parser.add_argument('-dp', '--differcial_privacy', action='store_true', help='Enable differential privacy')
+    parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
     args = parser.parse_args()
 
     device = get_device()
     if args.evaluation_model:
-        evaluate(args.evaluation_model, device, args.wandb_logging, args.dataset_name, args.model_name, args.differcial_privacy)
+        evaluate(args.evaluation_model, device, args.wandb_logging, args.dataset_name, args.model_name, args.differential_privacy)
     else:
         for _ in range(args.num_experiments):
-            train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name, args.differcial_privacy)
+            train_centralized(args.num_epochs, device, args.wandb_logging, args.save_filename, args.dataset_name, args.model_name, args.differential_privacy)
         
 
 

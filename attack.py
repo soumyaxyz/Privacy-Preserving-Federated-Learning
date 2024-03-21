@@ -484,7 +484,7 @@ def argument_parser():
     group.add_argument('-ld', '--load_attack_dataset', action='store_true', help='Instead of building attack dataset, load pre-existing attack dataset from disc')
     group.add_argument('-sv', '--save_attack_dataset', action='store_true', help='Save computed attack dataset to disc')
     parser.add_argument('-at', '--addtive_train', action='store_true', help='Train the attack model with additve trainset')
-    parser.add_argument('-dp', '--differcial_privacy', action='store_true', help='Enable differential privacy')
+    parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
 
     parser.set_defaults(load_attack_dataset=True)
     args = parser.parse_args()   
@@ -529,9 +529,9 @@ def main(args):
                                                         )
 
     if args.combined_class:
-        attack = Combined_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.differcial_privacy, args.wandb_logging)
+        attack = Combined_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
     else:
-        attack = Classwise_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.differcial_privacy, args.wandb_logging)
+        attack = Classwise_membership_inference_attack(target_model, target_dataset, attack_instance, args.target_model_weights, args.wandb_logging)
     
     
 

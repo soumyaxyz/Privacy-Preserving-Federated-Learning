@@ -4,7 +4,7 @@ import flwr as fl
 import wandb
 import torch
 from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, split_dataset
-from utils.training_utils import save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
+from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model_defination 
 import argparse
 import pdb,traceback
@@ -12,13 +12,13 @@ import cProfile
 
 
 
-def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dataset_name='SVHN', target_dataset_name='MNIST', model_name = 'basicCNN'):
+def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dataset_name='SVHN', target_dataset_name='MNIST', model_name = 'basicCNN', differential_privacy=False):
 
     assert source_dataset_name != target_dataset_name
 
     [train_loaders_source, val_loaders_source, test_loader_source, _], num_channels_source, num_classes_source  = load_partitioned_datasets(num_clients=1, dataset_name=source_dataset_name)
 
-    model = load_model_defination(model_name, num_channels=num_channels_source, num_classes=num_classes_source).to(device)
+    model = load_model_defination(model_name, num_channels=num_channels_source, num_classes=num_classes_source, differential_privacy=differential_privacy).to(device)
     load_saved_weights(model, filename =pretrained_model)
     
     val_loader_source = val_loaders_source[0]
@@ -61,6 +61,8 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
     optimizer = torch.optim.Adam(model.parameters())
     epoch = 5
 
+    model, optimizer, train_loader_target = make_private(differential_privacy, model, optimizer, train_loader_target)
+
     model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader_target, val_loader_target, epoch, optimizer, verbose=False, wandb_logging=wandb_logging)
     
     loss, accuracy, _ = test(model, test_loader_target)
@@ -72,7 +74,7 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
 
 
-def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2):
+def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2, differential_privacy=False):
     
 
     print_info(device, model_name, dataset_name)  
@@ -82,7 +84,7 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
 
     _, _, num_channels, num_classes = continous_datasets.splits[0]
 
-    model = load_model_defination(model_name, num_channels, num_classes).to(device)
+    model = load_model_defination(model_name, num_channels, num_classes, differential_privacy=differential_privacy).to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     for i,dataset_split in enumerate(continous_datasets.splits):
@@ -99,6 +101,7 @@ def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='co
             wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
             wandb.watch(model, log_freq=100)
             
+        model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
 
         model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging, patience=patience)
         loss, accuracy, _ = test(model, test_loader)
@@ -139,15 +142,16 @@ def main():
     parser.add_argument('-td', '--target_dataset_name', type=str, default='MNIST', help='Target_dataset name')
     parser.add_argument('-m', '--model_name', type=str, default='efficientnet', help='Model name')
     parser.add_argument('-pm', '--pretrained_model', type=str, default= None, help='if provided, evaluate transfer learning on this saved model')
+    parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
     args = parser.parse_args()
 
     device = get_device()
 
     if args.pretrained_model:
-        transfer_learning(args.pretrained_model, device, args.wandb_logging,  args.source_dataset_name, args.target_dataset_name, args.model_name)
+        transfer_learning(args.pretrained_model, device, args.wandb_logging,  args.source_dataset_name, args.target_dataset_name, args.model_name, args.differential_privacy)
     else:
         for _ in range(args.num_experiments):
-            saved_model_names = continous_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name, args.patience)
+            saved_model_names = continous_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name, args.patience, args.differential_privacy)
             print(f'{saved_model_names=}')
         
 
