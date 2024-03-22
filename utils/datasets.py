@@ -101,28 +101,38 @@ class DatasetWrapper():
         return trainset, testset, num_channels, num_classes
         
 
-    def remap_dataset(self, trainset, testset,  train_percent = 0.3, test_percent = 0.3 , validation_percent = 0.1, audit_percent = 0.3):
-    
+    def remap_dataset(self, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = True):
+
         # Concatenate train and test sets
         full_dataset = ConcatDataset([trainset, testset])
+
+        if preserve_original_propertion:        
+            original_train_percentage = len(trainset) /len(full_dataset)
+            train_total_percentage  = 1 - audit_percent        
+            train_percent = original_train_percentage * train_total_percentage
+            test_percent = (1-original_train_percentage) * train_total_percentage
 
         # Determine sizes of subsets
         num_samples = len(full_dataset)
 
-        audit_train_size = int(num_samples * audit_percent)
-        #audit_test_size = int(num_samples * validation_percent)
-
-        train_size = int(num_samples * (train_percent+validation_percent))
-        test_size = int(num_samples * test_percent)
-
-        audit_test_size = num_samples - (audit_train_size + train_size + test_size)        
+        audit_train_percent = audit_percent *0.6  
+        
+        train_size = int(num_samples * train_percent)
+        test_size = int(num_samples * test_percent)   
+        audit_train_size = int(num_samples * audit_train_percent)
+        audit_test_size = num_samples - (audit_train_size + train_size + test_size)       
+           
 
         # Split the concatenated dataset into subsets
         train_set, test_set, audit_train_set, audit_test_set = random_split(full_dataset, [train_size, test_size, audit_train_size, audit_test_size], torch.Generator().manual_seed(42) )
+        
+         
+        
         if self.audit_mode:
             train_set = audit_train_set
             test_set = audit_test_set
         return train_set, test_set
+
     
 def load_continuous_SVHN():
     splits_paths=[
