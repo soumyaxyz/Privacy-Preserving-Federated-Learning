@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import flwr as fl
 import wandb
 import torch
-from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, split_dataset
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, split_dataset
 from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model_defination 
 import argparse
@@ -74,12 +74,12 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
 
 
-def continous_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2, differential_privacy=False):
+def incremental_learning(device, epochs=50, wandb_logging=False,  dataset_name='continous_SVHN', model_name = 'efficientnet', patience=2, differential_privacy=False):
     
 
     print_info(device, model_name, dataset_name)  
 
-    continous_datasets = ContinuousDatasetWraper(dataset_name)
+    continous_datasets = IncrementalDatasetWraper(dataset_name)
     saved_model_names = []
 
     _, _, num_channels, num_classes = continous_datasets.splits[0]
@@ -136,7 +136,7 @@ def main():
     parser.add_argument('-e', '--num_epochs', type=int, default=50, help='Number of rounds')
     parser.add_argument('-s', '--save_filename', type=str, default=None, help='Save filename')
     parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
-    parser.add_argument('-d', '--dataset_name', type=str, default='continous_SVHN', help='Dataset name')
+    parser.add_argument('-d', '--dataset_name', type=str, default='incremental_SVHN', help='Dataset name')
     parser.add_argument('-sd', '--source_dataset_name', type=str, default='SVHN', help='Source_dataset name')
     parser.add_argument('-p', '--patience', type=int, default=5, help='Patience')
     parser.add_argument('-td', '--target_dataset_name', type=str, default='MNIST', help='Target_dataset name')
@@ -151,7 +151,7 @@ def main():
         transfer_learning(args.pretrained_model, device, args.wandb_logging,  args.source_dataset_name, args.target_dataset_name, args.model_name, args.differential_privacy)
     else:
         for _ in range(args.num_experiments):
-            saved_model_names = continous_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name, args.patience, args.differential_privacy)
+            saved_model_names = incremental_learning(device, args.num_epochs, args.wandb_logging,  args.dataset_name, args.model_name, args.patience, args.differential_privacy)
             print(f'{saved_model_names=}')
         
 

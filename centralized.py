@@ -180,12 +180,17 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
 
     
+    if differential_privacy:
+        print('Enabling Differential Privacy')
+        comment = 'Centralized_dp_'+model_name+'_'+dataset_name
+    else:
+        comment = 'Centralized_'+model_name+'_'+dataset_name
+    
 
     model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
         
     
 
-    comment = 'Centralized_'+model_name+'_'+dataset_name
     if wandb_logging:
         wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
         wandb.watch(model, log_freq=100)

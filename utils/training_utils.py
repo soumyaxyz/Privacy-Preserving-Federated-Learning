@@ -297,7 +297,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
 def make_private(differential_privacy, model, optimizer, train_loader):
     if  differential_privacy:
         privacy_engine = PrivacyEngine()
-        model, optimizer, train_loader = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=train_loader, noise_multiplier=1.1, max_grad_norm=1.0)
+        model, optimizer, train_loader = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=train_loader, noise_multiplier=1.01, max_grad_norm=1.0)
     return model,optimizer,train_loader
 
 

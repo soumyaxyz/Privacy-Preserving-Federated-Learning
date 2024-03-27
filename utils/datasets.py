@@ -44,7 +44,7 @@ def show_img(data_point, transform):
 # show_img(trainset[i], transform)
 
 
-class ContinuousDatasetWraper():
+class IncrementalDatasetWraper():
     def __init__(self, dataset_name = 'continous_SVHN', attack_mode = False):
         self.name = dataset_name
         self.splits = self._load_datasets(dataset_name)
@@ -56,10 +56,12 @@ class ContinuousDatasetWraper():
 
     # @blockPrinting  
     def _load_datasets(self, dataset_name):
-        if dataset_name == 'continuous_SVHN':
-            return load_continuous_SVHN()
-        elif dataset_name == 'continuous_CIFAR100':
-            return load_continuous_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]])
+        if dataset_name == 'incremental_SVHN':
+            return load_incremental_SVHN()
+        elif dataset_name == 'incremental_CIFAR100':
+            return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
+        elif dataset_name == 'incremental_test_CIFAR100':
+            return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
@@ -90,8 +92,8 @@ class DatasetWrapper():
             trainset, testset, num_channels, num_classes =  load_FashionMNIST()
         elif dataset_name == "SVHN":
             trainset, testset, num_channels, num_classes =  load_SVHN()
-        elif 'continuous' in dataset_name:
-            raise NotImplementedError('Continuous dataset not implemented, use ContinuousDatasetWraper() instead')            
+        elif 'incremental' in dataset_name:
+            raise NotImplementedError('incremental dataset not implemented, use incrementalDatasetWraper() instead')            
         else:
             # import pdb; pdb.set_trace()
             print(f'Unknown dataset name: {dataset_name}')            
@@ -134,7 +136,7 @@ class DatasetWrapper():
         return train_set, test_set
 
     
-def load_continuous_SVHN():
+def load_incremental_SVHN():
     splits_paths=[
         './dataset/SVHN/extra_A',
         './dataset/SVHN/extra_B',
@@ -143,14 +145,14 @@ def load_continuous_SVHN():
         './dataset/SVHN/test_cropped_images'
     ]
 
-    return load_continuous_local_dataset(splits_paths)
+    return load_incremental_local_dataset(splits_paths)
 
 
 
 
-def load_continuous_local_dataset(splits_paths, combined_extra=False):
+def load_incremental_local_dataset(splits_paths, combined_extra=False):
     data_splits = []
-    print('Loading custom continuous dataset...')
+    print('Loading custom incremental dataset...')
     for directory in tqdm(splits_paths, leave=False):
         train_dataset, test_dataset, num_channels, num_classes = load_custom_dataset(directory, test_size=0.4)
         data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
@@ -195,6 +197,21 @@ def implement_addetive_dataset(data_splits, additive_train =False):
             split = (train_dataset_i, ConcatDataset(expanding_dataset), num_channels, num_classes)
         new_data_splits.append(split)
     return new_data_splits
+
+def implement_combined_uniform_test(data_splits):    
+    expanding_dataset = []
+    for _, split in tqdm(enumerate(data_splits), leave=False):
+        _, test_dataset_i, _, _ = split
+        expanding_dataset.append(test_dataset_i)    
+    combined_uniform_test= ConcatDataset(expanding_dataset)
+
+    new_data_splits = []    
+    for i, split in tqdm(enumerate(data_splits), leave=False):
+        train_dataset_i, _, num_channels, num_classes = split
+        split = (train_dataset_i, combined_uniform_test, num_channels, num_classes)
+        new_data_splits.append(split)
+    return new_data_splits
+
 
 
 def save_dataset(dataset, filename):
@@ -284,7 +301,7 @@ class CIFAR_20_Dataset(Dataset):
 
 
 
-def load_continuous_CIFAR100(remapping= None):
+def load_incremental_CIFAR100(remapping= None, uniform_test = False):
     trainset, testset, num_channels, _ = load_CIFAR100()
     num_classes = 20
     # Split both train and test sets into 20 subsets
@@ -299,8 +316,10 @@ def load_continuous_CIFAR100(remapping= None):
     data_splits = [(train_subsets[i], test_subsets[i], num_channels, num_classes) for i in range(len(train_subsets))]
 
     data_splits = mix_subsets(data_splits)
-
-    data_splits = implement_addetive_dataset(data_splits)
+    if uniform_test:
+        data_splits = implement_combined_uniform_test(data_splits)
+    else:
+        data_splits = implement_addetive_dataset(data_splits)
 
     # pdb.set_trace()
 
