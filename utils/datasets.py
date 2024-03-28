@@ -1,16 +1,18 @@
 import os
 import cv2
 import numpy as np
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import pickle
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
-from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, random_split
+from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, TensorDataset, random_split
 from utils.lib import blockPrinting
 from utils.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
+import panda as pd
 import pprint
 import matplotlib.pyplot as plt
 
@@ -62,6 +64,8 @@ class IncrementalDatasetWraper():
             return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
         elif dataset_name == 'incremental_test_CIFAR100':
             return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
+        elif dataset_name == 'Microsoft_Malware':
+            return load_incremental_Microsoft_Malware()
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
@@ -135,6 +139,82 @@ class DatasetWrapper():
             test_set = audit_test_set
         return train_set, test_set
 
+
+def preprocess_microsoft_malware(train):
+    raise NotImplementedError
+
+def load_Microsoft_Malware():
+    directory = 'dataset/MicrosoftMalware/'
+
+    try:
+        train_dataset, test_dataset, num_channels, num_classes =  load_dataset(directory+'saved_dataset.pkl')
+    except:
+        try:
+            train = pd.read_csv(directory+'train_preprocess.csv')
+        except:
+            train = pd.read_csv(directory+'train.csv')
+            train =  preprocess_microsoft_malware(train)  
+
+
+            
+        labels=train['HasDetections']
+        train.drop('HasDetections', axis=1, inplace=True)
+
+
+        X_train, X_val, Y_train, Y_val = train_test_split(train, labels, test_size=0.15,random_state=1)
+
+        # Handle categorical variables
+        categorical_columns = X_train.select_dtypes(include=['object']).columns
+        for col in categorical_columns:
+            X_train[col] = X_train[col].astype('category').cat.codes
+            X_val[col] = X_val[col].astype('category').cat.codes
+
+        # Convert remaining columns to numeric type
+        X_train = X_train.astype(float)
+        X_val = X_val.astype(float)
+
+        # Convert data to PyTorch tensors
+        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32)
+        Y_train_tensor = torch.tensor(Y_train.values, dtype=torch.float32)
+        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32)
+        Y_val_tensor = torch.tensor(Y_val.values, dtype=torch.float32)
+
+        train_dataset = TensorDataset(X_train_tensor, Y_train_tensor)
+        test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
+        
+
+        num_channels = len(categorical_columns)
+        num_classes = 2   #check 
+
+        try:
+            save_dataset( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
+        except Exception as e:
+            print('Error saving dataset:', e)
+
+    
+    return train_dataset, test_dataset, num_channels, num_classes
+    
+
+def load_incremental_Microsoft_Malware(num_splits = 4):
+    data_splits = []
+
+    train_dataset, test_dataset, num_channels, num_classes = load_Microsoft_Malware()
+
+    total_size = len(train_dataset)
+    partition_size = total_size // num_splits
+    lengths = [partition_size] * num_splits
+    lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
+
+    datasets = random_split(train_dataset, lengths, torch.Generator().manual_seed(42))
+
+    for dataset in (datasets):
+
+        data_splits.append([dataset, test_dataset, num_channels, num_classes])
+
+    return data_splits
+
+    
+
     
 def load_incremental_SVHN():
     splits_paths=[
@@ -154,7 +234,7 @@ def load_incremental_local_dataset(splits_paths, combined_extra=False):
     data_splits = []
     print('Loading custom incremental dataset...')
     for directory in tqdm(splits_paths, leave=False):
-        train_dataset, test_dataset, num_channels, num_classes = load_custom_dataset(directory, test_size=0.4)
+        train_dataset, test_dataset, num_channels, num_classes = load_custom_image_dataset(directory, test_size=0.4)
         data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
 
     if combined_extra:
@@ -222,7 +302,7 @@ def load_dataset(filename):
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
-def load_custom_dataset(directory, test_size=0.4):
+def load_custom_image_dataset(directory, test_size=0.4):
     images = []
     labels = []
     try:
@@ -640,7 +720,7 @@ def split_dataset(trainset, testset, num_splits: int, split_test = False, val_pe
         lengths = [partition_size] * num_splits
         lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
 
-        datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
+        datasets = random_split(testset, lengths, torch.Generator().manual_seed(42))
         testloaders = []
         for ds in datasets:
             testloaders.append(DataLoader(ds, batch_size))
