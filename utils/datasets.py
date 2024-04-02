@@ -183,7 +183,7 @@ def load_Microsoft_Malware():
         test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
         
 
-        num_channels = len(categorical_columns)
+        num_channels = X_train.shape[1]
         num_classes = 2   #check 
 
         try:
