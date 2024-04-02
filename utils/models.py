@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import lightgbm as lgb
 import pdb, traceback
 from opacus.validators import ModuleValidator
 from utils.lib import blockPrinting
@@ -38,8 +39,9 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
         model = load_shufflenet(classes= num_classes)
     elif model_name == "alexnet":
         model = load_alexnet (classes = num_classes)
-    
-
+    elif model_name == "lgb":
+        assert num_classes == 2
+        return Load_LGB() 
     elif model_name == "attack_classifier":
         return binary_classifier(num_channels)
     else:
@@ -156,6 +158,36 @@ class binary_classifier(nn.Module):
             traceback.print_exc()
             pdb.set_trace()
         return x
+    
+class Load_LGB:
+    def __init__(self):
+        self.params = {
+        'device_type':'cpu',
+        'num_leaves' : 10,
+        'max_depth': 6,
+        'learning_rate': 0.05,
+        'objective': 'binary',
+        'lambda_l2': 0.1, # Alias 'reg_lambda' L2 regularization
+        'random_state': 42, 
+        'verbosity': -1, 
+        'metric': 'auc'
+        }
+
+    def convert_data(self, X, y):
+        # # Convert the datasets to LightGBM format
+        lgb_dataset = lgb.Dataset(X, label=y)
+        return lgb_dataset
+
+    def train(self, lgb_train, lgb_val, num_boost_round=100):
+        trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)])
+        
+        return trained_model
+    
+    def predict(self, model, X_test):
+        return model.predict(X_test)
+    
+
+
 
 def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
     """Replaces the final layer of the classifier."""

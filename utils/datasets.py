@@ -12,7 +12,7 @@ from utils.lib import blockPrinting
 from utils.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
-import panda as pd
+import pandas as pd
 import pprint
 import matplotlib.pyplot as plt
 
@@ -47,7 +47,7 @@ def show_img(data_point, transform):
 
 
 class IncrementalDatasetWraper():
-    def __init__(self, dataset_name = 'continous_SVHN', attack_mode = False):
+    def __init__(self, dataset_name = 'incremental_SVHN', attack_mode = False):
         self.name = dataset_name
         self.splits = self._load_datasets(dataset_name)
         if attack_mode:
@@ -64,7 +64,7 @@ class IncrementalDatasetWraper():
             return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
         elif dataset_name == 'incremental_test_CIFAR100':
             return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
-        elif dataset_name == 'Microsoft_Malware':
+        elif dataset_name == 'Microsoft_Malware_incremental':
             return load_incremental_Microsoft_Malware()
         else:
             print(f'Unknown dataset name: {dataset_name}')
@@ -96,6 +96,8 @@ class DatasetWrapper():
             trainset, testset, num_channels, num_classes =  load_FashionMNIST()
         elif dataset_name == "SVHN":
             trainset, testset, num_channels, num_classes =  load_SVHN()
+        elif dataset_name == 'Microsoft_Malware':
+            trainset, testset, num_channels, num_classes =  load_Microsoft_Malware()
         elif 'incremental' in dataset_name:
             raise NotImplementedError('incremental dataset not implemented, use incrementalDatasetWraper() instead')            
         else:
@@ -183,7 +185,7 @@ def load_Microsoft_Malware():
         test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
         
 
-        num_channels = len(categorical_columns)
+        num_channels = X_train.shape[1]
         num_classes = 2   #check 
 
         try:

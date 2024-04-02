@@ -153,61 +153,119 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN', differential_privacy=False):
 
 
-    [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name) 
+    if model_name == 'lgb':
+
+        import utils.datasets as d 
+
+        from torch.utils.data import DataLoader, TensorDataset
+        from sklearn.model_selection import train_test_split
+        data_splits = d.load_incremental_Microsoft_Malware()
+
+        # train_data = data_splits[0][0].dataset.tensors[0]
+        # train_labels = data_splits[0][0].dataset.tensors[1]
+        # val_data = data_splits[0][1].tensors[0]
+        # val_labels = data_splits[0][1].tensors[1]
 
 
-    # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-    model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device)
+        # Assuming data_splits[0] contains the train subset
+        train_subset = data_splits[0][0]
+        X_train = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
+        Y_train = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
+
+        # Splitting the train subset into train and validation sets
+        X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size=0.2, random_state=42)
+
+        
+
+
+
+        LGB = load_model_defination(model_name,  num_classes=2)
+
+        
+
+
+        lgb_train = LGB.convert_data(X_train, Y_train )
+        lgb_val = LGB.convert_data(X_val, Y_val)
+        
+        try:
+            
+            # model = lgb.train(LGB.params, lgb_train, num_boost_round=epochs, valid_sets=[lgb_train, lgb_val], callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)])
+            model = LGB.train(lgb_train, lgb_val, epochs)
+
+            val_pred = model.predict(X_val)
+            # loss, accuracy, _ = test(model, test_loader)
+            from sklearn.metrics import accuracy_score
+            threshold = 0.5
+            val_pred_labels = (val_pred > threshold).astype(int)
+            accuracy = accuracy_score(Y_val, val_pred_labels)
+
+            print(f"Final validation set performance:\\n\taccuracy {accuracy}")
+
+            comment = 'Centralized_'+model_name+'_'+dataset_name
+            
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
 
 
 
 
+        
 
-    
-
-    
-    
-
-    optimizer = torch.optim.Adam(model.parameters())
-
-
-    print_info(device, model_name, dataset_name)    
-
-    
-
-    train_loader = train_loaders[0]
-    val_loader = val_loaders[0]   
-
-
-    
-    if differential_privacy:
-        print('Enabling Differential Privacy')
-        comment = 'Centralized_dp_'+model_name+'_'+dataset_name
     else:
-        comment = 'Centralized_'+model_name+'_'+dataset_name
-    
 
-    model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
+        [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name) 
+
+        # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device)
+
+        optimizer = torch.optim.Adam(model.parameters())
+
+        print_info(device, model_name, dataset_name)    
+
         
-    
 
-    if wandb_logging:
-        wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
-        wandb.watch(model, log_freq=100)
+        train_loader = train_loaders[0]
+        val_loader = val_loaders[0]   
+
+
+        
+        if differential_privacy:
+            print('Enabling Differential Privacy')
+            comment = 'Centralized_dp_'+model_name+'_'+dataset_name
+        else:
+            comment = 'Centralized_'+model_name+'_'+dataset_name
         
 
-    model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
-    loss, accuracy, _ = test(model, test_loader)
+        model, optimizer, train_loader = make_private(differential_privacy, model, optimizer, train_loader)
+            
+        
 
-    if wandb_logging:
-        wandb.log({"test_acc": accuracy, "test_loss": loss})
-        wandb.finish()
-    print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
-    print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
+        if wandb_logging:
+            wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
+            wandb.watch(model, log_freq=100)
+            
+
+        model, optimizer, val_loss, val_accuracy, _  = train(model, train_loader, val_loader, epochs, optimizer, verbose=False, wandb_logging=wandb_logging)
+        loss, accuracy, _ = test(model, test_loader)
+
+        if wandb_logging:
+            wandb.log({"test_acc": accuracy, "test_loss": loss})
+            wandb.finish()
+        print(f"Final validation set performance:\n\tloss {val_loss}\n\taccuracy {val_accuracy}")
+        print(f"Final test set performance:\n\tloss {loss}\n\taccuracy {accuracy}")
+
+
+
+
+
+
           
     
     if not savefilename:
         savefilename = comment
+
+    pdb.set_trace()
 
     save_model(model, optimizer, savefilename)
 
