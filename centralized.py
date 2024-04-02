@@ -96,19 +96,13 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
             if wandb_logging:
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
 
-            LGB = Load_LGB(device=device, wandb=wandb_logging)
+            param_id = evaluation_model[-1]
+
+            LGB = Load_LGB(device=device, param_id= param_id, wandb=wandb_logging)
 
 
 
             
-
-
-            lgb_train = LGB.convert_data(X_train, Y_train ) # type: ignore
-            lgb_val = LGB.convert_data(X_val, Y_val)  # type: ignore
-            
-            # model = lgb.train(LGB.params, lgb_train, num_boost_round=epochs, valid_sets=[lgb_train, lgb_val], callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)])
-            # model = LGB.train(lgb_train, lgb_val, epochs) # type: ignore
-
             model = LGB.load_model(evaluation_model)
 
             loss, accuracy, val_pred = LGB.predict(X_val, Y_val)
