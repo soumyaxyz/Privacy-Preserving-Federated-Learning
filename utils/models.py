@@ -166,32 +166,32 @@ class binary_classifier(nn.Module):
     
 class Load_LGB:
     def __init__(self, device='cpu', wandb=False):
-        # self.params = {
-        # 'device_type':device,
-        # 'num_leaves' : 10,
-        # 'max_depth': 6,
-        # 'learning_rate': 0.05,
-        # 'objective': 'binary',
-        # 'lambda_l2': 0.1, # Alias 'reg_lambda' L2 regularization
-        # 'random_state': 42, 
-        # 'verbosity': -1, 
-        # 'metric': 'auc'
-        # }
-        self.params = {'num_leaves': 60,
-         'min_data_in_leaf': 100, 
-         'objective':'binary',
-         'max_depth': -1,
-         'learning_rate': 0.1,
-         "boosting": "gbdt",
-         "feature_fraction": 0.8,
-         "bagging_freq": 1,
-         "bagging_fraction": 0.8 ,
-         "bagging_seed": 1,
-         "metric": 'auc',
-         "lambda_l1": 0.1,
-         "random_state": 133,
-         "verbosity": -1}
-        self.param_id = 'B'
+        self.params = {
+        'device_type':device,
+        'num_leaves' : 10,
+        'max_depth': 6,
+        'learning_rate': 0.05,
+        'objective': 'binary',
+        'lambda_l2': 0.1, # Alias 'reg_lambda' L2 regularization
+        'random_state': 42, 
+        'verbosity': -1, 
+        'metric': 'auc'
+        }
+        # self.params = {'num_leaves': 60,
+        #  'min_data_in_leaf': 100, 
+        #  'objective':'binary',
+        #  'max_depth': -1,
+        #  'learning_rate': 0.1,
+        #  "boosting": "gbdt",
+        #  "feature_fraction": 0.8,
+        #  "bagging_freq": 1,
+        #  "bagging_fraction": 0.8 ,
+        #  "bagging_seed": 1,
+        #  "metric": 'auc',
+        #  "lambda_l1": 0.1,
+        #  "random_state": 133,
+        #  "verbosity": -1}
+        self.param_id = 'A'
         self.wandb_flag = wandb
         self.trained_model = None
         
