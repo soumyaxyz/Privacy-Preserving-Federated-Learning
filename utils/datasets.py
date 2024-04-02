@@ -1,9 +1,9 @@
 import os
 import cv2
+import csv
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-import pickle
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
@@ -15,6 +15,8 @@ from typing import List
 import pandas as pd
 import pprint
 import matplotlib.pyplot as plt
+
+from utils.training_utils import load_pickle, save_pickle
 
 def unnormalize(image, transform):
     # Assuming the last step in the transform is Normalize
@@ -149,7 +151,7 @@ def load_Microsoft_Malware():
     directory = 'dataset/MicrosoftMalware/'
 
     try:
-        train_dataset, test_dataset, num_channels, num_classes =  load_dataset(directory+'saved_dataset.pkl')
+        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
     except:
         try:
             train = pd.read_csv(directory+'train_preprocess.csv')
@@ -189,7 +191,7 @@ def load_Microsoft_Malware():
         num_classes = 2   #check 
 
         try:
-            save_dataset( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
+            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
         except Exception as e:
             print('Error saving dataset:', e)
 
@@ -296,19 +298,13 @@ def implement_combined_uniform_test(data_splits):
 
 
 
-def save_dataset(dataset, filename):
-    with open(filename, 'wb') as f:
-        pickle.dump(dataset, f)
 
-def load_dataset(filename):
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
 
 def load_custom_image_dataset(directory, test_size=0.4):
     images = []
     labels = []
     try:
-        train_dataset, test_dataset, num_channels, num_classes =  load_dataset(directory+'.pkl')
+        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'.pkl')
     except:
         print(f'\nPresaved dataset not found, Loading custom dataset from {directory}')
         for label in tqdm(os.listdir(directory), leave=False):
@@ -340,7 +336,7 @@ def load_custom_image_dataset(directory, test_size=0.4):
         num_classes = len(np.unique(labels))
 
         try:
-            save_dataset( (train_dataset, test_dataset, num_channels, num_classes), directory+'.pkl')
+            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'.pkl')
         except Exception as e:
             print('Error saving dataset:', e)
 
@@ -588,7 +584,33 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
     return new_data_splits
 
 
+def load_loss_dataset(filename='dataset'):
+    print(f'\tLoading dataset from {filename}')
+    load_path = './saved_models/' + filename + '.csv'
+    dataset = []
 
+    with open(load_path, mode='r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip the header row
+
+        data = []
+        label = []
+
+        for row in reader:
+            data_i, label_i = row
+            # Convert data and label to appropriate types if needed
+            try:
+                data.append(eval(data_i))
+                label.append(eval(label_i))
+            except:
+                traceback.print_exc()
+                # pdb.set_trace()
+
+            
+
+        dataset = Wrapper_Dataset(data, label)
+
+    return dataset
 
 class Loss_Label_Dataset(Dataset):
     """Loss_label_Dataset."""

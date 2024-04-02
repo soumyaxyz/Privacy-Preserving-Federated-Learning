@@ -227,32 +227,36 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
         try:
 
             train_subset = data_splits[0][0]
-            X_train = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
-            Y_train = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
+            X = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
+            Y = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
 
             # Splitting the train subset into train and validation sets
+            X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
             X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size=0.2, random_state=42)
 
 
             comment = model_name+'_Centralized_'+dataset_name
+            if not savefilename:
+                savefilename = comment 
 
             if wandb_logging:
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
-
-            LGB = Load_LGB(device=device, wandb=wandb_logging)
-
-
-
             
+            device_name = 'gpu' if str(device) == 'cuda' else str(device)
+            LGB = Load_LGB(device=device_name, wandb=wandb_logging)
 
 
             lgb_train = LGB.convert_data(X_train, Y_train ) # type: ignore
             lgb_val = LGB.convert_data(X_val, Y_val)  # type: ignore
             
-            # model = lgb.train(LGB.params, lgb_train, num_boost_round=epochs, valid_sets=[lgb_train, lgb_val], callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)])
+            try:
+                LGB.load_model(savefilename)
+            except:
+                print(f"No saved model found. Training new model")
+
             model = LGB.train(lgb_train, lgb_val, epochs) # type: ignore
 
-            loss, accuracy, val_pred = LGB.predict(X_val, Y_val)
+            loss, accuracy, test_pred = LGB.predict(X_test, Y_test)
 
                        
 
@@ -265,8 +269,7 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
             
 
 
-            if not savefilename:
-                savefilename = comment   
+              
 
             LGB.save_model(savefilename)
 

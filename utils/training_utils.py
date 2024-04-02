@@ -12,11 +12,12 @@ import pdb,traceback
 import os
 import csv
 import json
+import pickle
 from opacus import PrivacyEngine
 from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server.strategy.aggregate import aggregate
 
-from utils.datasets import Wrapper_Dataset
+# from utils.datasets import Wrapper_Dataset
 from utils.plot_utils import plot_ROC_curve
 from utils.lib import blockPrintingIfServer, create_directories_if_not_exist
 
@@ -73,10 +74,14 @@ def verify_folder_exist(path):
         print(f"{path} created")
     return path
 
-def save_model(net, optim = None, filename ='filename', print_info=False):
-    sanatized_filename = "".join(x for x in filename if x.isalnum())
-    save_folder = './saved_models/'
+def sanitized_path(filename, save_folder = './saved_models/'):
+    sanatized_filename = "".join(x for x in filename if x.isalnum())    
     path = verify_folder_exist(save_folder)+sanatized_filename+'.pt'
+    return path
+
+
+def save_model(net, optim = None, filename ='filename', print_info=False):
+    path = sanitized_path(filename)
     if optim:
         torch.save({'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optim.state_dict()
@@ -89,8 +94,7 @@ def save_model(net, optim = None, filename ='filename', print_info=False):
 
 def load_model(net, optim=None, filename ='filename', print_info=False):
     try:
-        sanatized_filename = "".join(x for x in filename if x.isalnum())
-        path = './saved_models/'+sanatized_filename+'.pt'
+        path = sanitized_path(filename)
         checkpoint = torch.load(path)
         net.load_state_dict(checkpoint['model_state_dict'])
         if optim:
@@ -127,36 +131,16 @@ def save_loss_dataset(dataset, filename='datset'):
             writer.writerow([data, label])  # Write each data and label as a row
 
 
+def save_pickle(data, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f)
+
+def load_pickle(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 
 
-def load_loss_dataset(filename='dataset'):
-    print(f'\tLoading dataset from {filename}')
-    load_path = './saved_models/' + filename + '.csv'
-    dataset = []
-
-    with open(load_path, mode='r') as file:
-        reader = csv.reader(file)
-        next(reader)  # Skip the header row
-
-        data = []
-        label = []
-
-        for row in reader:
-            data_i, label_i = row
-            # Convert data and label to appropriate types if needed
-            try:
-                data.append(eval(data_i))
-                label.append(eval(label_i))
-            except:
-                traceback.print_exc()
-                # pdb.set_trace()
-
-            
-
-        dataset = Wrapper_Dataset(data, label)
-
-    return dataset
 
 
 def get_parameters(net) -> List[np.ndarray]:

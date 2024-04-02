@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from opacus.validators import ModuleValidator
 import pickle
 from utils.lib import blockPrinting
+from utils.training_utils import load_pickle, sanitized_path, save_pickle
 
 @blockPrinting
 def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=10, differential_privacy=False):
@@ -165,17 +166,32 @@ class binary_classifier(nn.Module):
     
 class Load_LGB:
     def __init__(self, device='cpu', wandb=False):
-        self.params = {
-        'device_type':'cpu',
-        'num_leaves' : 10,
-        'max_depth': 6,
-        'learning_rate': 0.05,
-        'objective': 'binary',
-        'lambda_l2': 0.1, # Alias 'reg_lambda' L2 regularization
-        'random_state': 42, 
-        'verbosity': -1, 
-        'metric': 'auc'
-        }
+        # self.params = {
+        # 'device_type':device,
+        # 'num_leaves' : 10,
+        # 'max_depth': 6,
+        # 'learning_rate': 0.05,
+        # 'objective': 'binary',
+        # 'lambda_l2': 0.1, # Alias 'reg_lambda' L2 regularization
+        # 'random_state': 42, 
+        # 'verbosity': -1, 
+        # 'metric': 'auc'
+        # }
+        self.params = {'num_leaves': 60,
+         'min_data_in_leaf': 100, 
+         'objective':'binary',
+         'max_depth': -1,
+         'learning_rate': 0.1,
+         "boosting": "gbdt",
+         "feature_fraction": 0.8,
+         "bagging_freq": 1,
+         "bagging_fraction": 0.8 ,
+         "bagging_seed": 1,
+         "metric": 'auc',
+         "lambda_l1": 0.1,
+         "random_state": 133,
+         "verbosity": -1}
+        self.param_id = 'B'
         self.wandb_flag = wandb
         self.trained_model = None
         
@@ -200,11 +216,14 @@ class Load_LGB:
         return lgb_dataset
 
     def train(self, lgb_train, lgb_val, num_boost_round=100):
-        callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)]
+        callbacks=[lgb.early_stopping(50), lgb.log_evaluation(10)]
         if self.wandb_flag:
             callbacks.append(self.wandb_callback())
-        self.trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=callbacks)       
-        
+
+        if self.trained_model is None:
+            self.trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=callbacks)
+        else:
+            self.trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=callbacks, init_model=self.trained_model)
         return self.trained_model
     
     def predict(self,  X_test, Y_test):
@@ -220,13 +239,17 @@ class Load_LGB:
         if model is None:
             assert self.trained_model is not None
             model = self.trained_model
-        with open(filename, 'wb') as file:
-            pickle.dump(model, file)
+
+        filename += self.param_id
+
+        filename = sanitized_path(filename)
+        save_pickle(model, filename)
         print(f'Model saved to {filename}')
 
     def load_model(self, filename):
-        with open(filename, 'rb') as file:
-            self.trained_model = pickle.load(file)
+        filename += self.param_id
+        filename = sanitized_path(filename)
+        self.trained_model = load_pickle(filename)
         print(f'Model loaded from {filename}')
 
         return self.trained_model
