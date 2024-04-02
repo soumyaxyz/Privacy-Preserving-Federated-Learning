@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import lightgbm as lgb
 import pdb, traceback
+from sklearn.metrics import accuracy_score, mean_squared_error
 from opacus.validators import ModuleValidator
+import pickle
 from utils.lib import blockPrinting
 
 @blockPrinting
@@ -40,8 +42,10 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
     elif model_name == "alexnet":
         model = load_alexnet (classes = num_classes)
     elif model_name == "lgb":
-        assert num_classes == 2
-        return Load_LGB() 
+        # assert num_classes == 2
+        # return Load_LGB() 
+         raise NotImplementedError(f" Load {model_name} as LGB = Load_LGB(device) instead.")
+
     elif model_name == "attack_classifier":
         return binary_classifier(num_channels)
     else:
@@ -160,7 +164,7 @@ class binary_classifier(nn.Module):
         return x
     
 class Load_LGB:
-    def __init__(self):
+    def __init__(self, device='cpu', wandb=False):
         self.params = {
         'device_type':'cpu',
         'num_leaves' : 10,
@@ -172,6 +176,23 @@ class Load_LGB:
         'verbosity': -1, 
         'metric': 'auc'
         }
+        self.wandb_flag = wandb
+        self.trained_model = None
+        
+
+
+    def wandb_callback(self):
+        import wandb
+        def callback(env):
+            """LightGBM to W&B callback"""
+            # For each validation set, log metrics
+            for i, eval_result in enumerate(env.evaluation_result_list):
+                metric = eval_result[1]
+                val_name = eval_result[0]
+                score = eval_result[2]
+                wandb.log({f"{val_name}/{metric}": score}, commit=False)
+            wandb.log({"epoch": env.iteration})
+        return callback
 
     def convert_data(self, X, y):
         # # Convert the datasets to LightGBM format
@@ -179,12 +200,37 @@ class Load_LGB:
         return lgb_dataset
 
     def train(self, lgb_train, lgb_val, num_boost_round=100):
-        trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)])
+        callbacks=[lgb.early_stopping(200), lgb.log_evaluation(10)]
+        if self.wandb_flag:
+            callbacks.append(self.wandb_callback())
+        self.trained_model = lgb.train(self.params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val], callbacks=callbacks)       
         
-        return trained_model
+        return self.trained_model
     
-    def predict(self, model, X_test):
-        return model.predict(X_test)
+    def predict(self,  X_test, Y_test):
+        assert self.trained_model is not None
+        test_pred = self.trained_model.predict(X_test)        
+        threshold = 0.5
+        test_pred_labels = (test_pred > threshold).astype(int) # type: ignore
+        accuracy = accuracy_score(Y_test, test_pred_labels)
+        loss = mean_squared_error(Y_test, test_pred) # type: ignore
+        return loss, accuracy, test_pred
+    
+    def save_model(self, filename, model=None):
+        if model is None:
+            assert self.trained_model is not None
+            model = self.trained_model
+        with open(filename, 'wb') as file:
+            pickle.dump(model, file)
+        print(f'Model saved to {filename}')
+
+    def load_model(self, filename):
+        with open(filename, 'rb') as file:
+            self.trained_model = pickle.load(file)
+        print(f'Model loaded from {filename}')
+
+        return self.trained_model
+
     
 
 

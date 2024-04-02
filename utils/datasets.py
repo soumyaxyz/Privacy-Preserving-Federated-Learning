@@ -759,5 +759,5 @@ def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent 
 def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
     
 
-    dataset = DatasetWrapper(dataset_name)
+    dataset = DatasetWrapper(dataset_name)    
     return split_dataset(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes

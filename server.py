@@ -4,7 +4,7 @@ from opacus import PrivacyEngine
 import torch
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
-from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, merge_dataloaders
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, merge_dataloaders
 from utils.models import load_model_defination
 from utils.server_utils import Server_details
 import pdb, traceback
@@ -119,7 +119,7 @@ def main():
     
 
     if 'continuous' in args.dataset_name: 
-        continous_datasets = ContinuousDatasetWraper(args.dataset_name)
+        continous_datasets = IncrementalDatasetWraper(args.dataset_name)
         saved_model_names = []
 
         _, _, num_channels, num_classes = continous_datasets.splits[0]

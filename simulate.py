@@ -94,7 +94,7 @@ class Simulator(object):
         
 
         fl.simulation.start_simulation(
-            client_fn= lambda cid: client_fn(cid, self.net, self.trainloaders, self.valloaders, N=self.num_clients, wandb_logging=False, dataset_name=self.dataset_name, simulation=True),
+            client_fn= lambda cid: client_fn(cid, self.net, self.trainloaders, self.valloaders, None, N=self.num_clients, wandb_logging=False, dataset_name=self.dataset_name, simulation=True),
             num_clients=self.num_clients,
             config=fl.server.ServerConfig(num_rounds=num_rounds),  
             strategy=server_details.strategy,

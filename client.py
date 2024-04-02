@@ -2,7 +2,7 @@ from time import sleep
 import flwr as fl
 import argparse
 import torch
-from utils.datasets import ContinuousDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets
 from utils.training_utils import print_info, get_device
 from utils.client_utils import client_fn, get_certificate
 from utils.models import load_model_defination
@@ -105,7 +105,7 @@ def main():
     args = parser.parse_args()
     
     if 'continuous' in args.dataset_name: 
-        continous_datasets = ContinuousDatasetWraper(args.dataset_name)
+        continous_datasets = IncrementalDatasetWraper(args.dataset_name)
 
         _, _, num_channels, num_classes = continous_datasets.splits[0]
         model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy)

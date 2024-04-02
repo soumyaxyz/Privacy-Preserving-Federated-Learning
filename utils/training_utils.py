@@ -268,7 +268,7 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                         prediction = prediction.cpu().numpy()
                     truth =labels.cpu().numpy()
                     result = (prediction == truth).astype(np.int64)
-                    pred = np.append(pred, confidence) #prediction comfidece
+                    pred = np.append(pred, confidence) #prediction confidece
                     # pdb.set_trace()
 
                     gold = np.append(gold, result)
