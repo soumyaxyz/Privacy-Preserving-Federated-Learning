@@ -391,6 +391,20 @@ class Membership_inference_attack_instance:
                                 verbose=False, 
                                 wandb_logging=self.wandb_logging
                                 )
+                loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
+                print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
+            elif self.non_deep_learning:
+                self.shadow_models[i] = lgb.train(params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val])
+                val_pred = self.shadow_models[i].predict(X_val)
+                correct, total, loss = 0, 0, 0.0
+                for j in len(val_pred):
+                    loss += criterion(val_pred[j], labels).item()  
+                    correct += (torch.round(val_pred) == labels).sum().item()
+
+                accuracy = correct / total
+                #predictions = [pred, gold] 
+                loss /= len(val_pred)
+                print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
             else:  # Train the shadow model outright on the corresponding shadow dataset
                 print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}')
                 train(self.shadow_models[i], 
@@ -401,8 +415,8 @@ class Membership_inference_attack_instance:
                     verbose=False, 
                     wandb_logging=self.wandb_logging
                     )
-            loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
-            print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
+                loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
+                print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
         self.shadow_models_trained = True
 
     def train_attack_model(self):
