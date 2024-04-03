@@ -204,16 +204,16 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
     if model_name == 'lgb':
 
-        import utils.datasets as d 
+        # import utils.datasets as d 
 
-        from torch.utils.data import DataLoader, TensorDataset
-        from sklearn.model_selection import train_test_split
-        data_splits = d.load_incremental_Microsoft_Malware()
+        # from torch.utils.data import DataLoader, TensorDataset
+        # from sklearn.model_selection import train_test_split
+        # data_splits = d.load_incremental_Microsoft_Malware()
 
         # train_data = data_splits[0][0].dataset.tensors[0]
         # train_labels = data_splits[0][0].dataset.tensors[1]
         # val_data = data_splits[0][1].tensors[0]
-        # val_labels = data_splits[0][1].tensors[1]
+        # val_labels = data_splits[0][1].tensors[1]``````````
 
 
         # Assuming data_splits[0] contains the train subset
