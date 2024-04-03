@@ -21,7 +21,7 @@ combined_class = [True, False]
 
 
 def modify_output(mode, target, function, *args, **kwargs):
-    if mode =="debug":
+    if mode =="debug" or "all":
         pass #this decorator does nothing
     elif mode =="err":
         sys.stdout = open(target, 'w')
@@ -31,7 +31,7 @@ def modify_output(mode, target, function, *args, **kwargs):
         sys.stderr = open(target, 'w')
         sys.stdout = open(target, 'w')
     else:
-        raise NotImplementedError
+        raise NotImplementedError (f'{mode} mode not supported')
     
     # call the method in question
     try:
