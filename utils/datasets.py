@@ -16,6 +16,7 @@ import pandas as pd
 import pprint
 import matplotlib.pyplot as plt
 
+from utils.microsoft_preprocess import preprocess_microsoft_malware
 from utils.training_utils import load_pickle, save_pickle
 
 def unnormalize(image, transform):
@@ -154,57 +155,25 @@ class DatasetWrapper():
         return train_set, test_set
 
 
-def preprocess_microsoft_malware(train):
-    raise NotImplementedError
-
 def load_Microsoft_Malware():
     directory = 'dataset/MicrosoftMalware/'
 
     try:
         train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
     except:
-        try:
-            train = pd.read_csv(directory+'train_preprocess.csv')
-        except:
-            train = pd.read_csv(directory+'train.csv')
-            train =  preprocess_microsoft_malware(train)  
-
-
             
-        labels=train['HasDetections']
-        train.drop('HasDetections', axis=1, inplace=True)
+        train_dataset, test_dataset, num_channels, num_classes  =  preprocess_microsoft_malware(directory) 
 
-
-        X_train, X_val, Y_train, Y_val = train_test_split(train, labels, test_size=0.15,random_state=1)
-
-        # Handle categorical variables
-        categorical_columns = X_train.select_dtypes(include=['object']).columns
-        for col in categorical_columns:
-            X_train[col] = X_train[col].astype('category').cat.codes
-            X_val[col] = X_val[col].astype('category').cat.codes
-
-        # Convert remaining columns to numeric type
-        X_train = X_train.astype(float)
-        X_val = X_val.astype(float)
-
-        # Convert data to PyTorch tensors
-        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32)
-        Y_train_tensor = torch.tensor(Y_train.values, dtype=torch.float32)
-        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32)
-        Y_val_tensor = torch.tensor(Y_val.values, dtype=torch.float32)
-
-        train_dataset = TensorDataset(X_train_tensor, Y_train_tensor)
-        test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
+        X_train, X_test, y_train, y_test = train_test_split(train_dataset, test_dataset, test_size=0.2, random_state=42)
         
-
-        num_channels = X_train.shape[1]
-        num_classes = 2   #check 
-
+        train_dataset = TensorDataset(torch.tensor(X_train.values, dtype=torch.float32), torch.tensor(y_train.values, dtype=torch.long))
+        test_dataset = TensorDataset(torch.tensor(X_test.values, dtype=torch.float32), torch.tensor(y_test.values, dtype=torch.long))
+       
+        
         try:
             save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
         except Exception as e:
             print('Error saving dataset:', e)
-
     
     return train_dataset, test_dataset, num_channels, num_classes
     

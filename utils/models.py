@@ -47,7 +47,7 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
         # return Load_LGB() 
          raise NotImplementedError(f" Load {model_name} as LGB = Load_LGB(device) instead.")
     elif model_name == "CNN_malware":
-        return CNN_malware(input_size, num_classes)
+        return CNN_malware(num_channels, num_classes)
 
     
     elif model_name == "attack_classifier":

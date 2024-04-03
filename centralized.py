@@ -133,20 +133,9 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
 
             train_loader = get_dataloaders_subset(train_loader, test_loader_size)
-
             
-            
-            # subset_train_loader = []
-            # for batch in train_loader:
-            #     subset_train_loader.append(batch)        
-            #     if len(subset_train_loader) == test_loader_size:
-            #         break
-            
-            # train_loader = subset_train_loader#DataLoader(list(islice(train_loader, len(test_loader))))  # type: ignore
-
-
-            # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
-            model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device) # type: ignore
+           
+            model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device) 
             optimizer = torch.optim.Adam(model.parameters())
 
 
@@ -204,40 +193,14 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
     if model_name == 'lgb':
 
-        # import utils.datasets as d 
-
-        # from torch.utils.data import DataLoader, TensorDataset
-        # from sklearn.model_selection import train_test_split
-        # data_splits = d.load_incremental_Microsoft_Malware()
-
-        # train_data = data_splits[0][0].dataset.tensors[0]
-        # train_labels = data_splits[0][0].dataset.tensors[1]
-        # val_data = data_splits[0][1].tensors[0]
-        # val_labels = data_splits[0][1].tensors[1]``````````
-
-
-        # Assuming data_splits[0] contains the train subset
-        
         
         try:
 
-            # train_subset = data_splits[0][0]
-            # X = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
-            # Y = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
-
+            
             dataset = load_dataset(dataset_name)
             X_train, y_train, X_val, y_val, X_test, y_test =   dataset.get_X_y()
 
-            # pdb.set_trace()
-
-            
-
-            # # Splitting the train subset into train and validation sets
-            # X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
-            # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
-            
-
-
+           
             comment = model_name+'_Centralized_'+dataset_name
             if not savefilename:
                 savefilename = comment 
