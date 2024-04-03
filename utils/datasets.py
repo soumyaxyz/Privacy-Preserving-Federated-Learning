@@ -160,16 +160,14 @@ def load_Microsoft_Malware():
 
     try:
         train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
-    except:
-            
+    except:            
         train_dataset, test_dataset, num_channels, num_classes  =  preprocess_microsoft_malware(directory) 
 
         X_train, X_test, y_train, y_test = train_test_split(train_dataset, test_dataset, test_size=0.2, random_state=42)
         
         train_dataset = TensorDataset(torch.tensor(X_train.values, dtype=torch.float32), torch.tensor(y_train.values, dtype=torch.long))
         test_dataset = TensorDataset(torch.tensor(X_test.values, dtype=torch.float32), torch.tensor(y_test.values, dtype=torch.long))
-       
-        
+
         try:
             save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
         except Exception as e:
