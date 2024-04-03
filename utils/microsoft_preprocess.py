@@ -38,6 +38,11 @@ def preprocess_microsoft_malware(directory):
     df_train = pd.read_csv(directory+'train.csv', usecols=dtypes.keys(), dtype=dtypes)
     print ('Loaded',len(df_train),'rows of TRAIN.CSV!')
 
+    # # DOWNSAMPLE
+    # sm = 100000
+    # df_train = df_train.sample(sm)
+    # print ('Only using',sm,'rows to train and validate')
+
     cols = []; dd = []
 
     # ENCODE NEW

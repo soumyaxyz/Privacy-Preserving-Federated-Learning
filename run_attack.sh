@@ -9,6 +9,4 @@
 
 module load container_env  pytorch-gpu/2.0.1
 
-crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -w  -c  -m efficientnet -mw CentralizedEfficientNet -s efficientnet # add rest of your arguments
-crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -w  -c  -m efficientnet -mw Federated2efficientnetCIFAR10 -s efficientnet # add rest of your arguments
-crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -w  -c  -m efficientnet -mw Federated3efficientnetCIFAR10 -s efficientnet # add rest of your arguments
+crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -at -d Microsoft_Malware_incremental-0 -m CNN_malware -mw CentralizedCNNmalwareMicrosoftMalwareincremental0 -s CNN_malware 
