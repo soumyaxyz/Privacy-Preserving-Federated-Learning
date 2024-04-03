@@ -163,42 +163,44 @@ def load_Microsoft_Malware():
     try:
         train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
     except:
-        try:
-            train = pd.read_csv(directory+'train_preprocess.csv')
-        except:
-            train = pd.read_csv(directory+'train.csv')
-            train =  preprocess_microsoft_malware(train)  
+        # try:
+        #     train = pd.read_csv(directory+'train_preprocess.csv') #this will not work
+        # except:
+        train_dataset, test_dataset, num_channels, num_classes  =  preprocess_microsoft_malware(directory) 
 
 
             
-        labels=train['HasDetections']
-        train.drop('HasDetections', axis=1, inplace=True)
+        # labels=train['HasDetections']
+        # train.drop('HasDetections', axis=1, inplace=True)
 
 
-        X_train, X_val, Y_train, Y_val = train_test_split(train, labels, test_size=0.15,random_state=1)
+        X_train, X_test, y_train, y_test = train_test_split(train_dataset, test_dataset, test_size=0.2, random_state=42)
 
-        # Handle categorical variables
-        categorical_columns = X_train.select_dtypes(include=['object']).columns
-        for col in categorical_columns:
-            X_train[col] = X_train[col].astype('category').cat.codes
-            X_val[col] = X_val[col].astype('category').cat.codes
+        # # Handle categorical variables
+        # categorical_columns = X_train.select_dtypes(include=['object']).columns
+        # for col in categorical_columns:
+        #     X_train[col] = X_train[col].astype('category').cat.codes
+        #     X_val[col] = X_val[col].astype('category').cat.codes
 
-        # Convert remaining columns to numeric type
-        X_train = X_train.astype(float)
-        X_val = X_val.astype(float)
+        # # Convert remaining columns to numeric type
+        # X_train = X_train.astype(float)
+        # X_val = X_val.astype(float)
 
-        # Convert data to PyTorch tensors
-        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32)
-        Y_train_tensor = torch.tensor(Y_train.values, dtype=torch.float32)
-        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32)
-        Y_val_tensor = torch.tensor(Y_val.values, dtype=torch.float32)
+        # # Convert data to PyTorch tensors
+        # X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32)
+        # Y_train_tensor = torch.tensor(Y_train.values, dtype=torch.float32)
+        # X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32)
+        # Y_val_tensor = torch.tensor(Y_val.values, dtype=torch.float32)
 
-        train_dataset = TensorDataset(X_train_tensor, Y_train_tensor)
-        test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
+        # train_dataset = TensorDataset(X_train_tensor, Y_train_tensor)
+        # test_dataset = TensorDataset(X_val_tensor, Y_val_tensor)
+        # Convert train and validation sets to TensorDataset
+        train_dataset = TensorDataset(torch.tensor(X_train.values, dtype=torch.float32), torch.tensor(y_train.values, dtype=torch.long))
+        test_dataset = TensorDataset(torch.tensor(X_test.values, dtype=torch.float32), torch.tensor(y_test.values, dtype=torch.long))
+
         
-
-        num_channels = X_train.shape[1]
-        num_classes = 2   #check 
+        # num_channels = X_train.shape[1]
+        # num_classes = 2   #check 
 
         try:
             save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
