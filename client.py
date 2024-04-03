@@ -2,7 +2,7 @@ from time import sleep
 import flwr as fl
 import argparse
 import torch
-from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_dataloaders
 from utils.training_utils import print_info, get_device
 from utils.client_utils import client_fn, get_certificate
 from utils.models import load_model_defination
@@ -122,7 +122,7 @@ def main():
 
             print(f'\n\nDone with data split {i}\n\n')
     else:
-        [trainloaders, valloaders, _, _], num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+        [trainloaders, valloaders, _, _], num_channels, num_classes = load_partitioned_dataloaders(args.number_of_total_clients, dataset_name=args.dataset_name)
         model = load_model_defination(args.model_name, num_channels=num_channels, num_classes=num_classes, differential_privacy =args.differential_privacy)
         optimizer = torch.optim.Adam(model.parameters())
 

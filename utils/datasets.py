@@ -85,6 +85,16 @@ class DatasetWrapper():
         self.audit_mode = audit_mode
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
 
+    def get_X_y(self, val=True):
+        X_train, y_train = extract_data_and_targets_with_dataloader(self.trainset)
+        X_test, y_test = extract_data_and_targets_with_dataloader(self.testset)
+        if val:
+            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+        else:
+            X_val = X_test
+            y_val = y_test
+        return X_train, y_train, X_val, y_val, X_test, y_test
+
 
     #@blockPrinting  
     def _load_datasets(self, dataset_name):
@@ -215,6 +225,7 @@ def load_incremental_Microsoft_Malware(num_splits = 4):
 
         data_splits.append([dataset, test_dataset, num_channels, num_classes])
 
+
     return data_splits
 
     
@@ -297,7 +308,17 @@ def implement_combined_uniform_test(data_splits):
     return new_data_splits
 
 
-
+def extract_data_and_targets_with_dataloader(dataset):   
+    loader = DataLoader(dataset, batch_size=64)    
+    data_list = []
+    targets_list = []    
+    for data, targets in loader:
+        data_list.append(data)
+        targets_list.append(targets)        
+    # Concatenate all batches
+    data = torch.cat(data_list, dim=0)
+    targets = torch.cat(targets_list, dim=0)    
+    return data.numpy(), targets.numpy()
 
 
 def load_custom_image_dataset(directory, test_size=0.4):
@@ -706,7 +727,7 @@ class Error_Label_Dataset(Loss_Label_Dataset):
 
 
 
-def split_dataset(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
+def split_dataloaders(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
     
 
     # Split training set into `num_clients` partitions to simulate different local datasets
@@ -776,10 +797,12 @@ def merge_dataloaders(trainloaders):
 def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
     [train_dataset, test_dataset, num_channels, num_classes] = dataset_split   
 
-    return split_dataset(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
+    return split_dataloaders(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
 
-def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
-    
 
-    dataset = DatasetWrapper(dataset_name)    
-    return split_dataset(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes
+def load_dataset(dataset_name = 'CIFAR10'):
+    return DatasetWrapper(dataset_name)
+
+def load_partitioned_dataloaders(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:  
+    dataset = load_dataset(dataset_name)    
+    return split_dataloaders(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes

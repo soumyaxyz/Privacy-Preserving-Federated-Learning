@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import flwr as fl
 import wandb
 import torch
-from utils.datasets import load_partitioned_datasets, get_dataloaders_subset
+from utils.datasets import load_dataset, load_partitioned_dataloaders, get_dataloaders_subset
 from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import Load_LGB, load_model_defination 
 import argparse
@@ -97,6 +97,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
 
             param_id = evaluation_model[-1]
+            
 
             LGB = Load_LGB(device=device, param_id= param_id, wandb=wandb_logging)
 
@@ -123,7 +124,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
         else:
 
-            [train_loaders, val_loaders, test_loader, _], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name)
+            [train_loaders, val_loaders, test_loader, _], num_channels, num_classes = load_partitioned_dataloaders(num_clients=1, dataset_name=dataset_name)
             
             val_loader = val_loaders[0]   
             train_loader = train_loaders[0]
@@ -220,13 +221,21 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
         
         try:
 
-            train_subset = data_splits[0][0]
-            X = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
-            Y = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
+            # train_subset = data_splits[0][0]
+            # X = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
+            # Y = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
 
-            # Splitting the train subset into train and validation sets
-            X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
-            X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size=0.2, random_state=42)
+            dataset = load_dataset(dataset_name)
+            X_train, y_train, X_val, y_val, X_test, y_test =   dataset.get_X_y()
+
+            # pdb.set_trace()
+
+            
+
+            # # Splitting the train subset into train and validation sets
+            # X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+            # X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+            
 
 
             comment = model_name+'_Centralized_'+dataset_name
@@ -236,21 +245,21 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
             if wandb_logging:
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
             
-            device_name = 'gpu' if str(device) == 'cuda' else str(device)
-            LGB = Load_LGB(device=device_name, wandb=wandb_logging)
+            
+            LGB = Load_LGB(device=device, wandb=wandb_logging)
 
 
-            lgb_train = LGB.convert_data(X_train, Y_train ) # type: ignore
-            lgb_val = LGB.convert_data(X_val, Y_val)  # type: ignore
+            lgb_train = LGB.convert_data(X_train, y_train )
+            lgb_val = LGB.convert_data(X_val, y_val)  
             
             try:
                 LGB.load_model(savefilename)
             except:
                 print(f"No saved model found. Training new model")
 
-            model = LGB.train(lgb_train, lgb_val, epochs) # type: ignore
+            model = LGB.train(lgb_train, lgb_val, epochs) 
 
-            loss, accuracy, test_pred = LGB.predict(X_test, Y_test)
+            loss, accuracy, test_pred = LGB.predict(X_test, y_test)
 
                        
 
@@ -279,7 +288,7 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
     else:
 
-        [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name) 
+        [train_loaders, val_loaders, test_loader, _ ], num_channels, num_classes = load_partitioned_dataloaders(num_clients=1, dataset_name=dataset_name) 
 
         # print(f"Training on {model_name} with {dataset_name} in {device} using PyTorch {torch.__version__} and Flower {fl.__version__}")
         model = load_model_defination(model_name, num_channels, num_classes, differential_privacy).to(device) 

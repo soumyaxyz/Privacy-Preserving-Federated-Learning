@@ -165,8 +165,10 @@ class binary_classifier(nn.Module):
         return x
     
 class Load_LGB:
-    def __init__(self, device='cpu', param_id = 'B', wandb=False):
-        self.params = self.get_param_by_id(param_id, device)
+    def __init__(self, device=None, param_id = 'B', wandb=False):
+        device = 'cpu' if device is None else device
+        device_name = 'gpu' if str(device) == 'cuda' else str(device)
+        self.params = self.get_param_by_id(param_id, device_name)
         self.param_id = 'B'
         self.wandb_flag = wandb
         self.trained_model = None
@@ -260,7 +262,7 @@ class Load_LGB:
         print(f'Model saved to {filename}')
 
     def load_model(self, filename):
-        filename += self.param_id
+        # filename += self.param_id        # there is no need for this as the flag is already added in the filename
         filename = sanitized_path(filename)
         self.trained_model = load_pickle(filename)
         print(f'Model loaded from {filename}')

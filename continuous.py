@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import flwr as fl
 import wandb
 import torch
-from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, split_dataset
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_dataloaders, split_dataloaders
 from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
 from utils.models import load_model_defination 
 import argparse
@@ -16,7 +16,7 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
 
     assert source_dataset_name != target_dataset_name
 
-    [train_loaders_source, val_loaders_source, test_loader_source, _], num_channels_source, num_classes_source  = load_partitioned_datasets(num_clients=1, dataset_name=source_dataset_name)
+    [train_loaders_source, val_loaders_source, test_loader_source, _], num_channels_source, num_classes_source  = load_partitioned_dataloaders(num_clients=1, dataset_name=source_dataset_name)
 
     model = load_model_defination(model_name, num_channels=num_channels_source, num_classes=num_classes_source, differential_privacy=differential_privacy).to(device)
     load_saved_weights(model, filename =pretrained_model)
@@ -44,7 +44,7 @@ def transfer_learning(pretrained_model, device, wandb_logging=False,  source_dat
     
 
 
-    [train_loaders_target, val_loaders_target, test_loader_target, _], num_channels_target, num_classes_target  = load_partitioned_datasets(num_clients=1, dataset_name=target_dataset_name)
+    [train_loaders_target, val_loaders_target, test_loader_target, _], num_channels_target, num_classes_target  = load_partitioned_dataloaders(num_clients=1, dataset_name=target_dataset_name)
     val_loader_target = val_loaders_target[0]
     train_loader_target = train_loaders_target [0]   
 

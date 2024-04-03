@@ -1,7 +1,7 @@
 import argparse
 
 import wandb
-from utils.datasets import load_partitioned_datasets
+from utils.datasets import load_partitioned_dataloaders
 from utils.models import load_model_defination
 from utils.training_utils import get_device, print_info, save_model, test, train_shadow_model, load_model as load_saved_weights, wandb_init
 
@@ -13,7 +13,7 @@ class Model_Distilation:
         self.student_weights                            = student_weights
         self.student_model_name                         = student_model_name
         self.dataset_name                               = dataset_name                     
-        loaders,  self.num_channels, self.num_classes   = load_partitioned_datasets(num_clients= 1, dataset_name = self.dataset_name, val_percent = 10, batch_size=32)
+        loaders,  self.num_channels, self.num_classes   = load_partitioned_dataloaders(num_clients= 1, dataset_name = self.dataset_name, val_percent = 10, batch_size=32)
         [trainloaders, valloaders, self.testloader, _]  = loaders
         self.trainloader                                = trainloaders[0]
         self.valloader                                  = valloaders[0]  

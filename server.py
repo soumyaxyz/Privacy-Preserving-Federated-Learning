@@ -4,7 +4,7 @@ from opacus import PrivacyEngine
 import torch
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
-from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_datasets, merge_dataloaders
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_dataloaders, merge_dataloaders
 from utils.models import load_model_defination
 from utils.server_utils import Server_details
 import pdb, traceback
@@ -141,7 +141,7 @@ def main():
         
     else:    
         
-        loaders, num_channels, num_classes = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
+        loaders, num_channels, num_classes = load_partitioned_dataloaders(args.number_of_total_clients, dataset_name=args.dataset_name)
         model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy) 
         optimizer = torch.optim.Adam(model.parameters())
         comments = run_server_once(args, model, loaders, optimizer)

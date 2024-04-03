@@ -2,7 +2,7 @@ from typing import Dict, List
 import flwr as fl
 import wandb
 import torch
-from utils.datasets import load_partitioned_datasets, merge_dataloaders
+from utils.datasets import load_partitioned_dataloaders, merge_dataloaders
 from utils.models import load_model_defination
 from utils.client_utils import client_fn
 from utils.server_utils import Server_details
@@ -49,7 +49,7 @@ class Simulator(object):
         self.comment        = comment
         self.epochs_per_round = args.epochs_per_round
         self.federated_learning_mode = args.federated_learning_mode
-        [self.trainloaders, self.valloaders, self.testloader , self.valloader_all], self.num_channel , self.num_classes = load_partitioned_datasets(self.num_clients, dataset_name=self.dataset_name) # type: ignore
+        [self.trainloaders, self.valloaders, self.testloader , self.valloader_all], self.num_channel , self.num_classes = load_partitioned_dataloaders(self.num_clients, dataset_name=self.dataset_name) # type: ignore
         self.trainloader_all = merge_dataloaders(self.trainloaders) 
         if self.device.type == "cuda":
             self.client_resources = { "num_gpus": 1, "num_cpus": 4}            

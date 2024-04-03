@@ -5,9 +5,9 @@ import torch
 import wandb
 from copy import deepcopy
 from torch.utils.data import  DataLoader, ConcatDataset, Subset, random_split 
-from utils.models import load_model_defination
+from utils.models import Load_LGB, load_model_defination
 from utils.training_utils import get_device, make_private, save_loss_dataset,  train_shadow_model, wandb_init, print_info, save_model,train, test, load_model as load_saved_weights
-from utils.datasets import DatasetWrapper, IncrementalDatasetWraper, Loss_Label_Dataset, load_loss_dataset, load_dataloaders
+from utils.datasets import DatasetWrapper, IncrementalDatasetWraper, Loss_Label_Dataset, extract_data_and_targets_with_dataloader, load_loss_dataset, load_dataloaders
 
 
 class Classwise_membership_inference_attack:
@@ -157,7 +157,8 @@ class Membership_inference_attack_instance:
         self.target_defined             = False 
         self.shadow_count               = shadow_count        
         self.shadow_models              = []
-        self.shadow_model_name          = shadow_model_name                
+        self.shadow_model_name          = shadow_model_name  
+        self.multi_framework_ml         = True if shadow_model_name == 'lgb' else False
         self.attack_model               = load_model_defination(attack_model_name, num_channels = 1, num_classes = 2).to(device)
 
     def __del__(self):
@@ -179,7 +180,12 @@ class Membership_inference_attack_instance:
 
 
         for _ in range(self.shadow_count):
-            self.shadow_models.append(load_model_defination(self.shadow_model_name, self.target_dataset.num_channels, self.target_dataset.num_classes, self.differential_privacy).to(self.device))
+            if self.multi_framework_ml: 
+                # param_id = args.target_model_weights[-1]  #  the weight file is not acessible for in this function, set defalut value
+                LGB = Load_LGB(device=self.device, param_id= 'B', wandb=args.wandb_logging)      
+                self.shadow_models.append(LGB)
+            else:
+                self.shadow_models.append(load_model_defination(self.shadow_model_name, self.target_dataset.num_channels, self.target_dataset.num_classes, self.differential_privacy).to(self.device))
 
         self.shadow_train_dataloader, self.shadow_test_dataloader    = self.get_shadow_datasets()
         if self.wandb_logging:
@@ -364,22 +370,29 @@ class Membership_inference_attack_instance:
             loss_dataset = load_loss_dataset(file_path)
             self.build_attack_loaders(loss_dataset)
         except FileNotFoundError as e:
-            traceback.print_exc()
-            print(f'{file_path} not found') # type: ignore
+            # traceback.print_exc()
+            # print(f'{file_path} not found') # type: ignore
             # pdb.set_trace()
-            # print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
-            # self.build_attack_dataset()      
+            print(f'\tAttack dataset for class {classID} not found, building dataset...') # type: ignore
+            self.build_attack_dataset()      
             # raise e  
    
     def train_shadow_model(self):
         target_dataloader=  DataLoader(self.target_dataset.testset, self.batch_size) 
-        loss, accuracy, _ = test(self.target_model, target_dataloader)
+        if self.multi_framework_ml:
+            X_test, y_test = extract_data_and_targets_with_dataloader(target_dataloader.dataset) 
+            # pdb.set_trace()           
+            loss, accuracy, _ = self.target_model.predict(X_test, y_test)
+        else:            
+            loss, accuracy, _ = test(self.target_model, target_dataloader)
         print(f'\n\tFor the target model on the target test set, Loss: {loss}, Accuracy: {accuracy}')
 
         for i in range(self.shadow_count):     
             
             optimizer = torch.optim.Adam(self.shadow_models[i].parameters()) 
-            self.shadow_models[i], optimizer, self.shadow_train_dataloader[i] = make_private(self.differential_privacy, self.shadow_models[i], optimizer, self.shadow_train_dataloader[i])
+            if self.differential_privacy:
+                self.shadow_models[i], optimizer, self.shadow_train_dataloader[i] = make_private(self.differential_privacy, self.shadow_models[i], optimizer, self.shadow_train_dataloader[i])
+            
             if self.shadow_distilled:    # distillation the knoledge from the target model to the shadow model
                 print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
                 train_shadow_model(self.target_model, 
@@ -393,17 +406,16 @@ class Membership_inference_attack_instance:
                                 )
                 loss, accuracy, _ = test(self.shadow_models[i], target_dataloader)
                 print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
-            elif self.non_deep_learning:
-                self.shadow_models[i] = lgb.train(params, lgb_train, num_boost_round=num_boost_round, valid_sets=[lgb_train, lgb_val])
-                val_pred = self.shadow_models[i].predict(X_val)
-                correct, total, loss = 0, 0, 0.0
-                for j in len(val_pred):
-                    loss += criterion(val_pred[j], labels).item()  
-                    correct += (torch.round(val_pred) == labels).sum().item()
-
-                accuracy = correct / total
-                #predictions = [pred, gold] 
-                loss /= len(val_pred)
+            elif self.multi_framework_ml:
+                X_train, y_train = extract_data_and_targets_with_dataloader(self.shadow_train_dataloader[i].dataset)
+                X_val, y_val = extract_data_and_targets_with_dataloader(self.shadow_test_dataloader[i].dataset)
+                X_test, y_test = extract_data_and_targets_with_dataloader(target_dataloader.dataset)
+                
+                lgb_train = self.shadow_models[i].convert_data(X_train, y_train )
+                lgb_val = self.shadow_models[i].convert_data(X_val, y_val)  
+                self.shadow_models[i].train(lgb_train, lgb_val, self.shadow_epochs) 
+                loss, accuracy, test_pred = self.shadow_models[i].predict(X_test, y_test)
+                
                 print(f'\n\tFor the shadow model {i} on the target test set, Loss: {loss}, Accuracy: {accuracy}')
             else:  # Train the shadow model outright on the corresponding shadow dataset
                 print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}')
@@ -450,12 +462,16 @@ class Membership_inference_attack_instance:
             - accuracy (float): The accuracy of the attack model during testing.
         """
         
+        print(f'Running membership inference attack on class {self.class_id}')
         if not self.load_saved_attack_dataset:
-            self.train_shadow_model()         
+            print('No saved attack dataset found, training shadow model')
+            self.train_shadow_model()   
+            print('Building attack dataset')      
             self.build_attack_dataset()
         else:
+            print('Loading attack dataset')
             self.load_attack_dataset()
-
+        print('Training attack model')
         self.train_attack_model()
 
         # plot_roc = self.load_saved_attack_dataset
@@ -491,7 +507,7 @@ def argument_parser():
     parser.add_argument('-n', '--shadow_count', type=int, default=8, help='Number of shadow models')
     parser.add_argument('-m', '--target_model_name', type=str, default='basicCNN', help='Model name for the model to be attacked')
     parser.add_argument('-mw', '--target_model_weights', type=str, default='centralizedbasicCNN', help='Weights for the model to be attacked')
-    parser.add_argument('-s', '--shadow_model_name', type=str, default='basicCNN', help='Model name for the shadow model')
+    parser.add_argument('-s', '--shadow_model_name', type=str, default='', help='Model name for the shadow model')
     parser.add_argument('-a', '--attack_model_name', type=str, default= 'attack_classifier', help='Classifier for the attack model')
     parser.add_argument('-ds', '--distil_shadow_model', action='store_true', help='For shadow model training, The shadow models are is distilled from the target model, otherwise the shadow models are trained from scratch')
     group = parser.add_mutually_exclusive_group()
@@ -522,8 +538,18 @@ def main(args):
 
     print(f'\n\nExecuting {mode} Membership Inference Attack on {args.target_model_weights}, computing loss for training attack model {suffix}\n\n')
 
-    target_model        = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes, args.differcial_privacy).to(device)
-    load_saved_weights(target_model, filename =args.target_model_weights)
+
+    if not args.shadow_model_name:
+        args.shadow_model_name = args.target_model_name
+
+    if args.target_model_name == 'lgb':       
+        param_id = args.target_model_weights[-1]
+        LGB = Load_LGB(device=device, param_id= param_id, wandb=args.wandb_logging)            
+        target_model = LGB.load_model(args.target_model_weights)
+    else:
+
+        target_model = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes, args.differential_privacy).to(device)
+        load_saved_weights(target_model, filename =args.target_model_weights)
 
     # model, optimizer, train_loader = make_private(args.differential_privacy, target_model, optimizer, train_loader)
 
@@ -539,7 +565,7 @@ def main(args):
                                                             shadow_epochs       = args.num_shadow_epochs,
                                                             attack_epochs       = args.num_attack_epochs,
                                                             wandb_logging       = args.wandb_logging,
-                                                            differential_privacy= args.differcial_privacy                                                           
+                                                            differential_privacy= args.differential_privacy                                                           
                                                         )
 
     if args.combined_class:

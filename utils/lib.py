@@ -21,7 +21,7 @@ combined_class = [True, False]
 
 
 def modify_output(mode, target, function, *args, **kwargs):
-    if mode =="all":
+    if mode =="debug":
         pass #this decorator does nothing
     elif mode =="err":
         sys.stdout = open(target, 'w')
