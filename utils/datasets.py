@@ -1,7 +1,8 @@
-import os
+
 import cv2
 import csv
 import numpy as np
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, mean_squared_error
 from tqdm import tqdm
@@ -21,35 +22,7 @@ from utils.microsoft_preprocess import preprocess_microsoft_malware
 from utils.training_utils import load_pickle, save_pickle
 from utils.models import Load_LGB
 
-def unnormalize(image, transform):
-    # Assuming the last step in the transform is Normalize
-    # Extract the mean and std directly from the transform
-    for t in transform.transforms:
-        if isinstance(t, transforms.Normalize):
-            mean = torch.tensor(t.mean).view(3, 1, 1)
-            std = torch.tensor(t.std).view(3, 1, 1)
-            break
-    
-    image = image * std + mean  # Unnormalize
-    image = image.clamp(0, 1)  # Ensure values are within [0, 1]
-    return image
-
-
-def show_img(data_point, transform):
-
-    image, label = data_point
-
-    image = unnormalize(image, transform)
-    
-    image = image.numpy()
-    plt.imshow(np.transpose(image, (1, 2, 0)))
-
-    # Display the plot
-    plt.title(f'Label: {label}')
-    plt.show()
-
-# show_img(trainset[i], transform)
-
+# Dataset Classes definitions
 
 class IncrementalDatasetWraper():
     def __init__(self, dataset_name = 'incremental_SVHN', attack_mode = False):
@@ -78,9 +51,6 @@ class IncrementalDatasetWraper():
         
     def select_split(self, split):
         self.trainset, self.testset, self.num_channels, self.num_classes = self.splits[split]
-
-        
-
 
 class DatasetWrapper():
     def __init__(self, dataset_name = 'CIFAR10', audit_mode = False):
@@ -171,201 +141,6 @@ class DatasetWrapper():
             test_set = audit_test_set
         return train_set, test_set
 
-
-def load_Microsoft_Malware():
-    directory = 'dataset/MicrosoftMalware/'
-
-    try:
-        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
-    except:            
-        train_dataset, test_dataset, num_channels, num_classes  =  preprocess_microsoft_malware(directory) 
-
-        X_train, X_test, y_train, y_test = train_test_split(train_dataset, test_dataset, test_size=0.2, random_state=42)
-        
-        train_dataset = TensorDataset(torch.tensor(X_train.values, dtype=torch.float32), torch.tensor(y_train.values, dtype=torch.long))
-        test_dataset = TensorDataset(torch.tensor(X_test.values, dtype=torch.float32), torch.tensor(y_test.values, dtype=torch.long))
-
-        try:
-            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
-        except Exception as e:
-            print('Error saving dataset:', e)
-    
-    return train_dataset, test_dataset, num_channels, num_classes
-    
-
-def load_incremental_Microsoft_Malware(num_splits = 4):
-    data_splits = []
-
-    train_dataset, test_dataset, num_channels, num_classes = load_Microsoft_Malware()
-
-    total_size = len(train_dataset)
-    partition_size = total_size // num_splits
-    lengths = [partition_size] * num_splits
-    lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
-
-    datasets = random_split(train_dataset, lengths, torch.Generator().manual_seed(42))
-
-    for dataset in (datasets):
-
-        data_splits.append([dataset, test_dataset, num_channels, num_classes])
-
-
-    return data_splits
-
-    
-
-    
-def load_incremental_SVHN():
-    splits_paths=[
-        './dataset/SVHN/extra_A',
-        './dataset/SVHN/extra_B',
-        './dataset/SVHN/extra_C',
-        './dataset/SVHN/train_cropped_images',
-        './dataset/SVHN/test_cropped_images'
-    ]
-
-    return load_incremental_local_dataset(splits_paths)
-
-
-
-
-def load_incremental_local_dataset(splits_paths, combined_extra=False):
-    data_splits = []
-    print('Loading custom incremental dataset...')
-    for directory in tqdm(splits_paths, leave=False):
-        train_dataset, test_dataset, num_channels, num_classes = load_custom_image_dataset(directory, test_size=0.4)
-        data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
-
-    if combined_extra:
-        data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
-
-    data_splits = implement_addetive_dataset(data_splits)
-
-    return data_splits
-
-
-def combine_subsets(data_splits, subsets_groups):
-    new_data_splits = []
-    for group in subsets_groups:
-        if isinstance(group, list):  # Group is a list of indices to combine
-            train_datasets = [data_splits[i][0] for i in group]
-            test_datasets = [data_splits[i][1] for i in group]
-            # Assume num_channels and num_classes are consistent within the group
-            num_channels = data_splits[group[-1]][2]
-            num_classes = data_splits[group[-1]][3]
-            combined_train_dataset = ConcatDataset(train_datasets)
-            combined_test_dataset = ConcatDataset(test_datasets)
-            new_data_splits.append((combined_train_dataset, combined_test_dataset, num_channels, num_classes))
-        else:
-            # Group is a single index, include as is
-            new_data_splits.append(data_splits[group])
-    return new_data_splits
-
-
-
-def implement_addetive_dataset(data_splits, additive_train =False):
-    new_data_splits = []
-    expanding_dataset = []
-    for i, split in tqdm(enumerate(data_splits), leave=False):
-        train_dataset_i, test_dataset_i, num_channels, num_classes = split
-        if additive_train:
-            expanding_dataset.append(train_dataset_i)
-            split = (ConcatDataset(expanding_dataset), test_dataset_i, num_channels, num_classes)
-        else:
-            expanding_dataset.append(test_dataset_i)
-            split = (train_dataset_i, ConcatDataset(expanding_dataset), num_channels, num_classes)
-        new_data_splits.append(split)
-    return new_data_splits
-
-def implement_combined_uniform_test(data_splits):    
-    expanding_dataset = []
-    for _, split in tqdm(enumerate(data_splits), leave=False):
-        _, test_dataset_i, _, _ = split
-        expanding_dataset.append(test_dataset_i)    
-    combined_uniform_test= ConcatDataset(expanding_dataset)
-
-    new_data_splits = []    
-    for i, split in tqdm(enumerate(data_splits), leave=False):
-        train_dataset_i, _, num_channels, num_classes = split
-        split = (train_dataset_i, combined_uniform_test, num_channels, num_classes)
-        new_data_splits.append(split)
-    return new_data_splits
-
-
-def extract_data_and_targets_with_dataloader(dataset):   
-    loader = DataLoader(dataset, batch_size=64)    
-    data_list = []
-    targets_list = []    
-    for data, targets in loader:
-        data_list.append(data)
-        targets_list.append(targets)        
-    # Concatenate all batches
-    data = torch.cat(data_list, dim=0)
-    targets = torch.cat(targets_list, dim=0)    
-    return data.numpy(), targets.numpy()
-
-
-def load_custom_image_dataset(directory, test_size=0.4):
-    images = []
-    labels = []
-    try:
-        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'.pkl')
-    except:
-        print(f'\nPresaved dataset not found, Loading custom dataset from {directory}')
-        for label in tqdm(os.listdir(directory), leave=False):
-            label_dir = os.path.join(directory, label)
-            for img_file in tqdm(os.listdir(label_dir), leave=False):
-                img_path = os.path.join(label_dir, img_file)
-                img = cv2.imread(img_path)
-                img = cv2.resize(img, (32, 32))  # Resize image to a fixed size
-                images.append(img)
-                labels.append(int(label))
-    
-        # Transform the dataset
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-
-        dataset = [(transform(img), label) for img, label in zip(images, labels)]
-    
-        # Calculate the sizes of the train and test sets based on the test_size ratio
-        test_size = int(len(dataset) * test_size)
-        train_size = len(dataset) - test_size
-    
-        # Split the dataset into training and test sets
-        torch.manual_seed(42)
-        train_dataset, test_dataset = random_split(dataset, [train_size, test_size]) # type: ignore
-    
-        num_channels = 3
-        num_classes = len(np.unique(labels))
-
-        try:
-            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'.pkl')
-        except Exception as e:
-            print('Error saving dataset:', e)
-
-
-   
-    return train_dataset, test_dataset, num_channels, num_classes
-
-def split_dataset_into_subsets(dataset, num_subsets=10):
-    # Assuming CIFAR-100 has 100 classes, grouped into 10 subsets
-    class_groups = {k: [] for k in range(num_subsets)}  # Dict to hold subsets
-
-    # Iterate through the dataset to group indices by class
-    for idx, (_, label) in enumerate(dataset):
-        # group_key = label // (100 // num_subsets)  # Determine the subset group
-        group_key = label % num_subsets  # Group by modulo 10 of the label
-        class_groups[group_key].append(idx)
-
-    # Create a subset for each group
-    subsets = [Subset(dataset, indices) for indices in class_groups.values()]
-    return subsets
-
-
-
-
 class CIFAR_20_Dataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -381,35 +156,124 @@ class CIFAR_20_Dataset(Dataset):
         coarse_label = self.remap.fine_id_coarse_id[label]
         return img, coarse_label
 
+class Loss_Label_Dataset(Dataset):
+    """Loss_label_Dataset."""
+
+    def __init__(self, original_dataset, target_model, device, batch_size = 32, loss_batchwise = False):
+        self.batch_size         = batch_size  
+        self.loss_batchwise     = loss_batchwise
+        trainset                = original_dataset[0]
+        testset                 = original_dataset[1]
+        seen_count              = trainset.dataset.__len__()
+        unseen_count            = testset.dataset.__len__()
+        self.target_model       = target_model
+        self.device             = device
+
+        try:
+            assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
+            # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
+        except AssertionError as e:
+            type  = 'batchwise' if loss_batchwise else 'samplewise'
+            print(f'\tUnballanced {type} dataset: seen {seen_count}, unseen {unseen_count}')
+            # pdb.set_trace()
+
+        self.data   = []
+        self.label  = []
+
+        self.append_data_label(trainset, 1.0)
+        self.append_data_label(testset, 0.0)
+
+        # pdb.set_trace()
+        
+
+    def __len__(self):
+        return len(self.label)
+
+    def __getitem__(self, idx):        
+        sample = [self.data[idx], self.label[idx]]
+        return sample
+    
+    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
+        if not criterion:
+            criterion = torch.nn.CrossEntropyLoss()
 
 
+        if isinstance(self.target_model, torch.nn.Module):
+            self.target_model.eval()
+            for images, labels in dataLoader:
+                images, labels = images.to(self.device), labels.to(self.device)
+                outputs = self.target_model(images)
+                if self.loss_batchwise:
+                    loss = criterion(outputs, labels).item()
+                    self.data.append(loss)
+                    self.label.append(seen_unseen_label)               
 
-def load_incremental_CIFAR100(remapping= None, uniform_test = False):
-    trainset, testset, num_channels, _ = load_CIFAR100()
-    num_classes = 20
-    # Split both train and test sets into 20 subsets
-    train_subsets = split_dataset_into_subsets(trainset, num_classes)
-    test_subsets = split_dataset_into_subsets(testset, num_classes)
+                else:
+                    for i, label in enumerate(labels):
+                        instance_loss = criterion(outputs[i], label).item()
+                        self.data.append(instance_loss)
+                        self.label.append(seen_unseen_label)
+        elif isinstance(self.target_model, Load_LGB):
 
-    train_subsets = [CIFAR_20_Dataset(subset) for subset in train_subsets]
-    test_subsets = [CIFAR_20_Dataset(subset) for subset in test_subsets]
+            X_test, y_test = extract_data_and_targets_with_dataloader(dataLoader.dataset) 
+            overall_loss, _, y_pred = self.target_model.predict(X_test, y_test)
+
+            if self.loss_batchwise:
+                num_batches = len(y_test) // self.batch_size
+
+                for i in range(num_batches):
+                    start_index = i * self.batch_size
+                    end_index = start_index + self.batch_size
+                    y_test_batch = y_test[start_index:end_index]
+                    y_pred_batch = y_pred[start_index:end_index] # type: ignore
+                    
+                    # Calculate MSE for the current batch and append to the list
+                    mse = mean_squared_error(y_test_batch, y_pred_batch) # type: ignore
+                    self.data.append(mse)
+                    self.label.append(seen_unseen_label)
+            else:
+                squared_errors = (y_test - y_pred) ** 2
+                for mse in squared_errors:
+                    self.data.append(mse)
+                    self.label.append(seen_unseen_label)
+        else :
+            raise Exception(f'Unknown model type: {type(self.target_model)}')
+
+        return 
+
+class Wrapper_Dataset(Dataset):
+    def __init__(self, data, label):
+        self.data   = data
+        self.label  = label
+         
+    def __len__(self):
+        return len(self.label)
+
+    def __getitem__(self, idx):        
+        sample = [self.data[idx], self.label[idx]]
+        return sample
+    
+class Error_Label_Dataset(Loss_Label_Dataset):
+    def __init__(self, original_dataset, target_model, device, batch_size=32):
+        super().__init__(original_dataset, target_model, device, batch_size)
+
+    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
+        if not criterion:
+            criterion = torch.nn.CrossEntropyLoss()
 
 
-    # Combine the train and test subsets along with num_channels and num_classes into a list of tuples
-    data_splits = [(train_subsets[i], test_subsets[i], num_channels, num_classes) for i in range(len(train_subsets))]
+        for images, _ in dataLoader:
+            images  = images.to(self.device)
+            outputs = self.target_model(images)           
 
-    data_splits = mix_subsets(data_splits)
-    if uniform_test:
-        data_splits = implement_combined_uniform_test(data_splits)
-    else:
-        data_splits = implement_addetive_dataset(data_splits)
+            # pdb.set_trace()
 
-    # pdb.set_trace()
+            self.data.append(outputs)
+            self.label.append(seen_unseen_label)
 
-    if remapping is not None:
-        data_splits = combine_subsets(data_splits, remapping)
+        return 
 
-    return data_splits
+# Datasets functions
 
 def load_CIFAR10():
     # Download and transform CIFAR-10 (train and test)
@@ -485,7 +349,6 @@ def load_MNIST():
 
     return trainset, testset, num_channels, num_classes
 
-
 def load_FashionMNIST():
     # Download and transform FashionMNIST (train and test)
     transform = transforms.Compose(
@@ -501,6 +364,218 @@ def load_FashionMNIST():
     num_classes = 10
 
     return trainset, testset, num_channels, num_classes
+
+def load_Microsoft_Malware():
+    directory = 'dataset/MicrosoftMalware/'
+
+    try:
+        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'saved_dataset.pkl')
+    except:            
+        train_dataset, test_dataset, num_channels, num_classes  =  preprocess_microsoft_malware(directory) 
+
+        X_train, X_test, y_train, y_test = train_test_split(train_dataset, test_dataset, test_size=0.2, random_state=42)
+        
+        train_dataset = TensorDataset(torch.tensor(X_train.values, dtype=torch.float32), torch.tensor(y_train.values, dtype=torch.long))
+        test_dataset = TensorDataset(torch.tensor(X_test.values, dtype=torch.float32), torch.tensor(y_test.values, dtype=torch.long))
+
+        try:
+            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'saved_dataset.pkl')
+        except Exception as e:
+            print('Error saving dataset:', e)
+    
+    return train_dataset, test_dataset, num_channels, num_classes
+    
+# Incremental Datasets wrappers functions
+
+def load_incremental_Microsoft_Malware(num_splits = 4):
+    data_splits = []
+
+    train_dataset, test_dataset, num_channels, num_classes = load_Microsoft_Malware()
+
+    total_size = len(train_dataset)
+    partition_size = total_size // num_splits
+    lengths = [partition_size] * num_splits
+    lengths[-1] += total_size% num_splits          # adding the reminder to the last partition
+
+    datasets = random_split(train_dataset, lengths, torch.Generator().manual_seed(42))
+
+    for dataset in (datasets):
+
+        data_splits.append([dataset, test_dataset, num_channels, num_classes])
+
+
+    return data_splits
+ 
+def load_incremental_SVHN():
+    splits_paths=[
+        './dataset/SVHN/extra_A',
+        './dataset/SVHN/extra_B',
+        './dataset/SVHN/extra_C',
+        './dataset/SVHN/train_cropped_images',
+        './dataset/SVHN/test_cropped_images'
+    ]
+
+    return load_incremental_local_dataset(splits_paths)
+
+def load_incremental_local_dataset(splits_paths, combined_extra=False):
+    data_splits = []
+    print('Loading custom incremental dataset...')
+    for directory in tqdm(splits_paths, leave=False):
+        train_dataset, test_dataset, num_channels, num_classes = load_custom_image_dataset(directory, test_size=0.4)
+        data_splits.append((train_dataset, test_dataset, num_channels, num_classes))
+
+    if combined_extra:
+        data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
+
+    data_splits = implement_addetive_dataset(data_splits)
+
+    return data_splits
+
+def load_incremental_CIFAR100(remapping= None, uniform_test = False):
+    trainset, testset, num_channels, _ = load_CIFAR100()
+    num_classes = 20
+    # Split both train and test sets into 20 subsets
+    train_subsets = split_dataset_into_subsets(trainset, num_classes)
+    test_subsets = split_dataset_into_subsets(testset, num_classes)
+
+    train_subsets = [CIFAR_20_Dataset(subset) for subset in train_subsets]
+    test_subsets = [CIFAR_20_Dataset(subset) for subset in test_subsets]
+
+
+    # Combine the train and test subsets along with num_channels and num_classes into a list of tuples
+    data_splits = [(train_subsets[i], test_subsets[i], num_channels, num_classes) for i in range(len(train_subsets))]
+
+    data_splits = mix_subsets(data_splits)
+    if uniform_test:
+        data_splits = implement_combined_uniform_test(data_splits)
+    else:
+        data_splits = implement_addetive_dataset(data_splits)
+
+    # pdb.set_trace()
+
+    if remapping is not None:
+        data_splits = combine_subsets(data_splits, remapping)
+
+    return data_splits
+
+
+# Auxiliary functions
+
+
+def combine_subsets(data_splits, subsets_groups):
+    new_data_splits = []
+    for group in subsets_groups:
+        if isinstance(group, list):  # Group is a list of indices to combine
+            train_datasets = [data_splits[i][0] for i in group]
+            test_datasets = [data_splits[i][1] for i in group]
+            # Assume num_channels and num_classes are consistent within the group
+            num_channels = data_splits[group[-1]][2]
+            num_classes = data_splits[group[-1]][3]
+            combined_train_dataset = ConcatDataset(train_datasets)
+            combined_test_dataset = ConcatDataset(test_datasets)
+            new_data_splits.append((combined_train_dataset, combined_test_dataset, num_channels, num_classes))
+        else:
+            # Group is a single index, include as is
+            new_data_splits.append(data_splits[group])
+    return new_data_splits
+
+def implement_addetive_dataset(data_splits, additive_train =False):
+    new_data_splits = []
+    expanding_dataset = []
+    for i, split in tqdm(enumerate(data_splits), leave=False):
+        train_dataset_i, test_dataset_i, num_channels, num_classes = split
+        if additive_train:
+            expanding_dataset.append(train_dataset_i)
+            split = (ConcatDataset(expanding_dataset), test_dataset_i, num_channels, num_classes)
+        else:
+            expanding_dataset.append(test_dataset_i)
+            split = (train_dataset_i, ConcatDataset(expanding_dataset), num_channels, num_classes)
+        new_data_splits.append(split)
+    return new_data_splits
+
+def implement_combined_uniform_test(data_splits):    
+    expanding_dataset = []
+    for _, split in tqdm(enumerate(data_splits), leave=False):
+        _, test_dataset_i, _, _ = split
+        expanding_dataset.append(test_dataset_i)    
+    combined_uniform_test= ConcatDataset(expanding_dataset)
+
+    new_data_splits = []    
+    for i, split in tqdm(enumerate(data_splits), leave=False):
+        train_dataset_i, _, num_channels, num_classes = split
+        split = (train_dataset_i, combined_uniform_test, num_channels, num_classes)
+        new_data_splits.append(split)
+    return new_data_splits
+
+def extract_data_and_targets_with_dataloader(dataset):   
+    loader = DataLoader(dataset, batch_size=64)    
+    data_list = []
+    targets_list = []    
+    for data, targets in loader:
+        data_list.append(data)
+        targets_list.append(targets)        
+    # Concatenate all batches
+    data = torch.cat(data_list, dim=0)
+    targets = torch.cat(targets_list, dim=0)    
+    return data.numpy(), targets.numpy()
+
+def load_custom_image_dataset(directory, test_size=0.4):
+    images = []
+    labels = []
+    try:
+        train_dataset, test_dataset, num_channels, num_classes =  load_pickle(directory+'.pkl')
+    except:
+        print(f'\nPresaved dataset not found, Loading custom dataset from {directory}')
+        for label in tqdm(os.listdir(directory), leave=False):
+            label_dir = os.path.join(directory, label)
+            for img_file in tqdm(os.listdir(label_dir), leave=False):
+                img_path = os.path.join(label_dir, img_file)
+                img = cv2.imread(img_path)
+                img = cv2.resize(img, (32, 32))  # Resize image to a fixed size
+                images.append(img)
+                labels.append(int(label))
+    
+        # Transform the dataset
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        dataset = [(transform(img), label) for img, label in zip(images, labels)]
+    
+        # Calculate the sizes of the train and test sets based on the test_size ratio
+        test_size = int(len(dataset) * test_size)
+        train_size = len(dataset) - test_size
+    
+        # Split the dataset into training and test sets
+        torch.manual_seed(42)
+        train_dataset, test_dataset = random_split(dataset, [train_size, test_size]) # type: ignore
+    
+        num_channels = 3
+        num_classes = len(np.unique(labels))
+
+        try:
+            save_pickle( (train_dataset, test_dataset, num_channels, num_classes), directory+'.pkl')
+        except Exception as e:
+            print('Error saving dataset:', e)
+
+
+   
+    return train_dataset, test_dataset, num_channels, num_classes
+
+def split_dataset_into_subsets(dataset, num_subsets=10):
+    # Assuming CIFAR-100 has 100 classes, grouped into 10 subsets
+    class_groups = {k: [] for k in range(num_subsets)}  # Dict to hold subsets
+
+    # Iterate through the dataset to group indices by class
+    for idx, (_, label) in enumerate(dataset):
+        # group_key = label // (100 // num_subsets)  # Determine the subset group
+        group_key = label % num_subsets  # Group by modulo 10 of the label
+        class_groups[group_key].append(idx)
+
+    # Create a subset for each group
+    subsets = [Subset(dataset, indices) for indices in class_groups.values()]
+    return subsets
 
 def get_mixing_proportions(num_classes = 20, seed_value=42):
 
@@ -588,7 +663,6 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
 
     return new_data_splits
 
-
 def load_loss_dataset(filename='dataset'):
     print(f'\tLoading dataset from {filename}')
     load_path = './saved_models/' + filename + '.csv'
@@ -616,127 +690,6 @@ def load_loss_dataset(filename='dataset'):
         dataset = Wrapper_Dataset(data, label)
 
     return dataset
-
-class Loss_Label_Dataset(Dataset):
-    """Loss_label_Dataset."""
-
-    def __init__(self, original_dataset, target_model, device, batch_size = 32, loss_batchwise = False):
-        self.batch_size         = batch_size  
-        self.loss_batchwise     = loss_batchwise
-        trainset                = original_dataset[0]
-        testset                 = original_dataset[1]
-        seen_count              = trainset.dataset.__len__()
-        unseen_count            = testset.dataset.__len__()
-        self.target_model       = target_model
-        self.device             = device
-
-        try:
-            assert abs(seen_count - unseen_count) < seen_count/10  # roughly ballanced dataset
-            # print(f'Ballanced dataset: seen {seen_count}, unseen {unseen_count}')
-        except AssertionError as e:
-            type  = 'batchwise' if loss_batchwise else 'samplewise'
-            print(f'\tUnballanced {type} dataset: seen {seen_count}, unseen {unseen_count}')
-            # pdb.set_trace()
-
-        self.data   = []
-        self.label  = []
-
-        self.append_data_label(trainset, 1.0)
-        self.append_data_label(testset, 0.0)
-
-        # pdb.set_trace()
-        
-
-    def __len__(self):
-        return len(self.label)
-
-    def __getitem__(self, idx):        
-        sample = [self.data[idx], self.label[idx]]
-        return sample
-    
-    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
-        if not criterion:
-            criterion = torch.nn.CrossEntropyLoss()
-
-
-        if isinstance(self.target_model, torch.nn.Module):
-            self.target_model.eval()
-            for images, labels in dataLoader:
-                images, labels = images.to(self.device), labels.to(self.device)
-                outputs = self.target_model(images)
-                if self.loss_batchwise:
-                    loss = criterion(outputs, labels).item()
-                    self.data.append(loss)
-                    self.label.append(seen_unseen_label)               
-
-                else:
-                    for i, label in enumerate(labels):
-                        instance_loss = criterion(outputs[i], label).item()
-                        self.data.append(instance_loss)
-                        self.label.append(seen_unseen_label)
-        elif isinstance(self.target_model, Load_LGB):
-
-            X_test, y_test = extract_data_and_targets_with_dataloader(dataLoader.dataset) 
-            overall_loss, _, y_pred = self.target_model.predict(X_test, y_test)
-
-            if self.loss_batchwise:
-                num_batches = len(y_test) // self.batch_size
-
-                for i in range(num_batches):
-                    start_index = i * self.batch_size
-                    end_index = start_index + self.batch_size
-                    y_test_batch = y_test[start_index:end_index]
-                    y_pred_batch = y_pred[start_index:end_index] # type: ignore
-                    
-                    # Calculate MSE for the current batch and append to the list
-                    mse = mean_squared_error(y_test_batch, y_pred_batch) # type: ignore
-                    self.data.append(mse)
-                    self.label.append(seen_unseen_label)
-            else:
-                squared_errors = (y_test - y_pred) ** 2
-                for mse in squared_errors:
-                    self.data.append(mse)
-                    self.label.append(seen_unseen_label)
-        else :
-            raise Exception(f'Unknown model type: {type(self.target_model)}')
-
-        return 
-
-
-class Wrapper_Dataset(Dataset):
-    def __init__(self, data, label):
-        self.data   = data
-        self.label  = label
-         
-    def __len__(self):
-        return len(self.label)
-
-    def __getitem__(self, idx):        
-        sample = [self.data[idx], self.label[idx]]
-        return sample
-
-    
-class Error_Label_Dataset(Loss_Label_Dataset):
-    def __init__(self, original_dataset, target_model, device, batch_size=32):
-        super().__init__(original_dataset, target_model, device, batch_size)
-
-    def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
-        if not criterion:
-            criterion = torch.nn.CrossEntropyLoss()
-
-
-        for images, _ in dataLoader:
-            images  = images.to(self.device)
-            outputs = self.target_model(images)           
-
-            # pdb.set_trace()
-
-            self.data.append(outputs)
-            self.label.append(seen_unseen_label)
-
-        return 
-
-
 
 def split_dataloaders(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
     
@@ -804,12 +757,10 @@ def merge_dataloaders(trainloaders):
         trn_datasets.append(loader.dataset)
     return DataLoader(ConcatDataset(trn_datasets), trainloaders[0].batch_size)
 
-
 def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
     [train_dataset, test_dataset, num_channels, num_classes] = dataset_split   
 
     return split_dataloaders(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
-
 
 def load_dataset(dataset_name = 'CIFAR10'):
     return DatasetWrapper(dataset_name)
@@ -817,3 +768,4 @@ def load_dataset(dataset_name = 'CIFAR10'):
 def load_partitioned_dataloaders(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:  
     dataset = load_dataset(dataset_name)    
     return split_dataloaders(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes
+
