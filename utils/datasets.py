@@ -3,21 +3,23 @@ import cv2
 import csv
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, mean_squared_error
 from tqdm import tqdm
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, MNIST, CIFAR100, SVHN, FashionMNIST
 from torch.utils.data import  Dataset, DataLoader, ConcatDataset, Subset, TensorDataset, random_split
-from utils.lib import blockPrinting
-from utils.cifar100_fine_coarse_labels import remapping
 import pdb,traceback
 from typing import List
 import pandas as pd
 import pprint
 import matplotlib.pyplot as plt
 
+from utils.lib import blockPrinting
+from utils.cifar100_fine_coarse_labels import remapping
 from utils.microsoft_preprocess import preprocess_microsoft_malware
 from utils.training_utils import load_pickle, save_pickle
+from utils.models import Load_LGB
 
 def unnormalize(image, transform):
     # Assuming the last step in the transform is Normalize
@@ -123,7 +125,22 @@ class DatasetWrapper():
         
 
     def remap_dataset(self, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = True):
-
+        """
+        Remaps the given train and test datasets based on the provided percentages. Holds out a portion of the training set for auditing purposes. 
+        Depending on the wheather the audit_mode flag is set, the train and test sets are returned in different ways.
+    
+        Args:
+        - trainset: The training dataset to be remapped.
+        - testset: The testing dataset to be remapped.
+        - train_percent: The percentage of samples to allocate to the training set (default is 0.35).
+        - test_percent: The percentage of samples to allocate to the testing set (default is 0.35).
+        - audit_percent: The percentage of samples to allocate to the audit set (default is 0.3).
+        - preserve_original_propertion: A boolean indicating whether to preserve the original proportion of the training set overwriting the  train and test percentages (default is True).
+    
+        Returns:
+        - train_set: The remapped training dataset.
+        - test_set: The remapped testing dataset.
+        """
         # Concatenate train and test sets
         full_dataset = ConcatDataset([trainset, testset])
 
@@ -639,22 +656,49 @@ class Loss_Label_Dataset(Dataset):
     
     def append_data_label(self, dataLoader, seen_unseen_label, criterion=None):
         if not criterion:
-            criterion = torch.nn.CrossEntropyLoss( )
+            criterion = torch.nn.CrossEntropyLoss()
 
 
-        for images, labels in dataLoader:
-            images, labels = images.to(self.device), labels.to(self.device)
-            outputs = self.target_model(images)
+        if isinstance(self.target_model, torch.nn.Module):
+            self.target_model.eval()
+            for images, labels in dataLoader:
+                images, labels = images.to(self.device), labels.to(self.device)
+                outputs = self.target_model(images)
+                if self.loss_batchwise:
+                    loss = criterion(outputs, labels).item()
+                    self.data.append(loss)
+                    self.label.append(seen_unseen_label)               
+
+                else:
+                    for i, label in enumerate(labels):
+                        instance_loss = criterion(outputs[i], label).item()
+                        self.data.append(instance_loss)
+                        self.label.append(seen_unseen_label)
+        elif isinstance(self.target_model, Load_LGB):
+
+            X_test, y_test = extract_data_and_targets_with_dataloader(dataLoader.dataset) 
+            overall_loss, _, y_pred = self.target_model.predict(X_test, y_test)
+
             if self.loss_batchwise:
-                loss = criterion(outputs, labels).item()
-                self.data.append(loss)
-                self.label.append(seen_unseen_label)               
+                num_batches = len(y_test) // self.batch_size
 
-            else:
-                for i, label in enumerate(labels):
-                    instance_loss = criterion(outputs[i], label).item()
-                    self.data.append(instance_loss)
+                for i in range(num_batches):
+                    start_index = i * self.batch_size
+                    end_index = start_index + self.batch_size
+                    y_test_batch = y_test[start_index:end_index]
+                    y_pred_batch = y_pred[start_index:end_index] # type: ignore
+                    
+                    # Calculate MSE for the current batch and append to the list
+                    mse = mean_squared_error(y_test_batch, y_pred_batch) # type: ignore
+                    self.data.append(mse)
                     self.label.append(seen_unseen_label)
+            else:
+                squared_errors = (y_test - y_pred) ** 2
+                for mse in squared_errors:
+                    self.data.append(mse)
+                    self.label.append(seen_unseen_label)
+        else :
+            raise Exception(f'Unknown model type: {type(self.target_model)}')
 
         return 
 

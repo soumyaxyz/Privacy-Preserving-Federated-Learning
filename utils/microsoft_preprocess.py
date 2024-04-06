@@ -35,7 +35,7 @@ def preprocess_microsoft_malware(directory):
     dtypes['HasDetections'] = 'int8'
     
     # LOAD CSV FILE
-    df_train = pd.read_csv(directory+'train.csv', usecols=dtypes.keys(), dtype=dtypes)
+    df_train = pd.read_csv(directory+'train.csv', usecols=dtypes.keys(), dtype=dtypes) # type: ignore
     print ('Loaded',len(df_train),'rows of TRAIN.CSV!')
 
     # # DOWNSAMPLE

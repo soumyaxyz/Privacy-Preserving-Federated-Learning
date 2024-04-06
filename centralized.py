@@ -76,20 +76,17 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
     try:
 
         if  model_name == 'lgb':
-            import utils.datasets as d 
+            
+            
+            dataset = load_dataset(dataset_name)
+            X_train, y_train, X_val, y_val, X_test, y_test =   dataset.get_X_y()         
+            
+            
+            
+            
 
-            from torch.utils.data import DataLoader, TensorDataset
-            from sklearn.model_selection import train_test_split
-            data_splits = d.load_incremental_Microsoft_Malware()
-
-
-            train_subset = data_splits[0][0]
-            X_train = train_subset.dataset.tensors[0].numpy()  # Assuming features are tensor[0]
-            Y_train = train_subset.dataset.tensors[1].numpy()  # Assuming labels are tensor[1]
-
-            # Splitting the train subset into train and validation sets
-            X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size=0.2, random_state=42)
-
+            pdb.set_trace()
+            
 
             comment = model_name+'_Centralized_'+dataset_name
 
@@ -97,16 +94,19 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
 
             param_id = evaluation_model[-1]
+
             
 
             LGB = Load_LGB(device=device, param_id= param_id, wandb=wandb_logging)
 
+            # lgb_train = LGB.convert_data(X_train, y_train )
+            # lgb_val = LGB.convert_data(X_val, y_val)  
 
 
             
             model = LGB.load_model(evaluation_model)
 
-            loss, accuracy, val_pred = LGB.predict(X_val, Y_val)
+            loss, accuracy, val_pred = LGB.predict(X_test, y_test)
 
                        
 
