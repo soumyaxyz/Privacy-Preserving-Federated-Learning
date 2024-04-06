@@ -388,10 +388,10 @@ class Membership_inference_attack_instance:
         print(f'\n\tFor the target model on the target test set, Loss: {loss}, Accuracy: {accuracy}')
 
         for i in range(self.shadow_count):     
-            
-            optimizer = torch.optim.Adam(self.shadow_models[i].parameters()) 
-            if self.differential_privacy:
-                self.shadow_models[i], optimizer, self.shadow_train_dataloader[i] = make_private(self.differential_privacy, self.shadow_models[i], optimizer, self.shadow_train_dataloader[i])
+            if not self.multi_framework_ml:
+                optimizer = torch.optim.Adam(self.shadow_models[i].parameters()) 
+                if self.differential_privacy:
+                    self.shadow_models[i], optimizer, self.shadow_train_dataloader[i] = make_private(self.differential_privacy, self.shadow_models[i], optimizer, self.shadow_train_dataloader[i])
             
             if self.shadow_distilled:    # distillation the knoledge from the target model to the shadow model
                 print_info(self.device, model_name=f'shadow model {i}', dataset_name=f'shadow dataset {i}', teacher_name=self.target_model.__class__.__name__)
@@ -544,8 +544,8 @@ def main(args):
 
     if args.target_model_name == 'lgb':       
         param_id = args.target_model_weights[-1]
-        LGB = Load_LGB(device=device, param_id= param_id, wandb=args.wandb_logging)            
-        target_model = LGB.load_model(args.target_model_weights)
+        target_model =  Load_LGB(device=device, param_id= param_id, wandb=args.wandb_logging)            
+        target_model.load_model(args.target_model_weights)
     else:
 
         target_model = load_model_defination(args.target_model_name, target_dataset.num_channels, target_dataset.num_classes, args.differential_privacy).to(device)
