@@ -1,69 +1,14 @@
-from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
-import flwr as fl
 import wandb
 import torch
-from utils.datasets import load_dataset, load_partitioned_dataloaders, get_dataloaders_subset
-from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
-from utils.models import Load_LGB, load_model_defination 
 import argparse
-import matplotlib.pyplot as plt
 import pdb,traceback
 
+from utils.datasets import load_dataset, load_partitioned_dataloaders, get_dataloaders_subset
+from utils.plot_utils import plot_histogram
+from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
+from utils.models import Load_LGB, load_model_defination 
 
 
-
-def get_confidence(prediction, filtered = False, value=1):
-    (confidence, eval_results) = prediction # type: ignore   
-    if filtered:
-        filtered_confidence = confidence[eval_results == value]
-        confidence = filtered_confidence 
-
-    # confidence = torch.nn.functional.softmax(confidence, dim=1)
-    # pdb.set_trace()
-
-    confidence = sorted(confidence)
-    return confidence
-
-def plot_histogram(predTrain, predTest):
-    dpi_value = 100
-    fig, axs = plt.subplots(1, 3, figsize=(15, 3), dpi=dpi_value)  # 1 row, 3 columns
-    title = ['All', 'Correctly Classified', 'Incorrectly Classified']
-
-    # Set a common range for the x-axis
-    x_axis_range = (0, 1)
-
-    # Initialize variables to track the maximum y-axis limit
-    max_y_limit = 0
-
-    for i, ax in enumerate(axs):
-        if i == 0:
-            trn_conf = get_confidence(predTrain, filtered=False, value=1)
-            tst_conf = get_confidence(predTest, filtered=False, value=1)
-        elif i == 1:
-            trn_conf = get_confidence(predTrain, filtered=True, value=1)
-            tst_conf = get_confidence(predTest, filtered=True, value=1)
-        else:
-            trn_conf = get_confidence(predTrain, filtered=True, value=0)
-            tst_conf = get_confidence(predTest, filtered=True, value=0)
-
-        # ax.title.set_text(title[i])
-
-        # Update the maximum y-axis limit
-        max_y_limit = max(max_y_limit, max(ax.hist(trn_conf, bins=20, range=x_axis_range, alpha=0.5, label='train', edgecolor='black')[0]))
-
-        max_y_limit = max(max_y_limit, max(ax.hist(tst_conf, bins=20, range=x_axis_range, alpha=0.5, label='test', edgecolor='black')[0]))
-        
-        ax.set_xlabel(title[i], fontsize=18)
-        ax.set_ylabel('Sample count', fontsize=18)
-        ax.legend(fontsize=18)
-
-    # Set the same y-axis limits for all subplots
-    for ax in axs:
-        ax.set_ylim(0, max_y_limit*1.05)
-
-    plt.tight_layout()
-    plt.show()
 
 
 
@@ -79,10 +24,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
             
             
             dataset = load_dataset(dataset_name)
-            X_train, y_train, X_val, y_val, X_test, y_test =   dataset.get_X_y()         
-            
-            
-            
+            _, _, _, _, X_test, y_test =   dataset.get_X_y()         
             
 
             pdb.set_trace()
@@ -95,13 +37,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
             param_id = evaluation_model[-1]
 
-            
-
             LGB = Load_LGB(device=device, param_id= param_id, wandb=wandb_logging)
-
-            # lgb_train = LGB.convert_data(X_train, y_train )
-            # lgb_val = LGB.convert_data(X_val, y_val)  
-
 
             
             model = LGB.load_model(evaluation_model)
@@ -115,12 +51,6 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
             if wandb_logging:
                 wandb.log({"test_acc": accuracy, "test_loss": loss})
                 wandb.finish()
-
-
-
-
-
-
 
         else:
 

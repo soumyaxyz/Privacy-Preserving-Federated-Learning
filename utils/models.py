@@ -86,7 +86,6 @@ class CNN_malware(nn.Module):
         x = self.fc3(x)
         return x  # Output logits
 
-
 class basicCNN(nn.Module):
     def __init__(self) -> None:
         super(basicCNN, self).__init__()
