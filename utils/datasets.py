@@ -25,10 +25,11 @@ from utils.models import Load_LGB
 # Dataset Classes definitions
 
 class IncrementalDatasetWraper():
-    def __init__(self, dataset_name = 'incremental_SVHN', audit_mode = False):
+    def __init__(self, dataset_name = 'incremental_SVHN', audit_mode = False, addetive_train = False):
         self.name = dataset_name
+        self.audit_mode = audit_mode
         self.splits = self._load_datasets(dataset_name)
-        if audit_mode:
+        if addetive_train:
             self.splits = implement_addetive_dataset(self.splits, additive_train =True)
 
 
@@ -37,16 +38,25 @@ class IncrementalDatasetWraper():
     # @blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'incremental_SVHN':
-            return load_incremental_SVHN()
+            data_splits = load_incremental_SVHN()
         elif dataset_name == 'incremental_CIFAR100':
-            return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
+            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
         elif dataset_name == 'incremental_test_CIFAR100':
-            return load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
+            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
         elif dataset_name == 'Microsoft_Malware_incremental':
-            return load_incremental_Microsoft_Malware()
+            data_splits = load_incremental_Microsoft_Malware()
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
+        
+        for index, (train_subset, test_subset, num_channels, num_classes) in enumerate(data_splits):
+            modified_trainset, modified_testset = remap_dataset(self.audit_mode, train_subset, test_subset)
+            updated_split = (modified_trainset, modified_testset, num_channels, num_classes)
+            data_splits[index] = updated_split
+
+        return data_splits
+            
+
         
         
     def select_split(self, split):
@@ -57,6 +67,14 @@ class DatasetWrapper():
         self.name = dataset_name
         self.audit_mode = audit_mode
         self.trainset, self.testset, self.num_channels, self.num_classes = self._load_datasets(dataset_name)
+
+    def initilize_dataset_with_values(self, dataset_name, trainset, testset, num_channels, num_classes):
+        self.name = dataset_name
+        self.trainset = trainset
+        self.testset = testset
+        self.num_channels = num_channels
+        self.num_classes = num_classes
+        self.audit_mode = None
 
     def get_X_y(self, val=True):
         X_train, y_train = extract_data_and_targets_with_dataloader(self.trainset)
@@ -89,57 +107,11 @@ class DatasetWrapper():
             # import pdb; pdb.set_trace()
             print(f'Unknown dataset name: {dataset_name}')            
             raise NotImplementedError   
-        trainset, testset = self.remap_dataset(trainset, testset)
+        trainset, testset = remap_dataset(self.audit_mode, trainset, testset)
 
         return trainset, testset, num_channels, num_classes
         
 
-    def remap_dataset(self, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = True):
-        """
-        Remaps the given train and test datasets based on the provided percentages. Holds out a portion of the training set for auditing purposes. 
-        Depending on the wheather the audit_mode flag is set, the train and test sets are returned in different ways.
-    
-        Args:
-        - trainset: The training dataset to be remapped.
-        - testset: The testing dataset to be remapped.
-        - train_percent: The percentage of samples to allocate to the training set (default is 0.35).
-        - test_percent: The percentage of samples to allocate to the testing set (default is 0.35).
-        - audit_percent: The percentage of samples to allocate to the audit set (default is 0.3).
-        - preserve_original_propertion: A boolean indicating whether to preserve the original proportion of the training set overwriting the  train and test percentages (default is True).
-    
-        Returns:
-        - train_set: The remapped training dataset.
-        - test_set: The remapped testing dataset.
-        """
-        # Concatenate train and test sets
-        full_dataset = ConcatDataset([trainset, testset])
-
-        if preserve_original_propertion:        
-            original_train_percentage = len(trainset) /len(full_dataset)
-            train_total_percentage  = 1 - audit_percent        
-            train_percent = original_train_percentage * train_total_percentage
-            test_percent = (1-original_train_percentage) * train_total_percentage
-
-        # Determine sizes of subsets
-        num_samples = len(full_dataset)
-
-        audit_train_percent = audit_percent *0.6  
-        
-        train_size = int(num_samples * train_percent)
-        test_size = int(num_samples * test_percent)   
-        audit_train_size = int(num_samples * audit_train_percent)
-        audit_test_size = num_samples - (audit_train_size + train_size + test_size)       
-           
-
-        # Split the concatenated dataset into subsets
-        train_set, test_set, audit_train_set, audit_test_set = random_split(full_dataset, [train_size, test_size, audit_train_size, audit_test_size], torch.Generator().manual_seed(42) )
-        
-         
-        
-        if self.audit_mode:
-            train_set = audit_train_set
-            test_set = audit_test_set
-        return train_set, test_set
 
 class CIFAR_20_Dataset(Dataset):
     def __init__(self, dataset):
@@ -461,6 +433,52 @@ def load_incremental_CIFAR100(remapping= None, uniform_test = False):
 
 # Auxiliary functions
 
+def remap_dataset(audit_mode, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = False):
+    """
+    Remaps the given train and test datasets based on the provided percentages. Holds out a portion of the training set for auditing purposes. 
+    Depending on the wheather the audit_mode flag is set, the train and test sets are returned in different ways.
+
+    Args:
+    - trainset: The training dataset to be remapped.
+    - testset: The testing dataset to be remapped.
+    - train_percent: The percentage of samples to allocate to the training set (default is 0.35).
+    - test_percent: The percentage of samples to allocate to the testing set (default is 0.35).
+    - audit_percent: The percentage of samples to allocate to the audit set (default is 0.3).
+    - preserve_original_propertion: A boolean indicating whether to preserve the original proportion of the training set overwriting the  train and test percentages (default is False).
+
+    Returns:
+    - train_set: The remapped training dataset.
+    - test_set: The remapped testing dataset.
+    """
+    # Concatenate train and test sets
+    full_dataset = ConcatDataset([trainset, testset])
+
+    if preserve_original_propertion:        
+        original_train_percentage = len(trainset) /len(full_dataset)
+        train_total_percentage  = 1 - audit_percent        
+        train_percent = original_train_percentage * train_total_percentage
+        test_percent = (1-original_train_percentage) * train_total_percentage
+
+    # Determine sizes of subsets
+    num_samples = len(full_dataset)
+
+    audit_train_percent = audit_percent *0.6  
+    
+    train_size = int(num_samples * train_percent)
+    test_size = int(num_samples * test_percent)   
+    audit_train_size = int(num_samples * audit_train_percent)
+    audit_test_size = num_samples - (audit_train_size + train_size + test_size)       
+        
+
+    # Split the concatenated dataset into subsets
+    train_set, test_set, audit_train_set, audit_test_set = random_split(full_dataset, [train_size, test_size, audit_train_size, audit_test_size], torch.Generator().manual_seed(42) )
+    
+        
+    
+    if audit_mode:
+        train_set = audit_train_set
+        test_set = audit_test_set
+    return train_set, test_set
 
 def combine_subsets(data_splits, subsets_groups):
     new_data_splits = []
