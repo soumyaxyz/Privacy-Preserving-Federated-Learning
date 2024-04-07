@@ -18,6 +18,11 @@ batch_size = ['single', 'batch_8', 'batch_16', 'batch', 'batch_64', 'batch_128',
 model_name = ['efficientnet']
 model_train_mode = [0,2,3,5,10]
 combined_class = [True, False]
+default_config = {  "_comment": "print supports: none, err, out, debug",
+                    "print": "none",
+                    "server": "false",
+                    "redirect_to": "output.out"
+                    }
 
 
 def modify_output(mode, target, function, *args, **kwargs):
@@ -47,7 +52,15 @@ def modify_output(mode, target, function, *args, **kwargs):
     return value
 
 def load_from_config(serveMode=False):
+
+    
     config_path = os.path.join('config.json')
+    if not os.path.exists(config_path):
+        with open(config_path, 'w') as config_file:
+            json.dump(default_config, config_file, indent=4)
+        print(f"'{config_path}' not found. Created with default configuration.")
+
+
     with open(config_path) as config_file:
         config  = json.load(config_file)
         mode    = config.get('print')

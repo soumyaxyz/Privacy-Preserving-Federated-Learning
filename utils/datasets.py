@@ -25,10 +25,10 @@ from utils.models import Load_LGB
 # Dataset Classes definitions
 
 class IncrementalDatasetWraper():
-    def __init__(self, dataset_name = 'incremental_SVHN', attack_mode = False):
+    def __init__(self, dataset_name = 'incremental_SVHN', audit_mode = False):
         self.name = dataset_name
         self.splits = self._load_datasets(dataset_name)
-        if attack_mode:
+        if audit_mode:
             self.splits = implement_addetive_dataset(self.splits, additive_train =True)
 
 
