@@ -21,3 +21,6 @@ log*
 *.xlsx
 *.out
 *.prof
+*.xlsx
+*csv
+/plot*.py
