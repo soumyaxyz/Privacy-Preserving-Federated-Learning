@@ -1,64 +1,38 @@
+from time import sleep
 import flwr as fl
+from opacus import PrivacyEngine
+import torch
 import argparse, wandb
 from utils.training_utils import print_info, save_model, wandb_init, get_device,  test
-from utils.datasets import load_partitioned_datasets
+from utils.datasets import IncrementalDatasetWraper, load_partitioned_continous_datasets, load_partitioned_dataloaders, merge_dataloaders
 from utils.models import load_model_defination
 from utils.server_utils import Server_details
 import pdb, traceback
 
 
+def run_server_once(args, model, loaders, optimizer, differential_privacy=False):
+    [trainloaders,_,test_loader , valloader_all] = loaders
 
+    trainloader_all = merge_dataloaders(trainloaders) 
 
-def main():
-    """
-    Main function that executes the program.
-
-    Parses command line arguments, loads model and datasets,
-    initializes server configurations, starts the Federated Learning server,
-    handles exceptions, tests the model, and logs test accuracy and loss.
-
-    Args:
-        -a, --server_address (str): The server address. Default is "[::]".
-        -p, --server_port (str): The server port. Default is "8080".
-        -m, --model_name (str): The model name. Default is "basicCNN".
-        -c, --comment (str): The comment for this run. Default is "Federated_".
-        -d, --dataset_name (str): The dataset name. Default is "CIFAR10".
-        -r, --number_of_FL_rounds (int): The number of rounds of Federated Learning. Default is 3.
-        -N, --number_of_total_clients (int): The total number of clients. Default is 2.
-        -w, --wandb_logging: Enable wandb logging.
-        -db, --debug: Enable debug mode.
-
-    Returns:
-        None
-    """
-    
-    
-    parser = argparse.ArgumentParser(description='A description of your program') 
-    parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
-    parser.add_argument('-p', '--server_port', type=str, default="8080", help='Server port')    
-    parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
-    parser.add_argument('-c', '--comment', type=str, default='Federated_', help='Comment for this run')
-    parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
-    parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
-    parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
-    parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
-    parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
-    parser.add_argument('-e', '--epochs_per_round', type=int, default = 1, help='Epochs of training in client per round')
-    args = parser.parse_args()
-    
-
-    model = load_model_defination(args.model_name, num_channels=3, num_classes=100)     
-    loaders, _,_ = load_partitioned_datasets(args.number_of_total_clients, dataset_name=args.dataset_name)
-    [_,_,test_loader , valloader_all] = loaders
+    if  differential_privacy:
+        privacy_engine = PrivacyEngine()
+        model, optimizer, trainloader_all = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=trainloader_all, noise_multiplier=1.1, max_grad_norm=1.0)
 
     device = get_device()
     print_info(device, args.model_name, args.dataset_name)
 
 
-    server_details = Server_details(model, valloader_all, args.wandb_logging, args.number_of_total_clients, device, args.epochs_per_round)
+    server_details = Server_details(model = model, 
+                                    trainloader = trainloader_all, 
+                                    valloader = valloader_all, 
+                                    wandb_logging = args.wandb_logging, 
+                                    num_clients = args.number_of_total_clients, 
+                                    device = device, 
+                                    epochs_per_round = args.epochs_per_round, 
+                                    mode = args.federated_learning_mode)
 
-    comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.model_name+'_'+args.dataset_name
+    comment = args.comment+'_'+str(args.number_of_total_clients)+'_'+args.federated_learning_mode+'_'+args.model_name+'_'+args.dataset_name
 
     if args.wandb_logging:        
         wandb_init(comment=comment, model_name=args.model_name, dataset_name=args.dataset_name)
@@ -94,6 +68,95 @@ def main():
         except UnboundLocalError:
             pass
         wandb.finish()
+
+    return comment
+
+
+
+
+
+def main():
+    """
+    Main function that executes the program.
+
+    Parses command line arguments, loads model and datasets,
+    initializes server configurations, starts the Federated Learning server,
+    handles exceptions, tests the model, and logs test accuracy and loss.
+
+    Args:
+        -a, --server_address (str): The server address. Default is "[::]".
+        -p, --server_port (str): The server port. Default is "8080".
+        -m, --model_name (str): The model name. Default is "basicCNN".
+        -c, --comment (str): The comment for this run. Default is "Federated_".
+        -d, --dataset_name (str): The dataset name. Default is "CIFAR10".
+        -r, --number_of_FL_rounds (int): The number of rounds of Federated Learning. Default is 3.
+        -N, --number_of_total_clients (int): The total number of clients. Default is 2.
+        -w, --wandb_logging: Enable wandb logging.
+        -db, --debug: Enable debug mode.
+
+    Returns:
+        None
+    """
+    
+    
+    parser = argparse.ArgumentParser(description='A description of your program') 
+    parser.add_argument('-a', '--server_address', type=str, default="[::]", help='Server address')
+    parser.add_argument('-p', '--server_port', type=str, default="8080", help='Server port')    
+    parser.add_argument('-m', '--model_name', type=str, default = "basicCNN", help='Model name')
+    parser.add_argument('-fl', '--federated_learning_mode', type=str, default='confident', help='How to combine the clients weights:fedavg, first,  confident, correct_confident')
+    parser.add_argument('-c', '--comment', type=str, default='Federated_', help='Comment for this run')
+    parser.add_argument('-d', '--dataset_name', type=str, default='CIFAR10', help='Dataset name')
+    parser.add_argument('-r', '--number_of_FL_rounds', type=int, default = 3, help='Number of rounds of Federated Learning')  
+    parser.add_argument('-N', '--number_of_total_clients', type=int, default=2, help='Total number of clients')  
+    parser.add_argument('-w', '--wandb_logging', action='store_true', help='Enable wandb logging')
+    parser.add_argument('-db','--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('-s', '--secure', action='store_true', help='Enable secure mode')
+    parser.add_argument('-e', '--epochs_per_round', type=int, default = 1, help='Epochs of training in client per round')
+    parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
+    args = parser.parse_args()
+    
+    # 
+    
+
+    if 'continuous' in args.dataset_name: 
+        continous_datasets = IncrementalDatasetWraper(args.dataset_name)
+        saved_model_names = []
+
+        _, _, num_channels, num_classes = continous_datasets.splits[0]
+        model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy)
+        optimizer = torch.optim.Adam(model.parameters())
+
+        for i,dataset_split in enumerate(continous_datasets.splits):
+            loaders, num_channels_i, num_classes_i = load_partitioned_continous_datasets(num_clients=args.number_of_total_clients, dataset_split=dataset_split) 
+            assert num_channels_i == num_channels
+            assert num_classes_i == num_classes
+            
+            comments = run_server_once(args, model, loaders, optimizer) 
+            saved_model_names.append(comments)
+            print(f'\n\nDone with data split {i}\n\n')
+            sleep(5)
+        
+        print(f'Saved model names: {saved_model_names}')
+
+        
+    else:    
+        
+        loaders, num_channels, num_classes = load_partitioned_dataloaders(args.number_of_total_clients, dataset_name=args.dataset_name)
+        model = load_model_defination(args.model_name, num_channels, num_classes, args.differential_privacy) 
+        optimizer = torch.optim.Adam(model.parameters())
+        comments = run_server_once(args, model, loaders, optimizer)
+
+    
+        
+        
+        
+        
+
+
+
+
+
+    
 
 
 if __name__ == '__main__':

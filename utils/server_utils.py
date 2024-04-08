@@ -1,8 +1,11 @@
+from logging import INFO
 import flwr as fl
 from flwr.common import Metrics
+from flwr.common.logger import log
 import wandb
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from utils.custom_strategy import AggregatePrivacyPreservingMetricStrategy
 from utils.training_utils import test, set_parameters, get_parameters
 import pdb
 #from utils.fedcustom import FedCusTest
@@ -10,17 +13,36 @@ import pdb
 
 
 class Server_details:
-    def __init__(self, model, valloader, wandb_logging, num_clients, device, epochs_per_round =1):
+    def __init__(self, model, trainloader, valloader, wandb_logging, num_clients, device, epochs_per_round =1, mode = 'correct_confident'):
         self.model = model
+        self.trainloader=trainloader
         self.valloader = valloader
         self.device = device
         self.wandb_logging = wandb_logging
         self.model.to(self.device)
         self.num_clients = num_clients
-        self.loss_min =  10000 # inf
+        self.loss_min =  10000 # inf        
+        self.aggregration_mode = self.mode_to_integer(mode)
+        
+        log(INFO, f"Strategy for combining the weights: {mode}")
         self.strategy = self.get_strategy()
         self.epochs_per_round = epochs_per_round
     
+
+    def mode_to_integer(self, mode_text):
+        mode_text = mode_text.lower()
+        if mode_text == "fedavg":
+            return 0
+        elif mode_text == "first":
+            return 1
+        elif mode_text == "confident":
+            return 2
+        elif mode_text == "correct_confident":
+            return 3
+        elif mode_text == "round_robin":
+            return 4
+        else:
+            return 0 # default
 
     def get_certificates(self):
         try:
@@ -36,12 +58,17 @@ class Server_details:
         
 
     def get_strategy(self):
-        strategy =  fl.server.strategy.FedAvg(
+        strategy =  AggregatePrivacyPreservingMetricStrategy(  # fl.server.strategy.FedAvg
+                    mode=self.aggregration_mode,
+                    model=self.model,
+                    trainloader=self.trainloader,
+                    valloader=self.valloader,
+                    device=self.device,
                     fraction_fit=0.3,
                     fraction_evaluate=0.3,
-                    # min_fit_clients= min(2,self.num_clients),
-                    # min_evaluate_clients=min(2,self.num_clients),
-                    # min_available_clients=self.num_clients,
+                    min_fit_clients= self.num_clients,
+                    min_evaluate_clients=self.num_clients,
+                    min_available_clients=self.num_clients,
                     initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(self.model)),
                     on_fit_config_fn=lambda server_round :  self.fit_config(server_round), # type: ignore
                     on_evaluate_config_fn=self.evaluate_config, # type: ignore
@@ -53,6 +80,8 @@ class Server_details:
                     evaluate_metrics_aggregation_fn=self.weighted_average
                 )
         return strategy
+    
+    
 
     def fit_config(self, server_round: int):
         """Return training configuration dict for each round.
@@ -66,6 +95,7 @@ class Server_details:
     def evaluate_config(self, server_round: int):
         """Return evaluation configuration dict for each round.       
         """
+        # print(f"[SERVER round {server_round}], Evaluate config \n\n")
         config = {
             "server_round": server_round,
             "local_epochs": self.epochs_per_round ,
@@ -90,10 +120,11 @@ class Server_details:
             
             # pdb.set_trace()
             
-            # print(f"[SERVER round {server_round}], config: {config}")
+            # print(f"[SERVER round {server_round}], get_evaluate_fn \n\n")
 
 
             set_parameters(model, parameters)  # Update model with the latest parameters
+            # print(f"Server-side evaluation started\n\n\n")
             loss, accuracy, _ = test(model, valloader, device)
             print(f"Server-side evaluation loss {loss} / accuracy {accuracy}")
             if wandb_logging:

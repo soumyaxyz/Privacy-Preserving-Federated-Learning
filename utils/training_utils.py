@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import copy
 from typing import Dict, List
 import numpy as np
 import flwr as fl
@@ -11,21 +12,32 @@ import pdb,traceback
 import os
 import csv
 import json
+import pickle
+from opacus import PrivacyEngine
+from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
+from flwr.server.strategy.aggregate import aggregate
 
-from utils.datasets import Wrapper_Dataset
-#from utils.plot_utils import plot_ROC_curve
+# from utils.datasets import Wrapper_Dataset
+from utils.plot_utils import plot_ROC_curve
 from utils.lib import blockPrintingIfServer, create_directories_if_not_exist
 
 def wandb_init(
     project="Privacy_Preserving_Federated_Learning", 
-    entity="saham001", 
+    entity='', 
     model_name="basicCNN", 
     dataset_name="CIFAR_10",
     comment= '',  
     lr ='', 
     optimizer = ''
-    ):    
-    wandb.login( key="3ca866cc00388bed3df77669aabc6a9e40fcd7c4" )
+    ):
+    config_path = os.path.join('wandb', 'config.json')
+    with open(config_path) as config_file:
+        config = json.load(config_file)  
+        api_key = config.get('api_key') 
+        if entity == '':
+            entity = config.get('entity')
+         
+    wandb.login( key=api_key )
     wandb.init(
       project=project, entity=entity,
       config={"learning_rate": lr, "optimiser": optimizer, "comment" : comment, "model": model_name, "dataset": dataset_name}
@@ -38,18 +50,23 @@ def get_device():
     else:
       return torch.device("cpu")
 
-def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None, no_FL = False):
+def print_info(device, model_name="model", dataset_name="dataset", teacher_name=None, no_FL = False, eval=False):
     if device.type=="cuda":
         device_type = torch.cuda.get_device_name(0)  
     else:
         device_type = device.type
+
+    if eval:
+        training_val = 'Evaluating'
+    else:
+        training_val = 'Training'
         
     if teacher_name:
         print(f"\nDistiling {model_name} from {teacher_name} on {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     elif no_FL:
-        print(f"\n\tTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
+        print(f"\n\t{training_val} {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     else:
-        print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
+        print(f"\n{training_val} {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and Flower {fl.__version__}")
 
 def verify_folder_exist(path):
     if not os.path.exists(path):
@@ -57,10 +74,14 @@ def verify_folder_exist(path):
         print(f"{path} created")
     return path
 
-def save_model(net, optim = None, filename ='filename', print_info=False):
-    sanatized_filename = "".join(x for x in filename if x.isalnum())
-    save_folder = './saved_models/'
+def sanitized_path(filename, save_folder = './saved_models/'):
+    sanatized_filename = "".join(x for x in filename if x.isalnum())    
     path = verify_folder_exist(save_folder)+sanatized_filename+'.pt'
+    return path
+
+
+def save_model(net, optim = None, filename ='filename', print_info=False):
+    path = sanitized_path(filename)
     if optim:
         torch.save({'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optim.state_dict()
@@ -72,14 +93,17 @@ def save_model(net, optim = None, filename ='filename', print_info=False):
         print(f"\nSaved model to {path}")
 
 def load_model(net, optim=None, filename ='filename', print_info=False):
-    sanatized_filename = "".join(x for x in filename if x.isalnum())
-    path = './saved_models/'+sanatized_filename+'.pt'
-    checkpoint = torch.load(path)
-    net.load_state_dict(checkpoint['model_state_dict'])
-    if optim:
-        optim.load_state_dict(checkpoint['optimizer_state_dict'])
-    if print_info:
-        print(f"Loaded model from {path}")
+    try:
+        path = sanitized_path(filename)
+        checkpoint = torch.load(path)
+        net.load_state_dict(checkpoint['model_state_dict'])
+        if optim:
+            optim.load_state_dict(checkpoint['optimizer_state_dict'])
+        if print_info:
+            print(f"Loaded model from {path}")
+    except Exception as e:
+        traceback.print_exc()
+        pdb.set_trace()
 
 def delete_saved_model(filename ='filename', print_info=False):
     sanatized_filename = "".join(x for x in filename if x.isalnum())
@@ -107,36 +131,16 @@ def save_loss_dataset(dataset, filename='datset'):
             writer.writerow([data, label])  # Write each data and label as a row
 
 
+def save_pickle(data, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f)
+
+def load_pickle(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 
 
-def load_loss_dataset(filename='dataset'):
-    print(f'\tLoading dataset from {filename}')
-    load_path = './saved_models/' + filename + '.csv'
-    dataset = []
-
-    with open(load_path, mode='r') as file:
-        reader = csv.reader(file)
-        next(reader)  # Skip the header row
-
-        data = []
-        label = []
-
-        for row in reader:
-            data_i, label_i = row
-            # Convert data and label to appropriate types if needed
-            try:
-                data.append(eval(data_i))
-                label.append(eval(label_i))
-            except:
-                traceback.print_exc()
-                # pdb.set_trace()
-
-            
-
-        dataset = Wrapper_Dataset(data, label)
-
-    return dataset
 
 
 def get_parameters(net) -> List[np.ndarray]:
@@ -144,9 +148,17 @@ def get_parameters(net) -> List[np.ndarray]:
 
 def set_parameters(net, parameters: List[np.ndarray]):
     params_dict = zip(net.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.from_numpy(v) for k, v in params_dict}) # for resnet
-    #state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict}) #for efficientnet
+    state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
+
+def mix_parameters(net, parameters: List[np.ndarray]):
+    # net_copy = copy.deepcopy(net)
+    old_parameters = get_parameters(net)
+    weights_results = [(old_parameters, 1), (parameters, 2) ] 
+    parameters_aggregated = parameters_to_ndarrays(ndarrays_to_parameters(aggregate(weights_results)))
+    set_parameters(net, parameters_aggregated)
+
+   
 
 def loss_fn_kd(outputs, labels, teacher_outputs, params):
     """
@@ -174,8 +186,10 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
         optimizer = torch.optim.Adam(net.parameters())
     net.train()
     correct, total, epoch_loss = 0, 0, 0.0
-    for images, labels in trainloader:
+    for images, labels in tqdm(trainloader, leave=False):
         try:
+            if  len(labels) <= 1: #ignore single sample batches
+                break
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = net(images)
@@ -205,23 +219,18 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     net.eval()
     predictions = None
     try:
-        if plot_ROC:
-            gold = []
-            pred = []
+        # if plot_ROC:
+        gold = []
+        pred = []
         with torch.no_grad():
-            for images, labels in testloader:
+            for images, labels in tqdm(testloader, leave=False):
                 images, labels = images.to(device), labels.to(device)
                 outputs = net(images)
                 loss += criterion(outputs, labels).item()                
                 total += labels.size(0)
-                if is_binary:
-                    correct += (torch.round(outputs.data) == labels).sum().item()
-                    confidence = torch.sigmoid(outputs).cpu().numpy()
-                    prediction = (confidence >= 0.5).astype(np.int64)
+                
+                   
 
-                else:
-                    correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
-<<<<<<< Updated upstream
 
                 if plot_ROC:
                     gold = np.append(gold, labels.cpu().numpy()) # type: ignore
@@ -229,26 +238,31 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                         pred = np.append(pred, torch.round(outputs).cpu().numpy())# type: ignore
                     else:
                         pred = np.append(pred, torch.max(outputs, 1)[1])  # unverified # type: ignore
-=======
+                else:
+                    # outputs = torch.nn.functional.softmax(outputs, dim=1)
                     # pdb.set_trace()
-                    ( confidence, prediction) = torch.max(outputs, 1)
-                    confidence = confidence.cpu().numpy()
-                    prediction = prediction.cpu().numpy()
+                    if is_binary:
+                        correct += (torch.round(outputs.data) == labels).sum().item()
+                        confidence = torch.sigmoid(outputs).cpu().numpy()
+                        prediction = (confidence >= 0.5).astype(np.int64)
+                    else:
+                        correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+                        ( confidence, prediction) = torch.max(outputs, 1)
+                        confidence = confidence.cpu().numpy()
+                        prediction = prediction.cpu().numpy()
+                    truth =labels.cpu().numpy()
+                    result = (prediction == truth).astype(np.int64)
+                    pred = np.append(pred, confidence) #prediction confidece
+                    # pdb.set_trace()
 
-                truth =labels.cpu().numpy()
-                result = (prediction == truth).astype(np.int64)
-                pred = np.append(pred, confidence) #prediction comfidece
-                # pdb.set_trace()
+                    gold = np.append(gold, result)
 
-                gold = np.append(gold, result)
-
-                try:
-                    assert len(pred) == len(gold)
-                except AssertionError:
-                    traceback.print_exc()
-                    pdb.set_trace()
+                    try:
+                        assert len(pred) == len(gold)
+                    except AssertionError:
+                        traceback.print_exc()
+                        pdb.set_trace()
                 
->>>>>>> Stashed changes
 
         loss /= len(testloader.dataset)
         accuracy = correct / total
@@ -260,19 +274,40 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
     except Exception as e:
         traceback.print_exc()
         pdb.set_trace()
-    
         
     return loss, accuracy, predictions # type: ignore
 
+
+def make_private(differential_privacy, model, optimizer, train_loader):
+    if  differential_privacy:
+        privacy_engine = PrivacyEngine()
+        model, optimizer, train_loader = privacy_engine.make_private(module=model, optimizer=optimizer, data_loader=train_loader, noise_multiplier=1.01, max_grad_norm=1.0)
+    return model,optimizer,train_loader
+
+
 @blockPrintingIfServer
-def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion = None, device=get_device(), verbose=False, wandb_logging=True, patience= 5, loss_min = 100000, is_binary=False):
+def train(net, 
+          trainloader, 
+          valloader, 
+          epochs: int, 
+          optimizer = None, 
+          criterion = None, 
+          device=get_device(), 
+          verbose=False, 
+          wandb_logging=True, 
+          patience= 5, 
+          loss_min = 100000, 
+          is_binary=False,
+          savefilename=None,
+          ):
     """Train the network on the training set."""
     if not criterion:
         criterion = torch.nn.CrossEntropyLoss()
     if not optimizer:
         optimizer = torch.optim.Adam(net.parameters())
 
-    savefilename = net.__class__.__name__
+    if savefilename is None:
+        savefilename = net.__class__.__name__
 
     record_mode = False
 
@@ -328,7 +363,7 @@ def train(net, trainloader, valloader, epochs: int, optimizer = None, criterion 
     if not verbose:
         pbar.close()# type: ignore
         pbar2.close()# type: ignore
-    return net, optimizer, loss, accuracy # type: ignore
+    return net, optimizer, loss, accuracy, record_mode # type: ignore
 
 @blockPrintingIfServer
 def train_shadow_model(target_model, 

@@ -18,10 +18,15 @@ batch_size = ['single', 'batch_8', 'batch_16', 'batch', 'batch_64', 'batch_128',
 model_name = ['efficientnet']
 model_train_mode = [0,2,3,5,10]
 combined_class = [True, False]
+default_config = {  "_comment": "print supports: none, err, out, debug",
+                    "print": "none",
+                    "server": "false",
+                    "redirect_to": "output.out"
+                    }
 
 
 def modify_output(mode, target, function, *args, **kwargs):
-    if mode =="all":
+    if mode =="debug" or "all":
         pass #this decorator does nothing
     elif mode =="err":
         sys.stdout = open(target, 'w')
@@ -31,10 +36,15 @@ def modify_output(mode, target, function, *args, **kwargs):
         sys.stderr = open(target, 'w')
         sys.stdout = open(target, 'w')
     else:
-        raise NotImplementedError
+        raise NotImplementedError (f'{mode} mode not supported')
     
     # call the method in question
-    value = function(*args, **kwargs)
+    try:
+        value = function(*args, **kwargs)
+    except Exception as e:
+        value = None
+        traceback.print_exc()
+        pdb.set_trace()
     # enable all printing to the console
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
@@ -42,7 +52,15 @@ def modify_output(mode, target, function, *args, **kwargs):
     return value
 
 def load_from_config(serveMode=False):
+
+    
     config_path = os.path.join('config.json')
+    if not os.path.exists(config_path):
+        with open(config_path, 'w') as config_file:
+            json.dump(default_config, config_file, indent=4)
+        print(f"'{config_path}' not found. Created with default configuration.")
+
+
     with open(config_path) as config_file:
         config  = json.load(config_file)
         mode    = config.get('print')
@@ -63,6 +81,16 @@ def blockPrinting(function):
     def function_wrapper(*args, **kwargs):
         return modify_output(mode, target, function, *args, **kwargs)
     return function_wrapper
+
+def try_catch(function):
+    def function_wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except Exception as e:
+            traceback.print_exc()
+            pdb.set_trace()
+    return function_wrapper
+
 
 def blockPrintingIfServer(function):
     mode, target = load_from_config(serveMode=True)
