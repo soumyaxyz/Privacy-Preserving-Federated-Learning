@@ -9,4 +9,4 @@
 
 module load container_env  pytorch-gpu/2.0.1
 
-crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -at -d Microsoft_Malware_incremental-0 -m CNN_malware -mw CentralizedCNNmalwareMicrosoftMalwareincremental0 -s CNN_malware 
+crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -at -d Microsoft_Malware_incremental-1 -m CNN_malware -mw CentralizedCNNmalwareMicrosoftMalwareincremental1 -s CNN_malware 

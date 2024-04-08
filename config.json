@@ -1,6 +1,6 @@
 {
     "_comment": "print supports: none, err, out, debug",
-    "print": "debug", 
+    "print": "none", 
     "server": "false",
     "redirect_to": "output.out"
 
