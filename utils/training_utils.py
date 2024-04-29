@@ -31,6 +31,13 @@ def wandb_init(
     optimizer = ''
     ):
     config_path = os.path.join('wandb', 'config.json')
+    if not os.path.exists(config_path):
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, 'w') as file:
+            json.dump({
+                "api_key": input("Please enter your API key: "),
+                "entity": "soumyabanerjee"
+            }, file, indent=4)
     with open(config_path) as config_file:
         config = json.load(config_file)  
         api_key = config.get('api_key') 

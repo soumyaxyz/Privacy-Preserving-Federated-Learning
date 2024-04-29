@@ -2,11 +2,11 @@ import wandb
 import torch
 import argparse
 import pdb,traceback
-
+import numpy as np
 from utils.datasets import load_dataset, load_partitioned_dataloaders, get_dataloaders_subset
 from utils.plot_utils import plot_histogram
 from utils.training_utils import make_private, save_model, wandb_init,  print_info, get_device, train, test, load_model as load_saved_weights
-from utils.models import Load_LGB, load_model_defination 
+from utils.models import Load_LGB, extract_model_names, load_model_defination, load_non_pytorch_model_defination 
 
 
 
@@ -119,9 +119,10 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
 
 def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN', differential_privacy=False):
+    device="cpu"
+    # pdb.set_trace()
 
-
-    if model_name == 'lgb':
+    if model_name in extract_model_names(load_non_pytorch_model_defination):
 
         
         try:
@@ -129,6 +130,14 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
             
             dataset = load_dataset(dataset_name)
             X_train, y_train, X_val, y_val, X_test, y_test =   dataset.get_X_y()
+
+            
+            num_channels = X_train.shape[1]
+            num_classes = len(np.unique(y_train))
+
+
+
+
 
            
             comment = model_name+'_Centralized_'+dataset_name
@@ -139,20 +148,22 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
                 wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
             
             
-            LGB = Load_LGB(device=device, wandb=wandb_logging)
+            # model_def = Load_LGB(device=device, wandb=wandb_logging)
+
+            model_def = load_non_pytorch_model_defination(model_name=model_name, device=device, num_channels=num_channels, num_classes=num_classes, wandb=wandb_logging)
 
 
-            lgb_train = LGB.convert_data(X_train, y_train )
-            lgb_val = LGB.convert_data(X_val, y_val)  
+            lgb_train = model_def.convert_data(X_train, y_train )
+            lgb_val = model_def.convert_data(X_val, y_val)  
             
             try:
-                LGB.load_model(savefilename)
+                model_def.load_model(savefilename)
             except:
                 print(f"No saved model found. Training new model")
 
-            model = LGB.train(lgb_train, lgb_val, epochs) 
+            model = model_def.train(lgb_train, lgb_val, epochs) 
 
-            loss, accuracy, test_pred = LGB.predict(X_test, y_test)
+            loss, accuracy, test_pred = model_def.predict(X_test, y_test)
 
                        
 
@@ -167,7 +178,7 @@ def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dat
 
               
 
-            LGB.save_model(savefilename)
+            model_def.save_model(savefilename)
 
         except Exception as e:
             traceback.print_exc()
