@@ -31,6 +31,13 @@ def wandb_init(
     optimizer = ''
     ):
     config_path = os.path.join('wandb', 'config.json')
+    if not os.path.exists(config_path):
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, 'w') as file:
+            json.dump({
+                "api_key": input("Please enter your API key: "),
+                "entity": "soumyabanerjee"
+            }, file, indent=4)
     with open(config_path) as config_file:
         config = json.load(config_file)  
         api_key = config.get('api_key') 
@@ -187,12 +194,34 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
     net.train()
     correct, total, epoch_loss = 0, 0, 0.0
     for images, labels in tqdm(trainloader, leave=False):
+        # import warnings
+        # warnings.filterwarnings('error', message='*target size*')
         try:
             if  len(labels) <= 1: #ignore single sample batches
                 break
             images, labels = images.to(device), labels.to(device)
-            optimizer.zero_grad()
+
+            # print(f"Device of model: {next(net.parameters()).device}")
+            # print(f"Device of images: {images.device}")
+            # print(f"Device of labels: {labels.device}")
+
             outputs = net(images)
+
+            # Check if network is initialized (assuming initialization flag or method in net)
+            if hasattr(net, 'initialized'): 
+                criterion = torch.nn.BCEWithLogitsLoss()
+                is_binary =True
+                if net.initialized:
+                    optimizer = torch.optim.Adam(net.parameters())
+                else:
+                    # print("Initialization phase - clustering in progress.")
+                    continue  # Skip the rest of the loop until initialization is complete
+
+            if not outputs.requires_grad:
+                raise ValueError("Model outputs do not require gradients. Check model configuration.")
+
+            
+            optimizer.zero_grad()   
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -214,7 +243,11 @@ def train_single_epoch(net, trainloader, optimizer = None, criterion = None, dev
 @blockPrintingIfServer
 def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False):
     """Evaluate the network on the entire test set."""
-    criterion = torch.nn.CrossEntropyLoss()
+    if hasattr(net, 'initialized'): 
+        criterion = torch.nn.BCEWithLogitsLoss()
+        is_binary =True
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     net.eval()
     predictions = None
@@ -227,9 +260,8 @@ def test(net, testloader, device = get_device(), is_binary=False, plot_ROC=False
                 images, labels = images.to(device), labels.to(device)
                 outputs = net(images)
                 loss += criterion(outputs, labels).item()                
-                total += labels.size(0)
+                total += labels.size(0)               
                 
-                   
 
 
                 if plot_ROC:
