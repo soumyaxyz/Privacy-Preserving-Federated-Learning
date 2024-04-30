@@ -8,6 +8,7 @@ import pdb, traceback
 from sklearn.metrics import accuracy_score, mean_squared_error,  f1_score, precision_recall_curve, auc
 from opacus.validators import ModuleValidator
 import numpy as np
+import scipy.cluster.hierarchy as sch
 import inspect
 import re
 import wandb
@@ -57,9 +58,9 @@ def load_model_defination(model_name ="basic_CNN", num_channels=3, num_classes=1
         model = load_shufflenet(classes= num_classes)
     elif model_name == "alexnet":
         model = load_alexnet (classes = num_classes)
-    # elif model_name == "kitnet":
-    #     cluster = CC.corClust(num_channels)
-    #     model = Kitnet( input_size=num_channels, cluster_module=cluster) 
+    elif model_name == "kitnet_pt":
+        cluster = Corr_Cluster_batch(num_channels)
+        model = Kitnet( input_size=num_channels, cluster_module=cluster) 
     elif model_name == "AE":
         model = AE(input_size=num_channels)
     elif model_name == "lgb":
@@ -398,6 +399,53 @@ class AE(AutoEncoder):
 
         return final_mapped_loss
 
+class Corr_Cluster_batch():
+    def __init__(self, n):
+        self.n = n
+        self.c = np.zeros(n)  # Cumulative sum of features
+        self.c_r = np.zeros(n)  # Residuals sum
+        self.c_rs = np.zeros(n)  # Sum of squared residuals
+        self.C = np.zeros((n, n))  # Correlation matrix (actually covariance-like)
+        self.N = 0  # Total number of data points processed
+
+    def update(self, batch):
+        # Check if input batch is a PyTorch tensor and convert it to NumPy array if necessary
+        if isinstance(batch, torch.Tensor):
+            batch = batch.detach().cpu().numpy()
+        # Assume batch is a NumPy array of shape [batch_size, n]
+        batch_size = batch.shape[0]
+        self.N += batch_size
+        batch_sum = np.sum(batch, axis=0)
+        self.c += batch_sum
+        
+        # Update residuals
+        mean = self.c / self.N
+        c_rt = batch - mean
+        self.c_r += np.sum(c_rt, axis=0)
+        self.c_rs += np.sum(c_rt**2, axis=0)
+        
+        # Update correlation matrix
+        for i in range(batch_size):
+            self.C += np.outer(c_rt[i], c_rt[i])
+
+    def corrDist(self):
+        # Compute the correlation distance matrix
+        c_rs_sqrt = np.sqrt(self.c_rs)
+        C_rs_sqrt = np.outer(c_rs_sqrt, c_rs_sqrt)
+        C_rs_sqrt[C_rs_sqrt == 0] = 1e-10  # Prevent division by zero
+        D = 1 - self.C / C_rs_sqrt
+        D[D < 0] = 0  # Correct for numerical instability
+        return D
+
+    def cluster(self, maxClust):
+        # Cluster features based on the correlation distance matrix
+        D = self.corrDist()
+        triu_idx = np.triu_indices(self.n, 1)
+        Z = sch.linkage(D[triu_idx], method='average')
+        clusters = sch.fcluster(Z, maxClust, criterion='maxclust')
+        return {i: np.where(clusters == i + 1)[0] for i in range(maxClust)}
+
+
 
 class Kitnet(nn.Module):
     def __init__(self, input_size, cluster_module, hidden_ratio=.5, clustering_batches=10, max_autoencoder_size=10):
@@ -406,52 +454,89 @@ class Kitnet(nn.Module):
         self.hidden_ratio = hidden_ratio
         self.cluster_module = cluster_module
         self.autoencoders = nn.ModuleList()
-        self.error_autoencoder = AutoEncoder(input_size, hidden_ratio)
+        self.error_autoencoder = AutoEncoder(input_size, self.hidden_ratio)  #placeholder  to be replaced by initialized_autoencoders()
         self.m = max_autoencoder_size
         self.clustering_batches = clustering_batches
         self.batch_count = 0
         self.initialized = False
 
 
-    def initialize_autoencoders(self, feature_clusters):
-        self.autoencoders = nn.ModuleList()
-        for feature_indices in feature_clusters.values():
-            feature_size = len(feature_indices)
-            self.autoencoders.append(AutoEncoder(feature_size, self.hidden_ratio))        
-        self.initialized = True
+    def initialize_autoencoders(self, feature_clusters, device):
+        try:
+            for feature_indices in feature_clusters.values():
+                if feature_indices.any():
+                    feature_size = len(feature_indices)
+                    self.autoencoders.append(AutoEncoder(feature_size, self.hidden_ratio).to(device)) 
+            self.error_autoencoder = AutoEncoder(len(self.autoencoders), self.hidden_ratio).to(device)
+            self.initialized = True
+        except:
+            traceback.print_exc()
+            pdb.set_trace()
 
     def forward(self, x):
-        if self.batch_count < self.clustering_batches:
-            # During the pretraining phase, only train the cluster module
-            for data_point in x:
-                self.cluster_module.update(data_point)
-            # self.cluster_module.update(x)
-            
-            self.batch_count += 1
-            # return torch.tensor(1.0)  # Return a fixed error as specified
-            # return torch.zeros_like(x)  # assuming labels are of similar shape as x
-            return torch.zeros(len(x), dtype=x.dtype, device=x.device)
-        else:
+        try:
             if not self.initialized:
-                feature_clusters = self.cluster_module.cluster(self.m)  # Assuming this method returns the clusters
-                self.initialize_autoencoders(feature_clusters)
-
+                self.cluster_module.update(x)  # Update clustering with batch
+                if self.batch_count >= self.clustering_batches:
+                    feature_clusters = self.cluster_module.cluster(self.m)
+                    self.initialize_autoencoders(feature_clusters, x.device)
+                    self.initialized = True
+                self.batch_count += 1
+                return torch.zeros(len(x), dtype=x.dtype, device=x.device, requires_grad=True)  # Temporary return during initialization
             
-            reconstructed = torch.zeros_like(x)
-            feature_clusters = self.cluster_module.cluster()  # Obtain current feature clusters
-
+            
+            reconstructed = torch.zeros_like(x).to(x.device)
+            feature_clusters = self.cluster_module.cluster(self.m)  # Obtain current feature clusters
+            
+            reconstruction_errors = []
             for idx, autoencoder in enumerate(self.autoencoders):
-                feature_indices = list(feature_clusters[idx])  # Get feature indices for the current cluster
-                if any(feature_indices):
-                    # Apply the autoencoder only to its specific feature subset
-                    reconstructed[:, feature_indices] = autoencoder(x[:, feature_indices])
+                feature_indices = list(feature_clusters[idx])
+                # mask = torch.zeros_like(x, dtype=torch.bool)
+                # mask[:, feature_indices] = True
+
+                if feature_indices:  # Check if there are features to process
+                    reconstructed_part = autoencoder(x[:, feature_indices])
+                    error = torch.sqrt(((x[:, feature_indices] - reconstructed_part) ** 2).mean(dim=1))
+                    reconstruction_errors.append(error)
+                    # print(error.shape)
+                    # reconstructed[:, feature_indices] = reconstructed_part
+                
+                # reconstructed_part = autoencoder(x[:, feature_indices])
+                # padding = (0, reconstructed.shape[1] - reconstructed_part.shape[1])  # pad the second dimension
+                # reconstructed_part_padded = F.pad(reconstructed_part, pad=padding, mode='constant', value=0)
+                # reconstructed = torch.where(mask, reconstructed_part_padded, reconstructed)
+                
+            reconstruction_error = torch.stack(reconstruction_errors).T
+            
+
+            error_reconstruction = self.error_autoencoder(reconstruction_error) 
+
+            # Calculate final error by some reduction
+            # final_error = (reconstruction_error.T.sum(0) - error_reconstruction.squeeze()).pow(2).mean(dim=0)
+
+            final_error = torch.sqrt((reconstruction_error - error_reconstruction).pow(2).mean(1))
 
 
-            reconstruction_error = (x - reconstructed).pow(2).sum(1).sqrt()
-            error_reconstruction = self.error_autoencoder(reconstruction_error.unsqueeze(1))
-            final_error = (reconstruction_error.unsqueeze(1) - error_reconstruction).pow(2).sum()
 
-            return final_error
+            # # Compute RMSE per feature
+            # reconstruction_error = (x - reconstructed).pow(2).mean(dim=0).sqrt()
+            # # Error autoencoder aggregates RMSEs into a single error per sample
+            # error_reconstruction = self.error_autoencoder(reconstruction_error.unsqueeze(0))        
+            # # Calculate final error
+            # final_error = (reconstruction_error - error_reconstruction.squeeze()).pow(2).mean()
+
+            # # reconstruction_error = (x - reconstructed).pow(2).sqrt()        
+            # # error_reconstruction = self.error_autoencoder(reconstruction_error.unsqueeze(1))
+            # # final_error = (reconstruction_error.unsqueeze(1) - error_reconstruction).pow(2).sum()
+
+            # Apply sigmoid to the final error to map it to [0, 1]
+            final_prob = torch.sigmoid(final_error)
+            # pdb.set_trace()
+        except:
+            traceback.print_exc()
+            pdb.set_trace()
+
+        return final_prob
 
 
 
@@ -467,6 +552,7 @@ class KitNET_OG(AbstractModelLoader):
     #           For example, [[2,5,3],[4,0,1],[6,7]]
     def __init__(self,n, device, wandb, max_autoencoder_size=10,FM_grace_period=None,AD_grace_period=10000,learning_rate=0.1,hidden_ratio=0.75, feature_map = None):
         super(KitNET_OG, self).__init__(device, wandb)
+        self.device = "cpu" # override the device as batch processing is not supported
         # Parameters:
         self.AD_grace_period = AD_grace_period
         if FM_grace_period is None:

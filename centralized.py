@@ -119,8 +119,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
 
 
 def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN', differential_privacy=False):
-    device="cpu"
-    # pdb.set_trace()
+    
 
     if model_name in extract_model_names(load_non_pytorch_model_defination):
 
