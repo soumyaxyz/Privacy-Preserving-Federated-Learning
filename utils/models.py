@@ -448,7 +448,7 @@ class Corr_Cluster_batch():
 
 
 class Kitnet(nn.Module):
-    def __init__(self, input_size, cluster_module, hidden_ratio=.5, clustering_batches=10, max_autoencoder_size=10):
+    def __init__(self, input_size, cluster_module, hidden_ratio=.5, clustering_batches=100, max_autoencoder_size=10):
         super(Kitnet, self).__init__()
         self.input_size = input_size
         self.hidden_ratio = hidden_ratio
