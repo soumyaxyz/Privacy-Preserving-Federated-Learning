@@ -14,9 +14,8 @@ from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import confusion_matrix
 from scipy.special import softmax
-#from utils import false_alarm_rate, to_categorical
-#load model
 from utils.models import load_model_defination
+from utils.datasets import DatasetWrapper, IncrementalDatasetWraper
 
 torch_parallel = True
 # torch_parallel = False
@@ -25,7 +24,7 @@ torch_parallel = True
 parser = argparse.ArgumentParser(description='Obtaining outputs from saved models.')
 parser.add_argument('-m', '--model_name', type=str, default = 'resnet', help='Model name')
 parser.add_argument('--models_path', type=str, default='saved_models/saved_models_attack_2/', help='Path to saved models')
-parser.add_argument('-d', '--dataset', default='cifar10', type=str, choices=['mnist', 'fmnist', 'cifar10', 'cifar100', 'svhn'])
+parser.add_argument('-d', '--dataset', default='CIFAR10', type=str)
 parser.add_argument('--output-type', type=str, default='confidence',
                     help='Ensembling based on averaging confidence or logit (default: confidence)')
 #parser.add_argument('--outputs_path', type=str, default='outputs/resnet20/', help='Path to saved outputs')
@@ -51,7 +50,6 @@ def false_alarm_rate(y_true, y_pred):
     else:
         return FP / (FP + TN)
 
-
 def classification_scores(y_true, y_pred):
     CM = confusion_matrix(y_true, y_pred)
     if CM.shape[0] <= 1:
@@ -70,41 +68,16 @@ def main():
 
     number_of_models = len(glob.glob(args.models_path + "*.pth.tar"))
 
-    if args.dataset == "mnist":
-        num_classes = 10
-        dataloader = datasets.MNIST
-        transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5), (0.5))])
-        transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5), (0.5))])
-    elif args.dataset == "fmnist":
-        num_classes = 10
-        dataloader = datasets.FashionMNIST
-        transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5), (0.5))])
-        transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5), (0.5))])
-    elif args.dataset == "cifar10":
-        num_classes = 10
-        dataloader = datasets.CIFAR10
-        transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    elif args.dataset == "cifar100":
-        num_classes = 100
-        dataloader = datasets.CIFAR100
-        transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    elif args.dataset == "svhn":
-        dataloader = datasets.SVHN
-        num_classes = 10
-        transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    else:
-        print("This dataset is not supported in current version!")
-        exit()
 
-    if args.dataset == "svhn":
-        trainset = dataloader(root='./data', split='train', download=True, transform=transform_train)
-        testset = dataloader(root='./data', split='test', download=True, transform=transform_test)
-    else:
-        trainset = dataloader(root='./data', train=True, download=True, transform=transform_train)
-        testset = dataloader(root='./data', train=False, download=True, transform=transform_test)
+    try:
+        target_dataset = DatasetWrapper(args.dataset, audit_mode=False)
+
+    except NotImplementedError as e:
+        dataset_name, index = args.dataset.split('-')
+        target_dataset = IncrementalDatasetWraper(dataset_name, audit_mode=False)
+        target_dataset.select_split(int(index))
+
+    trainset, testset, num_channels, num_classes = target_dataset.trainset,target_dataset.testset,target_dataset.num_channels, target_dataset.num_classes
 
     trainloader = data.DataLoader(trainset, batch_size=64, shuffle=False)
     testloader = data.DataLoader(testset, batch_size=64, shuffle=False)
@@ -118,11 +91,10 @@ def main():
     for model_path in glob.glob(args.models_path + "*.pth.tar"):
         print("Processing " + model_path)
 
-        # Model
-        if args.model_name == 'resnet':
-            model = load_model_defination('resnet',3,10)
-        else:
-            print("Invalid model name:", args.model_name)
+
+
+        model = load_model_defination(args.model_name, num_channels, num_classes)
+
 
         #state_dict_parallel = torch.load(model_path)['state_dict']
         checkpoint = torch.load(model_path)
@@ -185,28 +157,7 @@ def main():
 
         model_counter += 1
 
-    # np.save(output_path + "/" + args.output_type + "_train.npy", train_output_all)
-    # np.save(output_path + "/" + args.output_type + "_test.npy", test_output_all)
-    # np.save(output_path + "/label_train.npy", labels_train)
-    # np.save(output_path + "/label_test.npy", labels_test)
 
-
-    if args.dataset == "mnist":
-        num_classes = 10
-    elif args.dataset == "fmnist":
-        num_classes = 10
-    elif args.dataset == "cifar10":
-        num_classes = 10
-    elif args.dataset == "svhn":
-        num_classes = 10
-    elif args.dataset == "cifar100":
-        num_classes = 100
-    else:
-        print("This dataset is not supported in current version!")
-        exit()
-
-    # labels_train = np.load(args.outputs_path + "/label_train.npy")
-    # labels_test = np.load(args.outputs_path + "/label_test.npy")
 
     if len(labels_train.shape) > 1:
         labels_train = labels_train.reshape((-1))
