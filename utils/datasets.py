@@ -1,4 +1,3 @@
-
 import cv2
 import csv
 import numpy as np
@@ -32,17 +31,16 @@ class IncrementalDatasetWraper():
         if addetive_train:
             self.splits = implement_addetive_dataset(self.splits, additive_train =True)
 
-
-
-
-    # @blockPrinting  
+    @blockPrinting  
     def _load_datasets(self, dataset_name):
         if dataset_name == 'incremental_SVHN':
-            data_splits = load_incremental_SVHN()
+            data_splits = load_incremental_SVHN(uniform_test = True)
+        elif dataset_name == 'incremental_test_SVHN':
+            data_splits = load_incremental_SVHN(uniform_test = False)
         elif dataset_name == 'incremental_CIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
+            data_splits = load_incremental_CIFAR100(remapping=[[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19],[0,1,2,3,4]], uniform_test = True)
         elif dataset_name == 'incremental_test_CIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
+            data_splits = load_incremental_CIFAR100(remapping=[[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19],[0,1,2,3,4]], uniform_test = False)
         elif dataset_name == 'Microsoft_Malware_incremental':
             data_splits = load_incremental_Microsoft_Malware()
         else:
@@ -55,12 +53,11 @@ class IncrementalDatasetWraper():
             data_splits[index] = updated_split
 
         return data_splits
-            
-
-        
         
     def select_split(self, split):
         self.trainset, self.testset, self.num_channels, self.num_classes = self.splits[split]
+        self.data_split = [self.trainset, self.testset, self.num_channels, self.num_classes]
+
 
 class DatasetWrapper():
     def __init__(self, dataset_name = 'CIFAR10', audit_mode = False):
@@ -107,7 +104,8 @@ class DatasetWrapper():
             # import pdb; pdb.set_trace()
             print(f'Unknown dataset name: {dataset_name}')            
             raise NotImplementedError   
-        trainset, testset = remap_dataset(self.audit_mode, trainset, testset)
+        
+        #trainset, testset = remap_dataset(self.audit_mode, trainset, testset)
 
         return trainset, testset, num_channels, num_classes
         
@@ -378,7 +376,7 @@ def load_incremental_Microsoft_Malware(num_splits = 4):
 
     return data_splits
  
-def load_incremental_SVHN():
+def load_incremental_SVHN(uniform_test):
     splits_paths=[
         './dataset/SVHN/extra_A',
         './dataset/SVHN/extra_B',
@@ -387,9 +385,9 @@ def load_incremental_SVHN():
         './dataset/SVHN/test_cropped_images'
     ]
 
-    return load_incremental_local_dataset(splits_paths)
+    return load_incremental_local_dataset(splits_paths,uniform_test)
 
-def load_incremental_local_dataset(splits_paths, combined_extra=False):
+def load_incremental_local_dataset(splits_paths, uniform_test = True, combined_extra=False):
     data_splits = []
     print('Loading custom incremental dataset...')
     for directory in tqdm(splits_paths, leave=False):
@@ -399,9 +397,14 @@ def load_incremental_local_dataset(splits_paths, combined_extra=False):
     if combined_extra:
         data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
 
-    data_splits = mix_subsets(data_splits)
 
-    data_splits = implement_addetive_dataset(data_splits)
+    #data_splits = implement_addetive_dataset(data_splits)
+    
+    data_splits = mix_subsets(data_splits)
+    if uniform_test:
+        data_splits = implement_combined_uniform_test(data_splits)
+    else:
+        data_splits = implement_addetive_dataset(data_splits)
 
     return data_splits
 
@@ -425,7 +428,6 @@ def load_incremental_CIFAR100(remapping= None, uniform_test = False):
     else:
         data_splits = implement_addetive_dataset(data_splits)
 
-    # pdb.set_trace()
 
     if remapping is not None:
         data_splits = combine_subsets(data_splits, remapping)
@@ -433,9 +435,7 @@ def load_incremental_CIFAR100(remapping= None, uniform_test = False):
     return data_splits
 
 
-# Auxiliary functions
-
-def remap_dataset(audit_mode, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = False):
+def remap_dataset(audit_mode, trainset, testset,  train_percent = 0.35, test_percent = 0.35 , audit_percent = 0.3, preserve_original_propertion = True):
     """
     Remaps the given train and test datasets based on the provided percentages. Holds out a portion of the training set for auditing purposes. 
     Depending on the wheather the audit_mode flag is set, the train and test sets are returned in different ways.
@@ -636,9 +636,6 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
         print(proportions)
     else:
         assert num_splits == len(proportions)
-        
-    
-    # pprint.pprint(proportions)
 
     # Initialize empty lists for the new subsets
     new_train_datasets = [[] for _ in range(num_splits)]
@@ -712,7 +709,7 @@ def load_loss_dataset(filename='dataset'):
 
     return dataset
 
-def split_dataloaders(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32)-> tuple[List, List, DataLoader, DataLoader]: 
+def split_dataloaders(trainset, testset, num_splits: int, split_test = False, val_percent = 10, batch_size=32):#-> tuple[List, List, DataLoader, DataLoader]: 
     
 
     # Split training set into `num_clients` partitions to simulate different local datasets
@@ -778,7 +775,7 @@ def merge_dataloaders(trainloaders):
         trn_datasets.append(loader.dataset)
     return DataLoader(ConcatDataset(trn_datasets), trainloaders[0].batch_size)
 
-def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
+def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent = 10, batch_size=32):# -> tuple[tuple, int, int]:
     [train_dataset, test_dataset, num_channels, num_classes] = dataset_split   
 
     return split_dataloaders(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
@@ -786,7 +783,7 @@ def load_partitioned_continous_datasets(num_clients, dataset_split, val_percent 
 def load_dataset(dataset_name = 'CIFAR10'):
     return DatasetWrapper(dataset_name)
 
-def load_partitioned_dataloaders(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:  
+def load_partitioned_dataloaders(num_clients: int, dataset_name = 'CIFAR10', val_percent = 10, batch_size=32): # -> tuple[tuple, int, int]:  
     dataset = load_dataset(dataset_name)    
     return split_dataloaders(dataset.trainset, dataset.testset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), dataset.num_channels, dataset.num_classes
 

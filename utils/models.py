@@ -729,7 +729,7 @@ class KitNET_OG(AbstractModelLoader):
 
 
 
-def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
+def replace_classifying_layer_efficientnet(efficientnet_model, num_classes: int = 10):
     """Replaces the final layer of the classifier."""
     num_features = efficientnet_model.classifier.fc.in_features
     efficientnet_model.classifier.fc = torch.nn.Linear(num_features, num_classes)
@@ -737,16 +737,18 @@ def replace_classifying_layer(efficientnet_model, num_classes: int = 10):
 def load_efficientnet(entrypoint: str = "nvidia_efficientnet_b0", classes: int = None): # type: ignore
     efficientnet = torch.hub.load("NVIDIA/DeepLearningExamples:torchhub", entrypoint, pretrained=True)
     if classes is not None:
-        replace_classifying_layer(efficientnet, classes)
+        replace_classifying_layer_efficientnet(efficientnet, classes)
     return efficientnet
 
-def load_resnet(entrypoint: str = "resnet18", classes:int = None):# type: ignore
-    resnet = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
-    # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet34', pretrained=True)
-    # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
-    # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet101', pretrained=True)
-    # model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet152', pretrained=True)
-    return resnet
+def load_resnet(entrypoint: str = "resnet18", classes: int = None):
+    resnet_model = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
+    if classes is not None:
+        replace_classifying_layer_resnet(resnet_model, classes)
+    return resnet_model
+
+def replace_classifying_layer_resnet(resnet_model, num_classes: int = 10):
+    num_features = resnet_model.fc.in_features
+    resnet_model.fc = torch.nn.Linear(num_features, num_classes)
 
 
 def load_googlenet(entrypoint: str = "googlenet", classes:int = None):# type: ignore
