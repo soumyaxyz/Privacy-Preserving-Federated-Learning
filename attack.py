@@ -543,12 +543,12 @@ def main(args):
     # pdb.set_trace()
     try:
         target_dataset = DatasetWrapper(args.dataset_name)
-        audit_dataset = DatasetWrapper(args.dataset_name, audit_mode=True)
+        audit_dataset = DatasetWrapper(args.dataset_name, audit_mode=True)  
     except NotImplementedError as e:
         # dataset_name_and_index = 
         dataset_name, index = args.dataset_name.split('-')
         print(f'Loading {dataset_name} with index {index}')
-        target_dataset = IncrementalDatasetWraper(dataset_name, audit_mode=True, addetive_train=args.addtive_train)
+        target_dataset = IncrementalDatasetWraper(dataset_name, audit_mode=False, addetive_train=args.addtive_train)
         audit_dataset =  IncrementalDatasetWraper(dataset_name, audit_mode=True, addetive_train=args.addtive_train)
         target_dataset.select_split(int(index))
         audit_dataset.select_split(int(index))

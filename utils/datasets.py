@@ -397,6 +397,7 @@ def load_incremental_local_dataset(splits_paths, uniform_test = True, combined_e
     if combined_extra:
         data_splits = combine_subsets(data_splits, [[0,1,2],3,4])
 
+
     #data_splits = implement_addetive_dataset(data_splits)
     
     data_splits = mix_subsets(data_splits)
@@ -632,6 +633,7 @@ def mix_subsets(subsets, proportions=None, seed_value=42):
     num_splits = len(subsets)
     if proportions is None:
         proportions = get_mixing_proportions(num_splits, seed_value)
+        print(proportions)
     else:
         assert num_splits == len(proportions)
 
