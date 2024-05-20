@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -740,7 +740,7 @@ def load_efficientnet(entrypoint: str = "nvidia_efficientnet_b0", classes: int =
         replace_classifying_layer_efficientnet(efficientnet, classes)
     return efficientnet
 
-def load_resnet(entrypoint: str = "resnet18", classes: int = None):
+def load_resnet(entrypoint: str = "resnet18", classes: Optional[int] = None):
     resnet_model = torch.hub.load('pytorch/vision:v0.10.0', entrypoint, pretrained=True)
     if classes is not None:
         replace_classifying_layer_resnet(resnet_model, classes)

@@ -59,7 +59,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
             val_loader = val_loaders[0]   
             train_loader = train_loaders[0]
 
-            test_loader_size = len(test_loader.dataset)
+            test_loader_size = len(test_loader.dataset) # type: ignore
 
 
             train_loader = get_dataloaders_subset(train_loader, test_loader_size)

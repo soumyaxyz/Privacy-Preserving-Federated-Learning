@@ -104,7 +104,7 @@ def main():
             # model.load_state_dict(state_dict_parallel)
         else:
             new_state_dict = OrderedDict()
-            for k, v in state_dict_parallel.items():
+            for k, v in torch.load(model_path)['model_state_dict'].items():
                 if 'module' in k:
                     k = k.replace('module.', '')
                 new_state_dict[k] = v
@@ -163,6 +163,7 @@ def main():
         labels_train = labels_train.reshape((-1))
     if len(labels_test.shape) > 1:
         labels_test = labels_test.reshape((-1))
+        
 
     
     train_conf_all = train_output_all #np.load(args.outputs_path + "/" + args.output_type + "_train.npy")
@@ -170,11 +171,11 @@ def main():
 
     number_of_models = int(train_conf_all.shape[-1] / num_classes)
 
-    train_conf_sum = np.zeros((labels_train.shape[0], num_classes))
-    test_conf_sum = np.zeros((labels_test.shape[0], num_classes))
+    train_conf_sum = np.zeros((labels_train.shape[0], num_classes)) # type: ignore
+    test_conf_sum = np.zeros((labels_test.shape[0], num_classes)) # type: ignore
 
-    train_prediction_class_sum = np.zeros((labels_train.shape[0], num_classes))
-    test_prediction_class_sum = np.zeros((labels_test.shape[0], num_classes))
+    train_prediction_class_sum = np.zeros((labels_train.shape[0], num_classes)) # type: ignore
+    test_prediction_class_sum = np.zeros((labels_test.shape[0], num_classes)) # type: ignore
 
     for model_index_counter in range(number_of_models):
         train_conf_sum += train_conf_all[:, model_index_counter * num_classes:(model_index_counter + 1) * num_classes]
@@ -208,8 +209,8 @@ def main():
         labels_train_by_model = np.argmax(confidence_train_for_prediction, axis=1)
         labels_test_by_model = np.argmax(confidence_test_for_prediction, axis=1)
 
-        acc_train = np.sum(labels_train == labels_train_by_model)/labels_train.shape[0]
-        acc_test = np.sum(labels_test == labels_test_by_model)/labels_test.shape[0]
+        acc_train = np.sum(labels_train == labels_train_by_model)/labels_train.shape[0] # type: ignore
+        acc_test = np.sum(labels_test == labels_test_by_model)/labels_test.shape[0] # type: ignore
 
         correctly_classified_indexes_train = labels_train_by_model == labels_train
         incorrectly_classified_indexes_train = labels_train_by_model != labels_train
