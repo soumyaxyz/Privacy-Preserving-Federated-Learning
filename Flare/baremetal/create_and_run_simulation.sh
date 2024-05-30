@@ -46,7 +46,7 @@ meta_conf_content="{
     app_server = [\"server\"]"
 for ((i=0; i<$num_clients; i++))
 do
-    meta_conf_content+="\n    app_$i = [\"site-$i\"]"
+    meta_conf_content+="\n    app_$i = [\"site-$(($i + 1))\"]"
 done
 meta_conf_content+="\n  }
   min_clients = $num_clients
@@ -63,7 +63,7 @@ mkdir -p "$server_dir"
 cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.conf"
 
 # Base job creation command
-command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs/my_job -w $template_dir -sd ./code_job/"
+command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code_job/"
 # Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
 do
@@ -72,7 +72,7 @@ do
 done
 
 # Add server configurations
-command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" components[4].args.num_rounds=$num_rounds"
+command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" workflows[1].args.num_rounds=$num_rounds"
 
 # Execute the command
 eval $command

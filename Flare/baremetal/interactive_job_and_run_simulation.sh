@@ -11,6 +11,8 @@ module load container_env pytorch-gpu
 crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./job_templates
 
 
+find ./job_templates/sag_custom -mindepth 1 -type d -exec rm -rf {} +
+
 mkdir -p ./job_templates/sag_custom/app_0
 cp ./job_templates/reference_code/config_fed_client.conf  ./job_templates/sag_custom/app_0/config_fed_client.conf
 
@@ -37,7 +39,7 @@ executors[1].executor.args.model_name="efficientnet" \
 executors[1].executor.args.dataset_name="CIFAR10_1" \
 -f app_server/config_fed_server.conf  \
 components[3].args.model_name="efficientnet" \
-components[4].args.num_rounds=10
+executors[1].args.num_rounds=10
 
 
 # Run the NVFlare simulator
