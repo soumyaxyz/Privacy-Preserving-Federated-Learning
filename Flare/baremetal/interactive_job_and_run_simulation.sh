@@ -37,7 +37,7 @@ executors[1].executor.args.model_name="efficientnet" \
 executors[1].executor.args.dataset_name="CIFAR10_1" \
 -f app_server/config_fed_server.conf  \
 components[3].args.model_name="efficientnet" \
-components[4].args.num_rounds=10
+workflows[1].args.num_rounds=10
 
 
 # Run the NVFlare simulator
