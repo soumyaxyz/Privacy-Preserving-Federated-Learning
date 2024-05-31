@@ -1,11 +1,8 @@
-#!/bin/bash
-#SBATCH -p gpu --gres=gpu:1
-module load container_env pytorch-gpu
 
 # Default values
 model_name="efficientnet"
 dataset_name="CIFAR10"
-num_rounds=10
+num_rounds=25
 num_clients=2
 threads=2
 
@@ -20,8 +17,7 @@ do
         t) threads=${OPTARG};;
     esac
 done
-crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./templates
-
+nvflare config -jt ./templates
 # Base template directory
 template_dir="./templates/sag_custom"
 
@@ -63,8 +59,7 @@ mkdir -p "$server_dir"
 cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.conf"
 
 # Base job creation command
-command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code/"
-# Loop through each client and add their specific configurations
+command="flare job create -force -j ./jobs -w $template_dir -sd ./code/"# Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
 do
     app_name="app_$i"
@@ -80,4 +75,4 @@ eval $command
 echo "job created successfully!\n\n"
 
 # Run the NVFlare simulator
-crun -p ~/envs/NVFlarev2.4.0rc8 nvflare simulator -n $num_clients -t $threads ./jobs -w ./workspace
+nvflare simulator -n $num_clients -t $threads ./jobs -w ./workspace
