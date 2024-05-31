@@ -1,5 +1,4 @@
 import sys, subprocess
-import pdb, traceback
 
 def transform_script(script_path):
     with open(script_path, 'r') as f:
@@ -13,11 +12,7 @@ def transform_script(script_path):
     ]
 
     # Check if the script already contains the preamble
-    try:
-        has_preamble = lines[0].startswith("#!")
-    except:
-        traceback.print_exc()
-        pdb.set_trace()
+    has_preamble = lines[0].startswith("#!")
 
     # Remove the existing preamble and prefix if present
     if has_preamble:
@@ -36,9 +31,9 @@ def transform_script(script_path):
         # Add prefix to lines starting with 'nvflare'
         for line in lines:
             if line.strip().startswith("nvflare"):
-                modified_lines.append(f"crun -p ~/envs/NVFlarev2.4.0rc8 {line.strip()}")
+                modified_lines.append(f"crun -p ~/envs/NVFlarev2.4.0rc8 {line.strip()}\n")
             elif line.strip().startswith('command="nvflare'):
-                modified_lines.append(f'command="crun -p ~/envs/NVFlarev2.4.0rc8 {line.strip()[9:]}')
+                modified_lines.append(f'command="crun -p ~/envs/NVFlarev2.4.0rc8 {line.strip()[9:]}\n')
             else:
                 modified_lines.append(line)
 

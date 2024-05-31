@@ -351,7 +351,7 @@ def train(trainer,
                 pass
 
             if verbose:
-                print(f"Epoch {epoch+1}: train loss {train_loss:.3f}, val loss: {loss:.3f}, train acc {train_acc:.3f}, val acc: {accuracy:.3f}")
+                print(f"\n\n\nEpoch {epoch+1}: train loss {train_loss:.3f}, val loss: {loss:.3f}, train acc {train_acc:.3f}, val acc: {accuracy:.3f}\n\n\n")
             else:
                 pbar.update(1)# type: ignore
                 pbar2.update(patience-pbar2.n) # type: ignore

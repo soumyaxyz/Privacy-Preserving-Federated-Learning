@@ -20,15 +20,15 @@ do
         t) threads=${OPTARG};;
     esac
 done
-crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./job_templates
+crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./templates
 
 # Base template directory
-template_dir="./job_templates/sag_custom"
+template_dir="./templates/sag_custom"
 
 # Delete all subdirectories in sag_custom
 find "$template_dir" -mindepth 1 -type d -exec rm -rf {} +
 
-reference_code_dir="./job_templates/reference_code"
+reference_code_dir="./templates/reference_code"
 
 # Create client app directories dynamically
 for ((i=0; i<$num_clients; i++))
@@ -63,12 +63,12 @@ mkdir -p "$server_dir"
 cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.conf"
 
 # Base job creation command
-command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code_job/"
+command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code/"
 # Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
 do
     app_name="app_$i"
-    command+=" -f $app_name/config_fed_client.conf executors[0].executor.args.model_name=\"$model_name\" executors[0].executor.args.dataset_name=\"${dataset_name}_$i\" executors[1].executor.args.model_name=\"$model_name\" executors[1].executor.args.dataset_name=\"${dataset_name}_$i\""
+    command+=" -f $app_name/config_fed_client.conf executors[0].executor.args.model_name=\"$model_name\"   executors[0].executor.args.dataset_name=\"${dataset_name}_$i\"     executors[0].executor.args.num_clients=$num_clients    executors[1].executor.args.model_name=\"$model_name\"     executors[1].executor.args.dataset_name=\"${dataset_name}_$i\"    executors[0].executor.args.num_clients=$num_clients"
 done
 
 # Add server configurations

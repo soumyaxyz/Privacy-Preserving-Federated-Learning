@@ -32,7 +32,7 @@ from nvflare.app_common.app_constant import AppConstants
 
 
 class Fl_Validator(Executor):
-    def __init__(self, model_name="efficientnet", dataset_name="CIFAR10_0", data_path="~/datasets", validate_task_name=AppConstants.TASK_VALIDATION):
+    def __init__(self, model_name="efficientnet", dataset_name="CIFAR10_0", num_clients=2, data_path="~/datasets", validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
 
         self._validate_task_name = validate_task_name
@@ -46,7 +46,7 @@ class Fl_Validator(Executor):
         model.to(device)
 
         # Preparing the dataset for testing.
-        [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name, 
+        [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=num_clients, dataset_name=dataset_name, 
                                                                                                         data_path=data_path, batch_size=32) 
         
 

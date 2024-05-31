@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os.path
+import pdb, traceback
 
 import torch
 from pt_constants import PTConstants
@@ -48,6 +49,7 @@ class Fl_Trainer(Executor):
         dataset_name="CIFAR10_0",
         lr=0.01,
         epochs=5,
+        num_clients=2,
         train_task_name=AppConstants.TASK_TRAIN,
         submit_model_task_name=AppConstants.TASK_SUBMIT_MODEL,
         exclude_vars=None,
@@ -89,11 +91,13 @@ class Fl_Trainer(Executor):
 
                 
         print(f'current working dir: {os.getcwd()}')  
-        [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=1, dataset_name=dataset_name, 
+        [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=num_clients, dataset_name=dataset_name, 
                                                                                                          data_path=data_path, batch_size=32) 
 
         train_loader = trainloader[data_index]
         valloader = valloaders[data_index]
+        
+
         self._n_iterations = len(train_loader)
 
 

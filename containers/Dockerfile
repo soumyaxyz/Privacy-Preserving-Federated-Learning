@@ -1,23 +1,22 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.10-slim
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.02-py3
+FROM ${PYTORCH_IMAGE}
 
-# Keeps Python from generating .pyc files in the container
-ENV PYTHONDONTWRITEBYTECODE=1
+ARG NVF_VERSION=2.4
+ENV NVF_BRANCH=${NVF_VERSION}
 
-# Turns off buffering for easier container logging
-ENV PYTHONUNBUFFERED=1
+RUN python3 -m pip install -U pip
+RUN python3 -m pip install -U setuptools
+RUN python3 -m pip install nvflare==2.4.0
 
-# Install pip requirements
-COPY requirements.txt .
-RUN python -m pip install -r requirements.txt
+WORKDIR /workspace/
+RUN git clone https://github.com/NVIDIA/NVFlare.git --branch ${NVF_BRANCH} --single-branch NVFlare
 
-WORKDIR /app
-COPY . /app
 
-# Creates a non-root user with an explicit UID and adds permission to access the /app folder
-# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
-USER appuser
+# # Copy the startup script into the image
+# COPY startup.sh /startup.sh
 
-# During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
-CMD ["python", "server.py", "-a", "localhost", "-p", "8080", "-r", "3", "-N", "2", "-w"]
+# # Make sure the script is executable
+# RUN chmod +x /startup.sh
+
+# # Execute the startup script when the container starts
+# CMD ["/startup.sh"]
