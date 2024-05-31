@@ -2,7 +2,7 @@
 - [ ]  Train and save a ML model first
  - Run '**[create_and_run_simulation.sh](https://github.com/soumyaxyz/Privacy-Preserving-Federated-Learning/blob/main/create_and_run_simulation.sh "create_and_run_simulation.sh")**' with appropriate arguments to train and save a ML model  on a dataset with **[Nvidia FLARE](https://nvflare.readthedocs.io/en/main/index.html)** 
 
-	    bash *create_and_run_simulation.sh* 	-m <model_name> 
+	    bash create_and_run_simulation.sh 	-m <model_name> 
 							-d <dataset_name> 
 							-n <num_clients> 
 							-r <num_FL_rounds>
