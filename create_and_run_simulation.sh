@@ -2,12 +2,14 @@
 # Default values
 model_name="efficientnet"
 dataset_name="CIFAR10"
-num_rounds=25
+num_rounds=10
 num_clients=2
 threads=2
+root="models/"
+weight="FL_global_model.pt"
 
 # Parse flagged arguments
-while getopts m:d:n:r:t: flag
+while getopts m:d:n:r:t:w: flag
 do
     case "${flag}" in
         m) model_name=${OPTARG};;
@@ -15,8 +17,14 @@ do
         n) num_clients=${OPTARG};;
         r) num_rounds=${OPTARG};;
         t) threads=${OPTARG};;
+        w) weight=${OPTARG};;
     esac
 done
+
+# Define modelweight variable
+modelweight="$(pwd)/$root$weight"
+
+
 nvflare config -jt ./templates
 # Base template directory
 template_dir="./templates/sag_custom"
@@ -58,6 +66,7 @@ server_dir="$template_dir/app_server"
 mkdir -p "$server_dir"
 cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.conf"
 
+
 # Base job creation command
 command="flare job create -force -j ./jobs -w $template_dir -sd ./code/"# Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
@@ -67,7 +76,8 @@ do
 done
 
 # Add server configurations
-command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" workflows[1].args.num_rounds=$num_rounds"
+command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" components[0].args.source_ckpt_file_full_name=\"$modelweight\" workflows[1].args.num_rounds=$num_rounds"
+
 
 # Execute the command
 eval $command
