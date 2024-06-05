@@ -5,7 +5,8 @@
 	    bash create_and_run_simulation.sh 	-m <model_name> 
 							-d <dataset_name> 
 							-n <num_clients> 
-							-r <num_FL_rounds>
+							-r <num_FL_rounds>   
+							-w <saved_model_weights>
     example:
     
 	    bash create_and_run_simulation.sh -m efficientnet -d CIFAR10  -n 2 -r 25
