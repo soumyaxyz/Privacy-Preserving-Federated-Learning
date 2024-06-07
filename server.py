@@ -118,7 +118,7 @@ def main():
     # 
     
 
-    if 'continuous' in args.dataset_name: 
+    if 'incremental' in args.dataset_name: 
         continous_datasets = IncrementalDatasetWraper(args.dataset_name)
         saved_model_names = []
 

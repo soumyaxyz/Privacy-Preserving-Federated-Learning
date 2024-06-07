@@ -190,7 +190,7 @@ class Membership_inference_attack_instance:
         self.target_dataset             = target_dataset
         self.target_model_name          = target_model_name 
         self.audit_dataset              = DatasetWrapper()
-        self.audit_dataset.initilize_dataset_with_values(target_dataset.dataset_name, class_wise_datasets[0], class_wise_datasets[1], target_dataset.num_channels, target_dataset.num_classes)
+        self.audit_dataset.initilize_dataset_with_values(target_dataset.name, class_wise_datasets[0], class_wise_datasets[1], target_dataset.num_channels, target_dataset.num_classes)
 
         
         self.target_defined             = True

@@ -7,6 +7,6 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=1486dhrd@gmail.com
 
-module load container_env  pytorch-gpu/2.0.1
+module load container_env  tensorflow-gpu/2.10.0
 
-crun -p ~/envs/ppfl python attack.py -sv -n 10 -c  -e 100 -e1 150  -at -d Microsoft_Malware_incremental-0 -m CNN_malware -mw CentralizedCNNmalwareMicrosoftMalwareincremental0 -s CNN_malware 
+crun -p ~/envs/ppfl python attack.py -sv -c  -e 100 -e1 150 -d incremental_CIFAR100-3 -m efficientnet -mw CentralizedefficientnetincrementalCIFAR1003 -s efficientnet # add rest of your arguments

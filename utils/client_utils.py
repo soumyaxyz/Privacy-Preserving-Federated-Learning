@@ -31,7 +31,9 @@ class FlowerClient(flwr.client.NumPyClient):
             self.ovefit_flag = "overfit"
         else:
             self.ovefit_flag = ''
-        self.comment = 'Client_'+str(N)+'-'+str(cid)+'_'+self.ovefit_flag+'_'+net.__class__.__name__+'_'+dataset_name              
+        self.comment = 'Client_'+str(N)+'-'+str(cid)+'_'+self.ovefit_flag+'_'+net.__class__.__name__+'_'+dataset_name     
+        print(f'setting comment as {self.comment}, current patience {self.patience}')    
+        self.weights_saved = False     
         if self.wandb_logging:            
             wandb_init(comment=self.comment, model_name=net.__class__.__name__, dataset_name=dataset_name)
         if not self.simulation:
@@ -69,6 +71,9 @@ class FlowerClient(flwr.client.NumPyClient):
         # print(f"[Client {self.cid}] fit, config: {config}")
         # set_parameters(self.net, parameters)
         mix_parameters(self.net, parameters)
+        print(f'current patience {self.patience}')
+        # 
+
         if self.patience > 0:                                        # if patience is 0, stop further training
             if config["local_epochs"] == 1:
                 self.loss, self.accuracy = train_single_epoch(self.net, self.trainloader)
@@ -80,6 +85,7 @@ class FlowerClient(flwr.client.NumPyClient):
 
         else:
             print(f"\n[Client {self.cid}] Early stopped, LOADING MODEL : {self.comment}\n")
+            
             load_model(self.net, filename = self.comment)
         if self.wandb_logging:
             wandb.log({"train_acc": self.accuracy,"train_loss": self.loss})
@@ -89,6 +95,10 @@ class FlowerClient(flwr.client.NumPyClient):
             rounded_accuracy = round(self.accuracy, 4)
             self.train_acc_bar.update(rounded_accuracy-self.train_acc_bar.n) 
             self.train_acc_bar.set_description(f"Train_acc")
+        
+        if not self.weights_saved and self.patience <= 2: 
+            save_model(self.net, filename = self.comment)
+
         return get_parameters(self.net), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
@@ -102,8 +112,11 @@ class FlowerClient(flwr.client.NumPyClient):
                     self.patience = self.initial_patience               # reset patience
                     self.loss_min = self.loss 
                     save_model(self.net, filename = self.comment)
+                    self.weights_saved = True     
+
                 else:
                     self.patience = max(self.patience-1, 0)             # decrease patience
+                    print(f'current patience {self.patience}; weights have been saved {self.weights_saved}')
 
         if not self.simulation:
             rounded_accuracy = round(self.accuracy, 4)

@@ -23,7 +23,7 @@ def wait_and_retry(server_address, client_definition,certificate, debug=False, t
         except Exception as e:
             if 'UNAVAILABLE' in str(e):
                 print('Server unavailable. Retrying in 5 seconds...')
-                sleep(5)  # Wait before retrying
+                sleep(600)  # Wait before retrying
                 attempts += 1
             else:
                 if debug:
@@ -104,7 +104,7 @@ def main():
     parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
     args = parser.parse_args()
     
-    if 'continuous' in args.dataset_name: 
+    if 'incremental' in args.dataset_name: 
         continous_datasets = IncrementalDatasetWraper(args.dataset_name)
 
         _, _, num_channels, num_classes = continous_datasets.splits[0]
@@ -112,15 +112,16 @@ def main():
 
         optimizer = torch.optim.Adam(model.parameters())
         
+        i = 2
+        dataset_split = continous_datasets.splits[i]
+        # for i,dataset_split in enumerate(continous_datasets.splits):
+        [trainloaders, valloaders, _, _], num_channels_i, num_classes_i = load_partitioned_continous_datasets(num_clients=args.number_of_total_clients, dataset_split=dataset_split)
+        assert num_channels_i == num_channels
+        assert num_classes_i == num_classes            
+        
+        run_client_once(args, model, trainloaders, valloaders, optimizer) 
+        print(f'\n\nDone with data split {i} \n\n')
 
-        for i,dataset_split in enumerate(continous_datasets.splits):
-            [trainloaders, valloaders, _, _], num_channels_i, num_classes_i = load_partitioned_continous_datasets(num_clients=args.number_of_total_clients, dataset_split=dataset_split)
-            assert num_channels_i == num_channels
-            assert num_classes_i == num_classes            
-            
-            run_client_once(args, model, trainloaders, valloaders, optimizer) 
-
-            print(f'\n\nDone with data split {i}\n\n')
     else:
         [trainloaders, valloaders, _, _], num_channels, num_classes = load_partitioned_dataloaders(args.number_of_total_clients, dataset_name=args.dataset_name)
         model = load_model_defination(args.model_name, num_channels=num_channels, num_classes=num_classes, differential_privacy =args.differential_privacy)

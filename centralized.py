@@ -13,7 +13,7 @@ from utils.models import Load_LGB, load_model_defination
 
 
 
-def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR10', model_name = 'efficientnet', differential_privacy=False):
+def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='incremental_CIFAR100', model_name = 'efficientnet', differential_privacy=False):
     
 
 
@@ -118,7 +118,7 @@ def evaluate(evaluation_model, device, wandb_logging=True,  dataset_name='CIFAR1
         pdb.set_trace()
 
 
-def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name='CIFAR10', model_name = 'basic_CNN', differential_privacy=False):
+def train_centralized(epochs, device, wandb_logging=True, savefilename=None, dataset_name= 'incremental_CIFAR100', model_name = 'basic_CNN', differential_privacy=False):
 
 
     if model_name == 'lgb':

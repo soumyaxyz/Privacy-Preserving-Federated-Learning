@@ -39,9 +39,9 @@ class IncrementalDatasetWraper():
         elif dataset_name == 'incremental_test_SVHN':
             data_splits = load_incremental_SVHN(uniform_test = False)
         elif dataset_name == 'incremental_CIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
+            data_splits = load_incremental_CIFAR100(remapping=[[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19],[0,1,2,3,4]], uniform_test = True)
         elif dataset_name == 'incremental_test_CIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
+            data_splits = load_incremental_CIFAR100(remapping=[[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19],[0,1,2,3,4]], uniform_test = False)
         elif dataset_name == 'Microsoft_Malware_incremental':
             data_splits = load_incremental_Microsoft_Malware()
         else:
@@ -379,11 +379,11 @@ def load_incremental_Microsoft_Malware(num_splits = 4):
  
 def load_incremental_SVHN(uniform_test):
     splits_paths=[
-        './dataset/SVHN/extra_A',
-        './dataset/SVHN/extra_B',
         './dataset/SVHN/extra_C',
         './dataset/SVHN/train_cropped_images',
-        './dataset/SVHN/test_cropped_images'
+        './dataset/SVHN/test_cropped_images',
+        './dataset/SVHN/extra_A',
+        './dataset/SVHN/extra_B'
     ]
 
     return load_incremental_local_dataset(splits_paths,uniform_test)
