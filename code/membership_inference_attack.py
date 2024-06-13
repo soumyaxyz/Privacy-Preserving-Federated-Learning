@@ -14,22 +14,24 @@ from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import confusion_matrix
 from scipy.special import softmax
-from utils.models import load_model_defination
-from utils.datasets import DatasetWrapper, IncrementalDatasetWraper
+from utilities.models import load_model_defination
+from utilities.datasets import DatasetWrapper
+from utilities.training_utils import load_model
 
 torch_parallel = True
 # torch_parallel = False
 
 #model specific arguements
 parser = argparse.ArgumentParser(description='Obtaining outputs from saved models.')
-parser.add_argument('-m', '--model_name', type=str, default = 'resnet', help='Model name')
-parser.add_argument('--models_path', type=str, default='saved_models/saved_models_attack_2/', help='Path to saved models')
+parser.add_argument('-m', '--model_name', type=str, default = 'efficientnet', help='Model name')
+#parser.add_argument('--models_path', type=str, default='saved_models/', help='Path to saved models')
+parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
 parser.add_argument('-d', '--dataset', default='CIFAR10', type=str)
 parser.add_argument('--output-type', type=str, default='confidence',
                     help='Ensembling based on averaging confidence or logit (default: confidence)')
 #parser.add_argument('--outputs_path', type=str, default='outputs/resnet20/', help='Path to saved outputs')
-parser.add_argument('--attack-type', type=str, default='aggregated',
-                    help='Ensembling based on averaging aggregated or all (whitebox) (default: aggregated)')
+# parser.add_argument('--attack-type', type=str, default='aggregated',
+#                     help='Ensembling based on averaging aggregated or all (whitebox) (default: aggregated)')
 
 #Options based on code of the paper of Rezaei et al "Towards the Difficulty of Membership Inference Attacks"
 # sampling = "None"
@@ -62,19 +64,18 @@ def classification_scores(y_true, y_pred):
     return (TP, TN, FP, FN)
 
 def main():
-    output_path = "outputs/" + args.models_path.split('/')[-2] + "/"
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    #output_path = "outputs/" + args.models_path.split('/')[-2] + "/"
+    # if not os.path.exists(output_path):
+    #     os.makedirs(output_path)
 
-    number_of_models = len(glob.glob(args.models_path + "*.pth.tar"))
-
+    number_of_models = 1 #len(glob.glob(args.models_path + "*.pt"))
 
     try:
-        target_dataset = DatasetWrapper(args.dataset, audit_mode=False)
+        target_dataset = DatasetWrapper(args.dataset)
 
     except NotImplementedError as e:
         dataset_name, index = args.dataset.split('-')
-        target_dataset = IncrementalDatasetWraper(dataset_name, audit_mode=False)
+        target_dataset = IncrementalDatasetWraper(dataset_name)
         target_dataset.select_split(int(index))
 
     trainset, testset, num_channels, num_classes = target_dataset.trainset,target_dataset.testset,target_dataset.num_channels, target_dataset.num_classes
@@ -88,74 +89,79 @@ def main():
     softmax_operation = torch.nn.Softmax(dim=1)
 
     model_counter = 0
-    for model_path in glob.glob(args.models_path + "*.pth.tar"):
-        print("Processing " + model_path)
+    #for model_path in glob.glob(args.models_path + "*.pt"):
+    #print("Processing " + model_path)
 
 
 
-        model = load_model_defination(args.model_name, num_channels, num_classes)
+    model = load_model_defination(args.model_name, num_channels, num_classes)
+
+    load_model(model, filename =args.evaluation_model)
 
 
-        #state_dict_parallel = torch.load(model_path)['state_dict']
-        checkpoint = torch.load(model_path)
+    #state_dict_parallel = torch.load(model_path)['state_dict']
+    #checkpoint = torch.load(model_path)
+    # if torch_parallel:
+    #     try:
+    #         model.load_state_dict(checkpoint['model_state_dict'])
+    #     except  KeyError:
+    #         model.load_state_dict(checkpoint['model']) 
+    #     # model = torch.nn.DataParallel(model).cuda()
+    #     # model.load_state_dict(state_dict_parallel)
+    # else:
+    #     new_state_dict = OrderedDict()
+    #     for k, v in torch.load(model_path)['model_state_dict'].items():
+    #         if 'module' in k:
+    #             k = k.replace('module.', '')
+    #         new_state_dict[k] = v
+    #     model.load_state_dict(new_state_dict)
+    model.eval()
+
+    temp_prediction = []
+    temp_target = []
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
+        output = model(inputs)
+
+        if args.output_type == "confidence":
+            predictions = softmax_operation(output)
+        elif args.output_type == "logit":
+            predictions = output
+
         if torch_parallel:
-            model.load_state_dict(checkpoint['model_state_dict'])
-            # model = torch.nn.DataParallel(model).cuda()
-            # model.load_state_dict(state_dict_parallel)
+            predictions = predictions.cpu().detach().numpy()
         else:
-            new_state_dict = OrderedDict()
-            for k, v in torch.load(model_path)['model_state_dict'].items():
-                if 'module' in k:
-                    k = k.replace('module.', '')
-                new_state_dict[k] = v
-            model.load_state_dict(new_state_dict)
-        model.eval()
-
-        temp_prediction = []
-        temp_target = []
-        for batch_idx, (inputs, targets) in enumerate(trainloader):
-            output = model(inputs)
-
-            if args.output_type == "confidence":
-                predictions = softmax_operation(output)
-            elif args.output_type == "logit":
-                predictions = output
-
-            if torch_parallel:
-                predictions = predictions.cpu().detach().numpy()
-            else:
-                predictions = predictions.detach().numpy()
-            temp_prediction.extend(predictions)
-            if model_counter == 0:
-                temp_target.extend(targets)
-        train_output_all[:, model_counter * num_classes:(model_counter + 1) * num_classes] = np.array(temp_prediction)
-        # Store the ground truth when processing the first model
+            predictions = predictions.detach().numpy()
+        temp_prediction.extend(predictions)
         if model_counter == 0:
-            labels_train = np.array(temp_target)
+            temp_target.extend(targets)
+    train_output_all[:, model_counter * num_classes:(model_counter + 1) * num_classes] = np.array(temp_prediction)
+    # Store the ground truth when processing the first model
+    if model_counter == 0:
+        labels_train = np.array(temp_target)
 
-        temp_prediction = []
-        temp_target = []
-        for batch_idx, (inputs, targets) in enumerate(testloader):
-            output = model(inputs)
+    temp_prediction = []
+    temp_target = []
+    for batch_idx, (inputs, targets) in enumerate(testloader):
+        output = model(inputs)
 
-            if args.output_type == "confidence":
-                predictions = softmax_operation(output)
-            elif args.output_type == "logit":
-                predictions = output
+        if args.output_type == "confidence":
+            predictions = softmax_operation(output)
+        elif args.output_type == "logit":
+            predictions = output
 
-            if torch_parallel:
-                predictions = predictions.cpu().detach().numpy()
-            else:
-                predictions = predictions.detach().numpy()
-            temp_prediction.extend(predictions)
-            if model_counter == 0:
-                temp_target.extend(targets)
-        test_output_all[:, model_counter * num_classes:(model_counter + 1) * num_classes] = np.array(temp_prediction)
-        # Store the ground truth when processing the first model
+        if torch_parallel:
+            predictions = predictions.cpu().detach().numpy()
+        else:
+            predictions = predictions.detach().numpy()
+        temp_prediction.extend(predictions)
         if model_counter == 0:
-            labels_test = np.array(temp_target)
+            temp_target.extend(targets)
+    test_output_all[:, model_counter * num_classes:(model_counter + 1) * num_classes] = np.array(temp_prediction)
+    # Store the ground truth when processing the first model
+    if model_counter == 0:
+        labels_test = np.array(temp_target)
 
-        model_counter += 1
+    #model_counter += 1
 
 
 
@@ -196,15 +202,15 @@ def main():
             print("Output type does not exist!")
             exit()
 
-        if args.attack_type == "all":
-            confidence_train_for_attack = train_conf_all[:, 0:(model_index_counter + 1) * num_classes]
-            confidence_test_for_attack = test_conf_all[:, 0:(model_index_counter + 1) * num_classes]
-        elif args.attack_type == "aggregated":
-            confidence_train_for_attack = confidence_train_for_prediction
-            confidence_test_for_attack = confidence_test_for_prediction
-        else:
-            print("Attack type is not valid!")
-            exit()
+        # if args.attack_type == "all":
+        #     confidence_train_for_attack = train_conf_all[:, 0:(model_index_counter + 1) * num_classes]
+        #     confidence_test_for_attack = test_conf_all[:, 0:(model_index_counter + 1) * num_classes]
+        # elif args.attack_type == "aggregated":
+        confidence_train_for_attack = confidence_train_for_prediction
+        confidence_test_for_attack = confidence_test_for_prediction
+        # else:
+        #     print("Attack type is not valid!")
+        #     exit()
 
         labels_train_by_model = np.argmax(confidence_train_for_prediction, axis=1)
         labels_test_by_model = np.argmax(confidence_test_for_prediction, axis=1)
@@ -300,15 +306,14 @@ def main():
         MI_y_train_all = MI_y_train_all[shuffle_index]
 
         # MI attack
-        if args.attack_type == "all":
-            attack_model = nn.Sequential(nn.Linear(num_classes * (model_index_counter + 1), 128), nn.ReLU(),
-                                         nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid())
-        elif args.attack_type == "aggregated":
-            attack_model = nn.Sequential(nn.Linear(num_classes, 128), nn.ReLU(), nn.Linear(128, 64), nn.ReLU(),
-                                         nn.Linear(64, 1), nn.Sigmoid())
-        else:
-            print("Attack type is not valid!")
-            exit()
+        # if args.attack_type == "all":
+        #     attack_model = nn.Sequential(nn.Linear(num_classes * (model_index_counter + 1), 128), nn.ReLU(),
+        #                                  nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid())
+        # elif args.attack_type == "aggregated":
+        attack_model = nn.Sequential(nn.Linear(num_classes, 128), nn.ReLU(), nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid())
+        # else:
+        #     print("Attack type is not valid!")
+        #     exit()
 
         attack_model = attack_model.cuda()
         criterion = nn.BCELoss().cuda()
@@ -342,9 +347,9 @@ def main():
             MI_blind_attack_auc = -1
 
         print("---------------------")
-        print("Ensemble of", model_index_counter + 1, "models:")
+        #print("Ensemble of", model_index_counter + 1, "models:")
         print("Train/Test accuracy:", str(np.round(acc_train*100, 2)), str(np.round(acc_test*100, 2)))
-        print(args.attack_type + " " + args.output_type + "-based MI attack AUC:", MI_attack_auc)
+        print(args.output_type + "-based MI attack AUC:", MI_attack_auc)
         print("Gap attack AUC:", MI_blind_attack_auc)
         print("---------------------")
 
