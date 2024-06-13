@@ -86,7 +86,11 @@ def load_model(net, optim=None, filename ='filename', print_info=False):
         sanatized_filename = "".join(x for x in filename if x.isalnum())
         path = './saved_models/'+sanatized_filename+'.pt'
         checkpoint = torch.load(path)
-        net.load_state_dict(checkpoint['model_state_dict'])
+        try:
+            net.load_state_dict(checkpoint['model_state_dict'])
+        except  KeyError:
+            net.load_state_dict(checkpoint['model']) 
+            
         if optim:
             optim.load_state_dict(checkpoint['optimizer_state_dict'])
         if print_info:
