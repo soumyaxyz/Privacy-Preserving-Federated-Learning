@@ -83,8 +83,15 @@ class Fl_Trainer(Executor):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         model.to(device)
 
-        dataset_name, data_index = dataset_name.split("_")
-        data_index = int(data_index)
+        dataset_parameters_list = dataset_name.split("_")
+
+        if len(dataset_parameters_list) == 2:
+            dataset_name, data_index = dataset_parameters_list
+            data_index = int(data_index)
+            split = None
+        else:
+            dataset_name, data_index, split = dataset_parameters_list
+            data_index = int(data_index)
         
 
         
@@ -92,7 +99,7 @@ class Fl_Trainer(Executor):
                 
         print(f'current working dir: {os.getcwd()}')  
         [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=num_clients, dataset_name=dataset_name, 
-                                                                                                         data_path=data_path, batch_size=32) 
+                                                                                                         data_path=data_path, batch_size=32, split=split) 
 
         train_loader = trainloader[data_index]
         valloader = valloaders[data_index]

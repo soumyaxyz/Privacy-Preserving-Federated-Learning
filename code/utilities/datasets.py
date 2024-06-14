@@ -268,7 +268,10 @@ def merge_dataloaders(trainloaders):
     return DataLoader(ConcatDataset(trn_datasets), trainloaders[0].batch_size)
 
 
-def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', data_path="~/datasets", val_percent = 10, batch_size=32) -> tuple[tuple, int, int]:
-
-    dataset = DatasetWrapper(dataset_name, data_path)
+def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', data_path="~/datasets", val_percent = 10, batch_size=32, split=None) -> tuple[tuple, int, int]:
+    if split is not None:
+        dataset = DatasetWrapper(dataset_name, data_path)
+    else:
+        dataset = IncrementalDatasetWrapper(dataset_name, data_path)
+        dataset = dataset.get_split(num_clients, split)
     return split_dataset(dataset.trainset, dataset.testset, num_clients, val_percent, batch_size), dataset.num_channels, dataset.num_classes

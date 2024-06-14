@@ -1,7 +1,7 @@
 
 # Default values
 model_name="efficientnet"
-dataset_name="CIFAR10"
+dataset_name="CIFAR100_A"
 num_rounds=10
 num_clients=2
 threads=2
