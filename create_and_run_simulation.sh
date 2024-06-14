@@ -6,7 +6,7 @@ num_rounds=10
 num_clients=2
 threads=2
 root="models/"
-weight="FL_global_model.pt"
+weight=""
 
 # Parse flagged arguments
 while getopts m:d:n:r:t:w: flag
@@ -76,9 +76,12 @@ do
 done
 
 # Add server configurations
-command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" components[0].args.source_ckpt_file_full_name=\"$modelweight\" workflows[1].args.num_rounds=$num_rounds"
+command+=" -f app_server/config_fed_server.conf components[3].args.model_name=\"$model_name\" workflows[1].args.num_rounds=$num_rounds"
 
-
+# Conditionally add the source checkpoint file argument
+if [[ -n "$weight" ]]; then
+    command+=" components[0].args.source_ckpt_file_full_name=\"$modelweight\""
+fi
 # Execute the command
 eval $command
 
