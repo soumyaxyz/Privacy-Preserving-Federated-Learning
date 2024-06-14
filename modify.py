@@ -42,7 +42,7 @@ def transform_script(script_path):
 
    
     # Write the transformed script back to the input file with Unix line endings
-    with open(script_path, 'w', newline='\n') as f:
+    with open(script_path, 'w') as f:
         f.writelines(modified_lines)
 
 
