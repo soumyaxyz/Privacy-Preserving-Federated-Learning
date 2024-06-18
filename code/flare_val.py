@@ -37,21 +37,29 @@ class Fl_Validator(Executor):
 
         self._validate_task_name = validate_task_name
 
-        dataset_name, data_index = dataset_name.split("_")
-        data_index = int(data_index)
+        dataset_parameters_list = dataset_name.split("_")
 
-        # Setup the model
-        model = load_model_defination(model_name) # SimpleNetwork()
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        model.to(device)
+        if len(dataset_parameters_list) == 2:
+            dataset_name, data_index = dataset_parameters_list
+            data_index = int(data_index)
+            split=None
+        else:
+            dataset_name, split, data_index = dataset_parameters_list
+            data_index= int(data_index)
+            split=int(split)
 
         # Preparing the dataset for testing.
         [trainloader, valloaders, testloader, _ ], num_channels, num_classes = load_partitioned_datasets(num_clients=num_clients, dataset_name=dataset_name, 
-                                                                                                        data_path=data_path, batch_size=32) 
+                                                                                                         data_path=data_path, batch_size=32,split=split) 
         
 
         train_loader = trainloader[data_index] # unused
         valloader = valloaders[data_index]    # unused
+        
+        # Setup the model
+        model = load_model_defination(model_name, num_channels, num_classes) # SimpleNetwork()
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        model.to(device)
         
         self.model_information = Trainer(model, 
                                     train_loader, 
