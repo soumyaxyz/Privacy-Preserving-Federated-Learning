@@ -72,7 +72,7 @@ command="flare job create -force -j ./jobs -w $template_dir -sd ./code/"# Loop t
 for ((i=0; i<$num_clients; i++))
 do
     app_name="app_$i"
-    command+=" -f $app_name/config_fed_client.conf executors[0].executor.args.model_name=\"$model_name\"   executors[0].executor.args.dataset_name=\"${dataset_name}_$i\"     executors[0].executor.args.num_clients=$num_clients    executors[1].executor.args.model_name=\"$model_name\"     executors[1].executor.args.dataset_name=\"${dataset_name}_$i\"    executors[0].executor.args.num_clients=$num_clients"
+    command+=" -f $app_name/config_fed_client.conf executors[0].executor.args.model_name=\"$model_name\"   executors[0].executor.args.dataset_name=\"${dataset_name}_$i\"     executors[0].executor.args.num_clients=$num_clients    executors[1].executor.args.model_name=\"$model_name\"     executors[1].executor.args.dataset_name=\"${dataset_name}_$i\"    executors[1].executor.args.num_clients=$num_clients"
 done
 
 # Add server configurations
