@@ -31,17 +31,17 @@ class IncrementalDatasetWraper():
 
     def _load_datasets(self, dataset_name):
         if dataset_name == 'incrementalCIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4],[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = True)
+            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],[16,17,18,19]], uniform_test = True)
         elif dataset_name == 'incrementaltestCIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3,4],[5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19]], uniform_test = False)
+            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],[16,17,18,19]], uniform_test = False)
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
         
-        for index, (train_subset, test_subset, num_channels, num_classes) in enumerate(data_splits):
-            modified_trainset, modified_testset = remap_dataset(self.audit_mode, train_subset, test_subset)
-            updated_split = (modified_trainset, modified_testset, num_channels, num_classes)
-            data_splits[index] = updated_split
+        # for index, (train_subset, test_subset, num_channels, num_classes) in enumerate(data_splits):
+        #     modified_trainset, modified_testset = remap_dataset(self.audit_mode, train_subset, test_subset)
+        #     updated_split = (modified_trainset, modified_testset, num_channels, num_classes)
+        #     data_splits[index] = updated_split
 
         return data_splits
         
@@ -563,4 +563,4 @@ def load_partitioned_datasets(num_clients: int, dataset_name = 'CIFAR10', data_p
         continous_datasets = IncrementalDatasetWraper(dataset_name, data_path)
         dataset = continous_datasets.splits[split]
         [train_dataset, test_dataset, num_channels, num_classes] = dataset
-        return split_dataloaders(train_dataset, test_dataset, num_clients, split_test=False,val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
+        return split_dataloaders(train_dataset, test_dataset, num_clients, split_test=False, val_percent=val_percent, batch_size=batch_size), num_channels, num_classes 
