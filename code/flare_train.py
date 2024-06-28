@@ -21,7 +21,7 @@ from pt_constants import PTConstants
 from utilities.models import load_model_defination
 
 from torch import nn
-from torch.optim import SGD
+from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, Normalize, ToTensor
@@ -99,7 +99,8 @@ class Fl_Trainer(Executor):
 
         # Training setup
         model = load_model_defination(model_name, num_channels, num_classes) 
-        optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
+        # optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
+        optimizer = Adam(model.parameters())
         criterion = nn.CrossEntropyLoss()   
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         model.to(device)

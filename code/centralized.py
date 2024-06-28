@@ -5,7 +5,7 @@ import pdb,traceback
 import numpy as np
 
 from torch import nn
-from torch.optim import SGD
+from torch.optim import Adam #, SGD
 from torch.utils.data.dataloader import DataLoader
 from torchvision.datasets import CIFAR10
 
@@ -56,7 +56,8 @@ def setup(device, wandb_logging=True, dataset_name='CIFAR10', model_name = 'basi
         wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
 
     model = load_model_defination(model_name, num_channels, num_classes) 
-    optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
+    # optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = Adam(model.parameters())
     criterion = nn.CrossEntropyLoss()   
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -76,11 +77,11 @@ def setup(device, wandb_logging=True, dataset_name='CIFAR10', model_name = 'basi
     return model_information, comment
    
 
-def train_centralized(model_information, epochs,  wandb_logging=True, savefilename="unnamed_centrailzed"):
+def train_centralized(model_information, epochs,  wandb_logging=True, savefilename="unnamed_centrailzed", no_bar = False):
     print(f"Training centralized model for {epochs} epochs")
     
 
-    model_information, val_loss, val_accuracy, _  = train(model_information, epochs, verbose=False, wandb_logging=False, round_no=None)  
+    model_information, val_loss, val_accuracy, _  = train(model_information, epochs, verbose=no_bar, wandb_logging=False, round_no=None)  
 
 
     if wandb_logging:
@@ -146,6 +147,7 @@ def main():
     parser.add_argument('-m', '--model_name', type=str, default='basicCNN', help='Model name')
     parser.add_argument('-em', '--evaluation_model', type=str, default= None, help='if provided, evaluate on this saved model')
     parser.add_argument('-dp', '--differential_privacy', action='store_true', help='Enable differential privacy')
+    parser.add_argument('-no_bar', '--no_progress_bar', action='store_true', help='diasble progress_bar')
     args = parser.parse_args()
 
     device = get_device()
@@ -165,7 +167,7 @@ def main():
 
             # if args.evaluation_model:
             #     evaluate(model_information, args.evaluation_model, args.wandb_logging)
-            model_information = train_centralized(model_information, args.num_epochs, args.wandb_logging, save_filename)
+            model_information = train_centralized(model_information, args.num_epochs, args.wandb_logging, save_filename, args.no_progress_bar)
 
 
     else: #standard mode
@@ -179,7 +181,7 @@ def main():
             evaluate(model_information, args.evaluation_model, args.wandb_logging)
         else:
             for _ in range(args.num_experiments):
-                train_centralized(model_information, args.num_epochs, args.wandb_logging, args.save_filename)
+                train_centralized(model_information, args.num_epochs, args.wandb_logging, args.save_filename, args.no_progress_bar)
         
 
 
