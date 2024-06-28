@@ -48,9 +48,9 @@ def setup(device, wandb_logging=True, dataset_name='CIFAR10', model_name = 'basi
 
     if split is not None:
         comment = comment + f'_{split}'
-        print(f'comment: {comment}')
-    else:
-        pdb.set_trace()
+        # print(f'comment: {comment}')
+    # else:
+    #     pdb.set_trace()
 
     if wandb_logging:
         wandb_init(comment=comment, model_name=model_name, dataset_name=dataset_name)
@@ -161,7 +161,7 @@ def main():
             model_information, comment = setup( device, args.wandb_logging, dataset_name, args.model_name, args.differential_privacy, split)           
 
             save_filename = comment
-            print(f"save_filename: {save_filename}")
+            # print(f"save_filename: {save_filename}")
 
             # if args.evaluation_model:
             #     evaluate(model_information, args.evaluation_model, args.wandb_logging)
