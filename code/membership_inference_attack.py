@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import confusion_matrix
 from scipy.special import softmax
 from utilities.models import load_model_defination
-from utilities.datasets import DatasetWrapper
+from utilities.datasets import DatasetWrapper, IncrementalDatasetWraper
 from utilities.training_utils import load_model
 
 torch_parallel = True
