@@ -76,8 +76,9 @@ def setup(device, wandb_logging=True, dataset_name='CIFAR10', model_name = 'basi
 def train_centralized(model_information, epochs,  wandb_logging=True, savefilename="unnamed_centrailzed"):
     print(f"Training centralized model for {epochs} epochs")
     
-    model_information, val_loss, val_accuracy, _  = train(model_information, epochs, verbose=True, wandb_logging=False, round_no=None)  
-    
+
+    model_information, val_loss, val_accuracy, _  = train(model_information, epochs, verbose=False, wandb_logging=False, round_no=None)  
+
 
     if wandb_logging:
         wandb.watch(model_information.model, log_freq=100)
