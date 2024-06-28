@@ -58,8 +58,12 @@ def print_info(device, model_name="model", dataset_name="dataset", teacher_name=
     elif no_FL:
         print(f"\n\tTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__}")
     else:
-        import nvflare
-        print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and NVFlare {nvflare.__version__}")
+        try:
+            import nvflare
+            ver = nvflare.__version__
+        except:
+            ver = ''
+        print(f"\nTraining {model_name} with {dataset_name} in {device_type} using PyTorch {torch.__version__} and NVFlare {ver}")
 
 def verify_folder_exist(path):
     if not os.path.exists(path):
@@ -170,6 +174,20 @@ class Trainer():
         self.is_binary = is_binary
         self.epochs = 50
         self.summary_writer = summary_writer
+        
+    @classmethod
+    def from_trainer(cls, existing_trainer, model=None, trainloader=None, valloader=None, testloader=None, optimizer=None, criterion=None, device=None, is_binary=None, summary_writer=None):
+        return cls(
+            model=model if model is not None else existing_trainer.model,
+            trainloader=trainloader if trainloader is not None else existing_trainer.trainloader,
+            valloader=valloader if valloader is not None else existing_trainer.valloader,
+            testloader=testloader if testloader is not None else existing_trainer.testloader,
+            optimizer=optimizer if optimizer is not None else existing_trainer.optimizer,
+            criterion=criterion if criterion is not None else existing_trainer.criterion,
+            device=device if device is not None else existing_trainer.device,
+            is_binary=is_binary if is_binary is not None else existing_trainer.is_binary,
+            summary_writer=summary_writer if summary_writer is not None else existing_trainer.summary_writer
+        )
 
 def train_single_epoch(trainer, epoch, steps, round_no = 1, verbose=False, wandb_logging=True):
     """Train the network on the training set."""
@@ -216,18 +234,26 @@ def train_single_epoch(trainer, epoch, steps, round_no = 1, verbose=False, wandb
     return epoch_loss, epoch_acc
 
 
-def test(trainer, plot_ROC=False):
+def test(trainer, mode='test', plot_ROC=False):
     """Evaluate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     trainer.model.eval()
     predictions = None
+
+    if mode =='val':
+        target_dataloader = trainer.valloader
+    elif mode =='train':
+        target_dataloader = trainer.trainloader
+    else:
+        target_dataloader = trainer.testloader
+
     try:
         # if plot_ROC:
         gold = []
         pred = []
         with torch.no_grad():
-            for images, labels in trainer.testloader:
+            for images, labels in target_dataloader:
                 images, labels = images.to(trainer.device), labels.to(trainer.device)
                 outputs = trainer.model(images)
                 loss += criterion(outputs, labels).item()                
@@ -269,7 +295,7 @@ def test(trainer, plot_ROC=False):
                         pdb.set_trace()
                 
 
-        loss /= len(trainer.testloader.dataset)
+        loss /= len(target_dataloader.dataset)
         accuracy = correct / total
         predictions = [pred, gold]  # type: ignore   
         if plot_ROC:            
@@ -341,7 +367,7 @@ def train(trainer,
             record_mode = True
         else:
             train_loss, train_acc =  train_single_epoch(trainer, epoch, steps, round_no) 
-            loss, accuracy, _ = test(trainer)
+            loss, accuracy, _ = test(trainer, mode='val')
 
             if loss_min > loss: # validation loss improved
                 patience = initial_patience
