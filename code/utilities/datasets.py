@@ -21,6 +21,16 @@ import pdb,traceback
 from typing import List
 
 
+def get_remapping(choice='ABCD', n=20):
+    # Generate initial mapping based on consecutive division
+    
+    initial_mapping = [list(range(i, min(i + n // len(choice), n))) for i in range(0, n, n // len(choice))]
+    
+    # Create a dictionary to hold the remappings
+    remapping = [initial_mapping[ord(c) - ord('A')] for c in choice]
+    
+    return remapping
+
 class IncrementalDatasetWraper():
     def __init__(self, dataset_name = 'incremental_SVHN', data_path="~/datasets", audit_mode = False, addetive_train = False):
         self.name = dataset_name
@@ -30,10 +40,15 @@ class IncrementalDatasetWraper():
             self.splits = implement_addetive_dataset(self.splits, additive_train =True)
 
     def _load_datasets(self, dataset_name):
+        try: 
+            dataset_name, remapping = dataset_name.split('=')
+        except: 
+            remapping = 'ABCD'
+        remapping = get_remapping(remapping)
         if dataset_name == 'incrementalCIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],[16,17,18,19]], uniform_test = True)
+            data_splits = load_incremental_CIFAR100(remapping=remapping, uniform_test = True)
         elif dataset_name == 'incrementaltestCIFAR100':
-            data_splits = load_incremental_CIFAR100(remapping=[[0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],[16,17,18,19]], uniform_test = False)
+            data_splits = load_incremental_CIFAR100(remapping=remapping, uniform_test = False)
         else:
             print(f'Unknown dataset name: {dataset_name}')
             raise NotImplementedError
