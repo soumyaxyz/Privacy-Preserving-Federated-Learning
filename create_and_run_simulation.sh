@@ -5,7 +5,7 @@ dataset_name="CIFAR100_0"
 num_rounds=10
 num_clients=2
 threads=2
-root="models/"
+root="saved_models/"
 weight=""
 
 # Parse flagged arguments

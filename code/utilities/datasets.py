@@ -296,25 +296,32 @@ def implement_combined_uniform_test(data_splits):
     return new_data_splits
 
 
-def get_mixing_proportions(num_classes = 20, seed_value=42):
+def get_mixing_proportions(num_classes=20, seed_value=42):
 
     # Set the seed for reproducibility
     np.random.seed(seed_value)
 
-    # Generate a random 10x10 matrix
+    # Generate a random matrix
     matrix = np.random.rand(num_classes, num_classes)
 
     # Normalize each row to sum up to 1
-    matrix_normalized = matrix / matrix.sum(axis=1)[:, np.newaxis] 
+    matrix_normalized_row = matrix / matrix.sum(axis=1)[:, np.newaxis]
+
+    # Normalize each column to sum up to 1
+    matrix_normalized = matrix_normalized_row / matrix_normalized_row.sum(axis=0)
 
     # Round the normalized matrix to 2 decimal places
     matrix_rounded = np.around(matrix_normalized, decimals=2)
 
-    # Set the last column to 1 - the sum of the other columns, adjusting for rounding errors
-    for row in matrix_rounded:
-        row[-1] = 1 - row[:-1].sum()
-        assert row.sum() == 1
+    # Adjust each row to sum to 1, correcting for rounding errors
+    for i in range(num_classes):
+        row_diff = 1 - matrix_rounded[i, :].sum()
+        matrix_rounded[i, np.argmax(matrix_rounded[i, :])] += row_diff
 
+    # Adjust each column to sum to 1, correcting for rounding errors
+    for j in range(num_classes):
+        col_diff = 1 - matrix_rounded[:, j].sum()
+        matrix_rounded[np.argmax(matrix_rounded[:, j]), j] += col_diff
 
     return matrix_rounded
 
