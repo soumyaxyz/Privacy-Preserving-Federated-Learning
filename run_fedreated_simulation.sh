@@ -10,7 +10,7 @@ num_clients=2
 threads=2
 root="saved_models/"
 weight=""
-split_count=5  # Default value for the number of iterations
+split_count=1  # Default value for the single of iterations
 
 # Parse the command-line arguments for the main script
 while getopts m:d:n:r:t:w:s: flag
@@ -46,8 +46,8 @@ do
 
    # Copy the file to the destination
    echo "Copying file to destination"
-   cp file dest
+   cp workspace/global/jobs saved_models/"filename_$i"
 
-   # Rename the output file for the next iteration
-   mv output_filename "filename_$i"
+#    # Rename the output file for the next iteration
+#    mv output_filename "filename_$i"
 done
