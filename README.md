@@ -24,3 +24,13 @@
 
 Note that run **[modify.py](https://github.com/soumyaxyz/Privacy-Preserving-Federated-Learning/blob/main/modify.py "modify.py")** can be utilized to convert the scripts for a [SLURM](https://slurm.schedmd.com/sbatch.html) managed system.
 
+### Change log
+-  Added unified interface for running MIA
+
+ - Added unified interface for running simulated Federated job
+
+		#To run a standalone job  
+		sbatch run_fedreated_simulation.sh -r 2 -n 2 -d CIFAR100 -m efficeintnet
+
+		#To run an incremental job (-s number of splits)  
+		sbatch run_fedreated_simulation.sh -r 2 -n 2 -s 4 -d incrementalCIFAR100=ABCD -m efficeintnet
