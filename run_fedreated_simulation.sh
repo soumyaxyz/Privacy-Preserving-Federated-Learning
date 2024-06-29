@@ -59,8 +59,7 @@ do
 
    # Copy the file to the destination
    echo "Copying trained model weights to saved_models"
-   cp ./workspace/simulate_jobs/app_server/local_models/FL_global_model.pt ./saved_models/FL_global_model_$i.pt
+   cp ./workspace/simulate_jobs/app_server/FL_global_model.pt ./saved_models/FL_global_model_$i.pt
 
-#    # Rename the output file for the next iteration
-#    mv output_filename "filename_$i"
+
 done
