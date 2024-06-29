@@ -5,6 +5,8 @@ wandb/
 saved_models/
 .vscode/
 .cache/
+jobs/
+workspace/
 outputs/
 temp*
 *.zip

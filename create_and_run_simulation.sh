@@ -25,9 +25,14 @@ done
 modelweight="$(pwd)/$root$weight"
 
 
-nvflare config -jt ./templates
+crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./templates
 # Base template directory
 template_dir="./templates/sag_custom"
+
+# Check if the directory 'jobs' exists
+mkdir ./jobs
+
+
 
 # Delete all subdirectories in sag_custom
 find "$template_dir" -mindepth 1 -type d -exec rm -rf {} +
@@ -68,7 +73,9 @@ cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.c
 
 
 # Base job creation command
-command="flare job create -force -j ./jobs -w $template_dir -sd ./code/"# Loop through each client and add their specific configurations
+command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code/"   
+
+# Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
 do
     app_name="app_$i"
@@ -88,4 +95,4 @@ eval $command
 echo "job created successfully!\n\n"
 
 # Run the NVFlare simulator
-nvflare simulator -n $num_clients -t $threads ./jobs -w ./workspace
+crun -p ~/envs/NVFlarev2.4.0rc8 nvflare simulator -n $num_clients -t $threads ./jobs -w ./workspace
