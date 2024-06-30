@@ -43,7 +43,7 @@ do
         dataset_name="$base_dataset_name"
     fi
 
-    experiment_name="${num_clients}_${dataset_name}_${model_name}"
+    experiment_name="${num_clients}_${model_name}_${dataset_name}"
    
     # Construct the weight flag for the -w option
     if [ $i -eq 0 ]; then
@@ -53,7 +53,7 @@ do
             weight_flag="-w $weight"
         fi
     else
-        prev_file="$experiment_name$((i-1)).pt"
+        prev_file="${experiment_name%_*}_$((i-1)).pt"
         weight_flag="-w $prev_file"
     fi
 
@@ -73,7 +73,7 @@ do
 
     # Copy and rename the file
     src_path="./workspace/$experiment_name/simulate_job/app_server/FL_global_model.pt"
-    dest_path="./saved_models/$experiment_name$i.pt"
+    dest_path="./saved_models/$experiment_name$.pt"
 
     if cp "$src_path" "$dest_path"; then
         echo "Copied and renamed the file to $dest_path"

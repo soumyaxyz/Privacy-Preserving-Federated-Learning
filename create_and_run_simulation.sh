@@ -29,8 +29,7 @@ crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./templates
 # Base template directory
 template_dir="./templates/sag_custom"
 
-experiment_name="${num_clients}_${dataset_name}_${model_name}"
-
+experiment_name="${num_clients}_${model_name}_${dataset_name}"
 
 if [ ! -d "./workspace" ]; then
     # Create the directory if it does not exist
