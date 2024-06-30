@@ -200,9 +200,13 @@ class Fl_Trainer(Executor):
         print(f'\n\nPTModelsDir: {PTConstants.PTModelsDir}')
         models_dir = os.path.join(run_dir, PTConstants.PTModelsDir)
         print (f"\n\nchecking if {models_dir} exists")
-        if not os.path.exists(models_dir):
-            print (f"\n\ncreating {models_dir} exists")
-            os.makedirs(models_dir)
+        # if not os.path.exists(models_dir):
+        #     print (f"\n\ncreating {models_dir} exists")
+        #     os.makedirs(models_dir)
+        try:
+            os.makedirs(models_dir, exist_ok=True)
+        except FileExistsError:
+            pass
         model_path = os.path.join(models_dir, PTConstants.PTLocalModelName)
 
         ml = make_model_learnable(self.model_information.model.state_dict(), {})
