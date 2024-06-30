@@ -29,8 +29,41 @@ crun -p ~/envs/NVFlarev2.4.0rc8 nvflare config -jt ./templates
 # Base template directory
 template_dir="./templates/sag_custom"
 
-# Check if the directory 'jobs' exists
-mkdir ./jobs
+experiment_name="${num_clients}_${model_name}_${dataset_name}"
+
+if [ ! -d "./workspace" ]; then
+    # Create the directory if it does not exist
+    mkdir ./workspace
+    echo "Directory 'workspace' created."
+fi
+
+if [ -d "./workspace/$experiment_name" ]; then
+    # Prompt for confirmation with a 30-second timeout
+    read -t 30 -p "Directory ./workspace/$experiment_name exists. Press 't' to terminate the process or any other key to continue with deletion: " response
+
+    # Check the response
+    if [ "$response" = "t" ] || [ "$response" = "T" ]; then
+        echo "Process terminated by user."
+        exit 1
+    else
+        echo "Deleting the existing workspace/$experiment_name directory."
+        rm -r "./workspace/$experiment_name"
+    fi
+fi
+
+
+if [ ! -d "./jobs" ]; then
+    # Create the directory if it does not exist
+    mkdir ./jobs
+    echo "Directory 'jobs' created."
+fi
+
+if [ ! -d "./jobs/$experiment_name" ]; then
+    # Create the directory if it does not exist
+    mkdir ./jobs/$experiment_name
+    echo "Directory 'jobs/$experiment_name' created."
+fi
+
 
 
 
@@ -73,7 +106,7 @@ cp "$reference_code_dir/config_fed_server.conf" "$server_dir/config_fed_server.c
 
 
 # Base job creation command
-command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs -w $template_dir -sd ./code/"   
+command="crun -p ~/envs/NVFlarev2.4.0rc8 nvflare job create -force -j ./jobs/$experiment_name -w $template_dir -sd ./code/"   
 
 # Loop through each client and add their specific configurations
 for ((i=0; i<$num_clients; i++))
@@ -95,4 +128,4 @@ eval $command
 echo "job created successfully!\n\n"
 
 # Run the NVFlare simulator
-crun -p ~/envs/NVFlarev2.4.0rc8 nvflare simulator -n $num_clients -t $threads ./jobs -w ./workspace
+crun -p ~/envs/NVFlarev2.4.0rc8 nvflare simulator -n $num_clients -t $threads ./jobs/$experiment_name -w workspace/$experiment_name
