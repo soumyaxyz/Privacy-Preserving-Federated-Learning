@@ -165,9 +165,10 @@ def main():
             save_filename = comment
             # print(f"save_filename: {save_filename}")
 
-            # if args.evaluation_model:
-            #     evaluate(model_information, args.evaluation_model, args.wandb_logging)
-            model_information = train_centralized(model_information, args.num_epochs, args.wandb_logging, save_filename, args.no_progress_bar)
+            if args.evaluation_model:
+                evaluate(model_information, args.evaluation_model, args.wandb_logging)
+            else:
+                model_information = train_centralized(model_information, args.num_epochs, args.wandb_logging, save_filename, args.no_progress_bar)
 
 
     else: #standard mode

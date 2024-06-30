@@ -28,6 +28,10 @@ do
     esac
 done
 
+
+
+
+
 # Loop to repeat the script execution
 for ((i=0; i<split_count; i++))
 do
@@ -39,27 +43,43 @@ do
         dataset_name="$base_dataset_name"
     fi
 
+    experiment_name="${num_clients}_${dataset_name}_${model_name}"
    
-   
-   # Construct the weight flag for the -w option
-   if [ $i -eq 0 ]; then
-       if [ -z "$weight" ]; then
+    # Construct the weight flag for the -w option
+    if [ $i -eq 0 ]; then
+        if [ -z "$weight" ]; then
             weight_flag=""
-       else
+        else
             weight_flag="-w $weight"
-       fi
-   else
-       prev_file="FL_global_model_$((i-1))"
-       weight_flag="-w $prev_file"
-   fi
+        fi
+    else
+        prev_file="$experiment_name$((i-1)).pt"
+        weight_flag="-w $prev_file"
+    fi
 
-   # Run the simulation script
-   echo "Running create_and_run_simulation.sh -m $model_name -d $dataset_name -n $num_clients -r $num_rounds -t $threads $weight_flag"
-   ./create_and_run_simulation.sh -m $model_name -d $dataset_name -n $num_clients -r $num_rounds -t $threads $weight_flag
+    # Run the script for the current iteration
+    echo "Running create_and_run_simulation.sh -m $model_name -d $dataset_name -n $num_clients -r $num_rounds -t $threads $weight_flag"
+    ./create_and_run_simulation.sh -m $model_name -d $dataset_name -n $num_clients -r $num_rounds -t $threads $weight_flag
 
-   # Copy the file to the destination
-   echo "Copying trained model weights to saved_models"
-   cp ./workspace/simulate_jobs/app_server/FL_global_model.pt ./saved_models/FL_global_model_$i.pt
+    
+    
 
+    if [ ! -d "./saved_models" ]; then
+        # Create the directory if it does not exist
+        mkdir ./saved_models
+        echo "Directory 'saved_models' created."
+    fi
+
+
+    # Copy and rename the file
+    src_path="./workspace/simulate_job/app_server/FL_global_model.pt"
+    dest_path="./saved_models/$experiment_name$i.pt"
+
+    if cp "$src_path" "$dest_path"; then
+        echo "Copied and renamed the file to $dest_path"
+    else
+        echo "Error: Failed to copy $src_path"
+        exit 1  # Exit the script with an error code
+    fi
 
 done
