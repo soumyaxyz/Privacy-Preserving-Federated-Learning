@@ -72,7 +72,7 @@ do
 
 
     # Copy and rename the file
-    src_path="./workspace/simulate_job/app_server/FL_global_model.pt"
+    src_path="./workspace/$experiment_name/simulate_job/app_server/FL_global_model.pt"
     dest_path="./saved_models/$experiment_name$i.pt"
 
     if cp "$src_path" "$dest_path"; then
