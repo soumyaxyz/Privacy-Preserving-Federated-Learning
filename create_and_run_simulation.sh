@@ -127,5 +127,5 @@ eval $command
 
 echo "job created successfully!\n\n"
 
-Run the NVFlare simulator
+# Run the NVFlare simulator
 crun -p ~/envs/NVFlarev2.4.0rc8 nvflare simulator -n $num_clients -t $threads ./jobs/$experiment_name -w workspace/$experiment_name
