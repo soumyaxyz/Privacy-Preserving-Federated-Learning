@@ -1,6 +1,9 @@
 # salloc -p gpu --gres=gpu:1
 # bash
 
+module load container_env pytorch-gpu
+
+
 nvflare config -jt ./templates
 
 find ./templates/sag_custom -mindepth 1 -type d -exec rm -rf {} +

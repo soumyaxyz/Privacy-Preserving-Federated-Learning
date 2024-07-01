@@ -200,6 +200,8 @@ def train_single_epoch(trainer, epoch, steps, round_no = 1, verbose=False, wandb
     running_loss = 0.0
     for i, (images, labels) in enumerate(trainer.trainloader):
         try:
+            if  len(labels) <= 1: #ignore single sample batches
+                break
             images, labels = images.to(trainer.device), labels.to(trainer.device)
             trainer.optimizer.zero_grad()
             outputs = trainer.model(images)

@@ -75,7 +75,7 @@ do
     src_path="./workspace/$experiment_name/simulate_job/app_server/FL_global_model.pt"
     dest_path="./saved_models/$experiment_name.pt"
 
-    if cp "$src_path" "$dest_path"; then
+    if cp "$src_path" "$dest_path"; then    
         echo "Copied and renamed the file to $dest_path"
     else
         echo "Error: Failed to copy $src_path"

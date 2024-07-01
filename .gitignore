@@ -3,6 +3,7 @@
 dataset/
 wandb/
 saved_models/
+templates/sag_custom/
 .vscode/
 .cache/
 jobs/
