@@ -328,15 +328,20 @@ def get_mixing_proportions(num_classes=20, seed_value=42):
     # Round the normalized matrix to 2 decimal places
     matrix_rounded = np.around(matrix_normalized, decimals=2)
 
-    # Adjust each row to sum to 1, correcting for rounding errors
-    for i in range(num_classes):
-        row_diff = 1 - matrix_rounded[i, :].sum()
-        matrix_rounded[i, np.argmax(matrix_rounded[i, :])] += row_diff
+    # # Adjust each row to sum to 1, correcting for rounding errors
+    # for i in range(num_classes):
+    #     row_diff = 1 - matrix_rounded[i, :].sum()
+    #     matrix_rounded[i, np.argmax(matrix_rounded[i, :])] += row_diff
 
-    # Adjust each column to sum to 1, correcting for rounding errors
-    for j in range(num_classes):
-        col_diff = 1 - matrix_rounded[:, j].sum()
-        matrix_rounded[np.argmax(matrix_rounded[:, j]), j] += col_diff
+    # # Adjust each column to sum to 1, correcting for rounding errors
+    # for j in range(num_classes):
+    #     col_diff = 1 - matrix_rounded[:, j].sum()
+    #     matrix_rounded[np.argmax(matrix_rounded[:, j]), j] += col_diff
+        # Set the last column to 1 - the sum of the other columns, adjusting for rounding errors
+
+    for row in matrix_rounded:
+        row[-1] = 1 - row[:-1].sum()
+        assert row.sum() == 1
 
     return matrix_rounded
 

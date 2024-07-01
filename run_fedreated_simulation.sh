@@ -3,6 +3,8 @@
 #SBATCH -c 8
 #SBATCH -p gpu --gres=gpu:1
 #SBATCH -o federated-%j.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=saham001@odu.edu
 module load container_env pytorch-gpu
 
 # Default values
@@ -73,7 +75,7 @@ do
 
     # Copy and rename the file
     src_path="./workspace/$experiment_name/simulate_job/app_server/FL_global_model.pt"
-    dest_path="./saved_models/$experiment_name$.pt"
+    dest_path="./saved_models/$experiment_name.pt"
 
     if cp "$src_path" "$dest_path"; then
         echo "Copied and renamed the file to $dest_path"

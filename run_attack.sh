@@ -4,6 +4,8 @@
 #SBATCH -p gpu 
 #SBATCH --gres gpu:1
 #SBATCH -o attack-%j.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=saham001@odu.edu
 
 module load container_env  pytorch-gpu/2.0.1
 
