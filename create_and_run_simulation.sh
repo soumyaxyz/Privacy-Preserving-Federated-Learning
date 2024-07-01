@@ -132,4 +132,4 @@ eval $command
 echo "job created successfully!\n\n"
 
 # Run the NVFlare simulator
-crun -p ~/envs/NVFlare nvflare simulator -n $num_clients -t $threads ./jobs/$experiment_name -w workspace/$experiment_name
+#crun -p ~/envs/NVFlare nvflare simulator -n $num_clients -t $threads ./jobs/$experiment_name -w workspace/$experiment_name
